@@ -2320,8 +2320,11 @@ impl Service {
                 .filter(|entry| matches!(entry.kind, project_tree::EntryKind::Worksheet))
                 .map(|entry| (entry.path.clone(), stem(&entry.path)))
                 .collect();
-            let own = slash_path(&path_for_document(&worksheet.root))
-                .strip_prefix(&format!("{}/", slash_path(&project)))
+            // On Windows one folder has several spellings (an 8.3 short name, another case):
+            // the worksheet's path inside the project is taken between canonical paths.
+            let canonical = |path: PathBuf| path.canonicalize().unwrap_or(path);
+            let own = slash_path(&canonical(path_for_document(&worksheet.root)))
+                .strip_prefix(&format!("{}/", slash_path(&canonical(project.clone()))))
                 .map(str::to_owned)
                 .unwrap_or_else(|| worksheet.root.as_str().to_owned());
             return (own, module_names(&sheets, &taken));
@@ -6399,6 +6402,13 @@ mod tests {
 
     use super::*;
     use equavela_core::plot::{PlotData, PlotDataState};
+
+    /// Whether `reported` names the directory `expected`: on Windows a temporary directory can be
+    /// spelled with its 8.3 short name or its long name.
+    fn same_dir(reported: &str, expected: &Path) -> bool {
+        let canonical = |path: &Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        canonical(Path::new(reported)) == canonical(expected)
+    }
     use std::sync::mpsc::{channel, Receiver};
     use std::time::Duration;
 
@@ -6484,10 +6494,10 @@ mod tests {
             service.environment_info(&id).unwrap().summary.kind,
             EnvironmentKind::Override
         );
-        assert_eq!(
-            service.environment_info(&id).unwrap().summary.kernel,
-            slash_path(&source)
-        );
+        assert!(same_dir(
+            &service.environment_info(&id).unwrap().summary.kernel,
+            &source
+        ));
         let preview = service
             .preview_environment_switch(&id, Some(&target))
             .unwrap();
@@ -6495,27 +6505,27 @@ mod tests {
         assert!(service
             .commit_environment_switch(&id, &preview.token)
             .is_err());
-        assert_eq!(
-            service.environment_info(&id).unwrap().summary.kernel,
-            slash_path(&source)
-        );
+        assert!(same_dir(
+            &service.environment_info(&id).unwrap().summary.kernel,
+            &source
+        ));
         service.set_worksheet_trusted(&id, false).unwrap();
         service
             .commit_environment_switch(&id, &preview.token)
             .unwrap();
-        assert_eq!(
-            service.environment_info(&id).unwrap().summary.kernel,
-            slash_path(&target)
-        );
+        assert!(same_dir(
+            &service.environment_info(&id).unwrap().summary.kernel,
+            &target
+        ));
         assert!(!lock(&service.kernels)
             .get(&kernel_key(&target))
             .unwrap()
             .manager
             .is_running());
-        assert_eq!(
-            service.undo(&id).unwrap().environment.unwrap().kernel,
-            slash_path(&source)
-        );
+        assert!(same_dir(
+            &service.undo(&id).unwrap().environment.unwrap().kernel,
+            &source
+        ));
         assert!(service
             .commit_environment_switch(&id, &preview.token)
             .is_err());
@@ -8436,10 +8446,7 @@ mod tests {
         manager.start().unwrap();
         let generation = manager.generation();
         let info = service.manage_environment(&opened.id, "resolve").unwrap();
-        assert_eq!(
-            info.summary.directory,
-            slash_path(&env.canonicalize().unwrap())
-        );
+        assert!(same_dir(&info.summary.directory, &env));
         assert!(env.join("Manifest.toml").is_file());
         assert!(manager.generation() > generation);
         service.shutdown();
@@ -10678,6 +10685,15 @@ regions:
             &root.replace("demo.eqv", "libs/helpers.eqv"),
             "/demo/libs/helpers.eqv",
         );
+        // On Windows the absolute mock path gains the drive letter (`D:/mock/environments`).
+        while let Some(at) = text.find(":/mock/") {
+            match text[..at].chars().last() {
+                Some(drive) if drive.is_ascii_alphabetic() => {
+                    text.replace_range(at - 1..at + 1, "")
+                }
+                _ => break,
+            }
+        }
         text.push('\n');
         let fixture = mock.join("demo.opened.json");
         if std::env::var_os("EQUAVELA_UPDATE_FIXTURE").is_some() {
@@ -12126,27 +12142,27 @@ regions:
         .unwrap();
         let id = service.open_worksheet(&root).unwrap().id;
         let source = source.canonicalize().unwrap();
-        assert_eq!(
-            service.environment_info(&id).unwrap().summary.kernel,
-            slash_path(&source)
-        );
+        assert!(same_dir(
+            &service.environment_info(&id).unwrap().summary.kernel,
+            &source
+        ));
 
         let destination = temp.path().join("copied-env");
         let copied = service
             .copy_worksheet_environment(&id, &destination)
             .unwrap();
         assert_eq!(copied.label.as_deref(), Some("Copy environment"));
-        assert_eq!(copied.environment.unwrap().kernel, slash_path(&destination));
+        assert!(same_dir(&copied.environment.unwrap().kernel, &destination));
         assert_eq!(
             std::fs::read(destination.join("Project.toml")).unwrap(),
             std::fs::read(source.join("Project.toml")).unwrap()
         );
 
         let undone = service.undo(&id).unwrap();
-        assert_eq!(undone.environment.unwrap().kernel, slash_path(&source));
+        assert!(same_dir(&undone.environment.unwrap().kernel, &source));
         assert!(destination.join("Project.toml").is_file());
         let redone = service.redo(&id).unwrap();
-        assert_eq!(redone.environment.unwrap().kernel, slash_path(&destination));
+        assert!(same_dir(&redone.environment.unwrap().kernel, &destination));
         assert!(destination.join("Project.toml").is_file());
         service.shutdown();
     }
