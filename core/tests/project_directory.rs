@@ -14,7 +14,8 @@ const SHEET_ID: &str = "123e4567-e89b-42d3-a456-426614174001";
 static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn temporary_directory() -> PathBuf {
-    let root = std::env::temp_dir();
+    // Canonical, so that on Windows an 8.3 short name in TEMP does not make a second spelling.
+    let root = std::env::temp_dir().canonicalize().unwrap();
     loop {
         let id = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = root.join(format!("equavela-project-test-{}-{id}", std::process::id()));

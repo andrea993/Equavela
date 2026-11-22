@@ -234,7 +234,11 @@ fn a_saved_worksheet_hands_its_directory_to_the_kernel() {
         s.worksheet_directory().as_deref(),
         Some(sandbox.dir.as_path())
     );
-    assert_eq!(s.kernel_base_dir(), sandbox.dir.to_str().map(str::to_owned));
+    // The kernel receives the directory with `/` on every platform.
+    assert_eq!(
+        s.kernel_base_dir(),
+        sandbox.dir.to_str().map(|dir| dir.replace('\\', "/"))
+    );
     recalc(&mut s);
     // the used range of the first sheet, through the whole stack.
     assert_eq!(real(&s, &root, "r1"), 6.0);
@@ -304,7 +308,8 @@ fn an_untitled_worksheet_reads_an_absolute_path() {
         "main.eqv",
         &format!(
             "format: equavela-worksheet/3\nregions:\n  - id: a\n    at: [0, 10]\n    math: 'rows(READODS(\"{}\")) ='\n",
-            path.display()
+            // A worksheet string writes a Windows path with `/`: `\` starts an escape there.
+            path.display().to_string().replace('\\', "/")
         ),
     );
     let (mut s, root) = sandbox.untitled(kernel, "readods-absolute");

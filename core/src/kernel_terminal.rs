@@ -186,6 +186,47 @@ mod tests {
         assert_eq!(shown, b"\x1b[6;1H\x1b[0m");
     }
 
+    /// `text` without its terminal control sequences (CSI `ESC [ … final` and OSC `ESC ] … BEL`).
+    fn without_escapes(text: &str) -> String {
+        let mut out = String::with_capacity(text.len());
+        let mut chars = text.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c != '\x1b' {
+                out.push(c);
+                continue;
+            }
+            match chars.next() {
+                Some('[') => {
+                    for c in chars.by_ref() {
+                        if ('@'..='~').contains(&c) {
+                            break;
+                        }
+                    }
+                }
+                Some(']') => {
+                    while let Some(c) = chars.next() {
+                        if c == '\x07' || (c == '\x1b' && chars.peek() == Some(&'\\')) {
+                            if c == '\x1b' {
+                                chars.next();
+                            }
+                            break;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn escapes_are_removed_from_terminal_text() {
+        assert_eq!(
+            without_escapes("RUNTIME_READY=\x1b[?2004h\x1b[?25ltrue\x1b[32m\x1b]0;t\x07!"),
+            "RUNTIME_READY=true!"
+        );
+    }
+
     fn wait_for(manager: &KernelManager, after: u64, expected: &str) -> (u64, String) {
         wait_for_timeout(manager, after, expected, Duration::from_secs(40))
     }
@@ -204,7 +245,9 @@ mod tests {
             sequence = snapshot.sequence;
             output.extend(snapshot.data);
             let text = String::from_utf8_lossy(&output).into_owned();
-            if text.contains(expected) {
+            // The Windows console interleaves cursor sequences with the printed text
+            // (`RUNTIME_READY=\x1b[?25ltrue`): the text is matched without them.
+            if text.contains(expected) || without_escapes(&text).contains(expected) {
                 return (sequence, text);
             }
             assert!(

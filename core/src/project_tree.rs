@@ -215,7 +215,8 @@ pub(crate) fn existing(root: &Path, path: &str) -> Result<PathBuf, String> {
         return Err(format!("`{path}` is hidden"));
     }
     let full = root.join(path);
-    let metadata = fs::symlink_metadata(&full).map_err(describe(&full))?;
+    // The message names the portable path: on Windows `full` may be a verbatim path with `\`.
+    let metadata = fs::symlink_metadata(&full).map_err(|error| format!("`{path}`: {error}"))?;
     if metadata.file_type().is_symlink() {
         return Err(format!("`{path}` is a symbolic link"));
     }
