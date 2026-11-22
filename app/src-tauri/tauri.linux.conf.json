@@ -1,0 +1,22 @@
+{
+  "bundle": {
+    "targets": [
+      "deb",
+      "appimage"
+    ],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "../../packaging/linux/equavela.desktop",
+        "files": {
+          "/usr/share/mime/packages/equavela-worksheet.xml": "../../packaging/linux/equavela-worksheet.xml"
+        }
+      },
+      "appimage": {
+        "files": {
+          "/usr/share/applications/Equavela.desktop": "../../packaging/linux/equavela.desktop",
+          "/usr/share/mime/packages/equavela-worksheet.xml": "../../packaging/linux/equavela-worksheet.xml"
+        }
+      }
+    }
+  }
+}

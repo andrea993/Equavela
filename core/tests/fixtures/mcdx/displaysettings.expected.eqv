@@ -1,0 +1,21 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 36, bottom: 72, left: 36}
+settings:
+  format.exp-threshold: 5
+  format.imaginary: j
+  format.matrix-size: "20,8"
+  format.precision: 6
+  format.radix: hexadecimal
+  format.show-indices: true
+  format.trailing-zeros: true
+  format.zero-threshold: 12
+  label-style.const.color: "#aa0000"
+  label-style.const.italic: false
+  label-style.var.bold: true
+regions:
+  - id: r1
+    page: 1
+    at: [36, 72]
+    math: "x := 2"

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Equavela
+Comment=Equavela, a scientific computing workspace
+Exec=equavela-app %F
+Icon=equavela-app
+Terminal=false
+Categories=Education;
+StartupWMClass=equavela-app
+MimeType=application/x-equavela-worksheet;application/x-equavela-portable;

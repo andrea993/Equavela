@@ -1,0 +1,6 @@
+regions 14 of 14, page breaks 0
+note page-line-format-dropped header the field of the date the file was saved prints the date the page is drawn
+note page-line-field-unknown footer the field `{nn}` has no token and is left out
+note range-definition-loop 4 a definition indexed by range variables is imported as a program that loops over them
+note range-definition-loop 8 a definition indexed by range variables is imported as a program that loops over them
+note range-definition-loop 13 a definition indexed by range variables is imported as a program that loops over them

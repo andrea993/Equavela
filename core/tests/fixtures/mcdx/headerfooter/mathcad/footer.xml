@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<footer xmlns="http://schemas.mathsoft.com/worksheet50">
+<regions>
+<region region-id="657" width="135.65" actualWidth="135.65" actualHeight="17.70" top="18.90" left="0"><text item-idref="Rfooter1"><FlowDocument xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" /></text></region>
+<region region-id="658" actualWidth="20.01" actualHeight="17.70" top="18.90" left="368.50"><fieldText><text><FlowDocument xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><Paragraph>17</Paragraph></FlowDocument></text><pageNumber template="@PageNo" /></fieldText></region>
+<region region-id="659" actualWidth="63.25" actualHeight="17.70" top="18.90" left="480"><fieldText><text><FlowDocument xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><Paragraph>C</Paragraph></FlowDocument></text><revision /></fieldText></region>
+<region region-id="660" actualWidth="63.25" actualHeight="17.70" top="18.90" left="689.76"><fieldText><text><FlowDocument xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><Paragraph>05/11/26</Paragraph></FlowDocument></text><dateSaved template="dd_mm_yy" /></fieldText></region>
+</regions>
+</footer>

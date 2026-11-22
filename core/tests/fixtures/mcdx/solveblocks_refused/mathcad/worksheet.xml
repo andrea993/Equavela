@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="47.7" actualHeight="25" top="20" left="0"><math><ml:define><ml:id>x</ml:id><ml:real>1</ml:real></ml:define></math></region>
+<region region-id="1" height="80" top="60" left="0"><solveblock><regions>
+<region region-id="10" actualWidth="40" actualHeight="20" top="0" left="0"><math><ml:id>Given</ml:id></math></region>
+<region region-id="11" actualWidth="80" actualHeight="20" top="25" left="0"><math><ml:apply><ml:equal /><ml:id>x</ml:id><ml:real>2</ml:real></ml:apply></math></region>
+</regions></solveblock></region>
+<region region-id="2" height="80" top="160" left="0"><solveblock><regions>
+<region region-id="20" actualWidth="80" actualHeight="20" top="0" left="0"><math><ml:define><ml:id>q</ml:id><ml:real>5</ml:real></ml:define></math></region>
+<region region-id="21" actualWidth="100" actualHeight="20" top="25" left="0"><math><ml:eval><ml:apply><ml:id>Find</ml:id><ml:id>x</ml:id></ml:apply></ml:eval></math></region>
+</regions></solveblock></region>
+<region region-id="3" actualWidth="47.7" actualHeight="25" top="260" left="0"><math><ml:eval><ml:id>x</ml:id></ml:eval></math></region>
+</regions>
+</worksheet>

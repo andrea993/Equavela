@@ -1,0 +1,40 @@
+[package]
+name = "equavela-core"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Core of the reference application alternative: AST, dependency graph, codegen, kernel client."
+
+[dependencies]
+# A fast hasher for the maps of the analysis: they are keyed by our own ids and names, not by
+# untrusted input, and SipHash was 7-11 % of every pass of an edit.
+foldhash = "0.2"
+# Decompresses the gzip items of an .xmcd worksheet; already in
+# the tree through `zip`.
+flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
+portable-pty = "0.9"
+getrandom = "0.3"
+# `positions` gives `Node::range`, which the specification needs to read the `FlowDocument` a field stores
+# inside the header or footer part: the text reading wants that element as an XML document of its
+# own, and the range is its source in the part.
+roxmltree = { version = "0.21.2", default-features = false, features = ["positions"] }
+serde = { version = "1", features = ["derive", "rc"] }
+serde-saphyr = "2.0.0"
+serde_json = { version = "1", features = ["float_roundtrip"] }
+# Hunspell-compatible spell checking in pure Rust, the same on Windows and Linux.
+spellbook = "0.4.2"
+thiserror = "2"
+# Reads Julia Project.toml and Manifest.toml for the environment manager.
+toml = "1"
+sha2 = "0.10"
+tempfile = "3"
+zip = { version = "9.2.2", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+[dev-dependencies]
+proptest = "1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+rustix = { version = "1.1.6", features = ["fs", "process"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }

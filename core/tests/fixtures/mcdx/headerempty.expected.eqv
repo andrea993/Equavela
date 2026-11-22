@@ -1,0 +1,9 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 36, bottom: 72, left: 36}
+regions:
+  - id: r1
+    page: 1
+    at: [50.17, 86.17]
+    math: "b := 2"

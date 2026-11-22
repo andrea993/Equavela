@@ -1,0 +1,23 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 36, bottom: 72, left: 36}
+regions:
+  - id: r1
+    page: 1
+    at: [36, 86.17]
+    text:
+      width: 300
+      text: "**Total seen at **$a$ \n\n$b := 2·a =$$V@unit$"
+  - id: r2
+    page: 1
+    at: [36, 142.87]
+    text:
+      width: 300
+      text: "With $a := 3$ and  $a + 1 =$"
+  - id: r3
+    page: 1
+    at: [36, 199.5]
+    math: "c := 1"
+    format:
+      math-font.highlight: "#fff200"

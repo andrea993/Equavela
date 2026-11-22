@@ -1,0 +1,22 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: d1
+    page: 1
+    at: [54, 72]
+    math: "x := 0..4"
+  - id: d2
+    page: 1
+    at: [54, 102]
+    math: "g := 2"
+  - id: p1
+    page: 1
+    at: [54, 140]
+    plot:
+      version: 1
+      type: xy
+      size: [360, 220]
+      traces:
+        - {id: trace-1, x: "x", y: "x^g"}

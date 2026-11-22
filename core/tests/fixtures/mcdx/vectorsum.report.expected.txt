@@ -1,0 +1,3 @@
+total 7 imported 5 page-breaks 0
+issue math-unsupported 5 `summation (vector sum with bounds)` is not imported
+issue math-unsupported 6 `product (vector sum)` is not imported

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Source of the READODS test fixtures.
+  readods.ods is the .ods LibreOffice writes from this file, and readods-stored.ods is the
+  same content with every zip entry STORED. The two commands that regenerate them, and the
+  values the tests expect, are in kernel/EqRuntime/test/ods.jl.
+ -->
+<office:document
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+    xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+    xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0"
+    office:version="1.3"
+    office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:automatic-styles>
+    <number:currency-style style:name="NCUR">
+      <number:currency-symbol number:language="de" number:country="DE">€</number:currency-symbol>
+      <number:number number:decimal-places="2" number:min-decimal-places="2"/>
+    </number:currency-style>
+    <number:number-style style:name="N2">
+      <number:number number:decimal-places="2" number:min-decimal-places="1"/>
+    </number:number-style>
+    <style:style style:name="ceNumber" style:family="table-cell" style:parent-style-name="Default" style:data-style-name="N2"/>
+    <style:style style:name="ceCurrency" style:family="table-cell" style:parent-style-name="Default" style:data-style-name="NCUR"/>
+  </office:automatic-styles>
+  <office:body>
+    <office:spreadsheet>
+      <table:table table:name="Data">
+        <table:table-column table:number-columns-repeated="5"/>
+        <table:table-row>
+          <table:table-cell office:value-type="string"><text:p>Tom &amp; Jerry &lt;1&gt;</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="1.5"><text:p>1.5</text:p></table:table-cell>
+          <table:table-cell office:value-type="boolean" office:boolean-value="true"><text:p>TRUE</text:p></table:table-cell>
+          <table:table-cell office:value-type="date" office:date-value="2024-03-15"><text:p>03/15/2024</text:p></table:table-cell>
+          <table:table-cell office:value-type="string"><text:p>five</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="float" office:value="42"><text:p>42</text:p></table:table-cell>
+          <table:table-cell office:value-type="percentage" office:value="0.25"><text:p>25%</text:p></table:table-cell>
+          <table:table-cell table:style-name="ceCurrency" office:value-type="currency" office:currency="EUR" office:value="12.5"><text:p>12.50</text:p></table:table-cell>
+          <table:table-cell office:value-type="time" office:time-value="PT13H30M0S"><text:p>13:30:00</text:p></table:table-cell>
+          <table:table-cell office:value-type="boolean" office:boolean-value="false"><text:p>FALSE</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:number-columns-repeated="5"/>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string"><text:p>far</text:p></table:table-cell>
+          <table:table-cell table:number-columns-repeated="3"/>
+          <table:table-cell office:value-type="float" office:value="7"><text:p>7</text:p></table:table-cell>
+          <table:table-cell table:number-columns-repeated="1"/>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:number-columns-spanned="2" office:value-type="float" office:value="1"><text:p>1</text:p></table:table-cell>
+          <table:covered-table-cell/>
+          <table:table-cell office:value-type="string"><text:p>next</text:p></table:table-cell>
+          <table:table-cell table:number-columns-repeated="2"/>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="ceNumber" table:formula="=SUM([.B1:.B2])" office:value-type="float" office:value="1.75"><text:p>1.75</text:p></table:table-cell>
+          <table:table-cell table:number-columns-repeated="4"/>
+        </table:table-row>
+      </table:table>
+      <table:table table:name="My sheet">
+        <table:table-column table:number-columns-repeated="27"/>
+        <table:table-row>
+          <table:table-cell office:value-type="string"><text:p>x</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="2"><text:p>2</text:p></table:table-cell>
+          <table:table-cell table:number-columns-repeated="24"/>
+          <table:table-cell office:value-type="float" office:value="99"><text:p>99</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="float" office:value="3"><text:p>3</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="4"><text:p>4</text:p></table:table-cell>
+        </table:table-row>
+      </table:table>
+    </office:spreadsheet>
+  </office:body>
+</office:document>

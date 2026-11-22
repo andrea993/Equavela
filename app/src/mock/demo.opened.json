@@ -1,0 +1,2238 @@
+{
+  "id": "ws1",
+  "root": "/demo/demo.eqv",
+  "regions": [
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m8",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m1",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m2",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m3",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m4",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m5",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m6",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m7",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m9",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m10",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m11",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m12",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m13",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m14",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m15",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m16",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m17",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m18",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m19",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m20",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m21",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "m22",
+        "instance": 0
+      },
+      "state": "pending"
+    },
+    {
+      "key": {
+        "document": "/demo/demo.eqv",
+        "region_id": "j1",
+        "instance": 0
+      },
+      "state": "pending"
+    }
+  ],
+  "texts": [
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m1",
+      "text": "L := 3.5 m@unit"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m10",
+      "text": "S(10) ="
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m11",
+      "text": "f(x) := x^2·sin(x)"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m12",
+      "text": "ⅆ[x] f(x) →"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m13",
+      "text": "∑[n ∈ 1..10] 1/n^2 ="
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m14",
+      "text": "∫[x ∈ 0..1] x^2 ="
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m15",
+      "text": "2 + 2 == 4"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m16",
+      "text": "w := missing + 1"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m17",
+      "text": "w ="
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m18",
+      "text": "v := 0, 0.5..2"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m19",
+      "text": "z := 3 + 4i"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m2",
+      "text": "q := 12 kN@unit/m@unit"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m20",
+      "text": "z ="
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m21",
+      "text": "B := identity(15)"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m22",
+      "text": "B ="
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m3",
+      "text": "M_max := q·L^2/8"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m4",
+      "text": "M_max = … kN·m"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m5",
+      "text": "A := [1, 2, 3; 4, 5, 6; 7, 8, 10]"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m6",
+      "text": "A ="
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m7",
+      "text": "\\det(A) ="
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m8",
+      "text": "k ≡ 2.5"
+    },
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "m9",
+      "text": "S(n) := program\n  s ← 0\n  for i ∈ 1..n\n    if i > 3\n      s ← s + i^k\n    else\n      s ← s + i\n  s"
+    }
+  ],
+  "diagnostics": [
+    {
+      "document": "/demo/demo.eqv",
+      "region_id": "inc1",
+      "message": "included worksheet `/demo/libs/helpers.eqv` was not found"
+    }
+  ],
+  "view": {
+    "document": "/demo/demo.eqv",
+    "page": {
+      "size": "A4",
+      "width": 595.28,
+      "height": 841.89,
+      "margins": {
+        "top": 72.0,
+        "right": 54.0,
+        "bottom": 72.0,
+        "left": 54.0
+      },
+      "header": {
+        "left": "",
+        "center": "",
+        "right": ""
+      },
+      "footer": {
+        "left": "",
+        "center": "",
+        "right": ""
+      }
+    },
+    "settings": {
+      "format.precision": "3"
+    },
+    "page_breaks": [],
+    "regions": [
+      {
+        "id": "t1",
+        "page": 1,
+        "x": 54.0,
+        "y": 72.0,
+        "enabled": true,
+        "kind": "text",
+        "text": "Simply supported beam under a uniform load",
+        "width": null,
+        "paragraphs": [
+          {
+            "runs": [
+              {
+                "kind": "text",
+                "text": "Simply supported beam under a uniform load"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "t2",
+        "page": 1,
+        "x": 54.0,
+        "y": 96.0,
+        "enabled": true,
+        "kind": "text",
+        "text": "The beam spans L. The load q acts over the whole span. The worksheet shows units and result formats.",
+        "width": null,
+        "paragraphs": [
+          {
+            "runs": [
+              {
+                "kind": "text",
+                "text": "The beam spans L. The load q acts over the whole span. The worksheet shows units and result formats."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "m1",
+        "page": 1,
+        "x": 54.0,
+        "y": 150.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "L := 3.5 m@unit",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 15
+          },
+          "type": "Define",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "L",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "rhs": {
+            "span": {
+              "start": 5,
+              "end": 15
+            },
+            "type": "Juxt",
+            "left": {
+              "span": {
+                "start": 5,
+                "end": 8
+              },
+              "type": "Num",
+              "text": "3.5"
+            },
+            "right": {
+              "span": {
+                "start": 9,
+                "end": 15
+              },
+              "type": "Ident",
+              "name": {
+                "segments": [
+                  {
+                    "text": "m",
+                    "subscript": false
+                  }
+                ],
+                "label": "unit"
+              }
+            }
+          },
+          "tail": null
+        }
+      },
+      {
+        "id": "m2",
+        "page": 1,
+        "x": 54.0,
+        "y": 180.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "q := 12 kN@unit/m@unit",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 22
+          },
+          "type": "Define",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "q",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "rhs": {
+            "span": {
+              "start": 5,
+              "end": 22
+            },
+            "type": "Juxt",
+            "left": {
+              "span": {
+                "start": 5,
+                "end": 7
+              },
+              "type": "Num",
+              "text": "12"
+            },
+            "right": {
+              "span": {
+                "start": 8,
+                "end": 22
+              },
+              "type": "Div",
+              "left": {
+                "span": {
+                  "start": 8,
+                  "end": 15
+                },
+                "type": "Ident",
+                "name": {
+                  "segments": [
+                    {
+                      "text": "kN",
+                      "subscript": false
+                    }
+                  ],
+                  "label": "unit"
+                }
+              },
+              "right": {
+                "span": {
+                  "start": 16,
+                  "end": 22
+                },
+                "type": "Ident",
+                "name": {
+                  "segments": [
+                    {
+                      "text": "m",
+                      "subscript": false
+                    }
+                  ],
+                  "label": "unit"
+                }
+              }
+            }
+          },
+          "tail": null
+        }
+      },
+      {
+        "id": "m3",
+        "page": 1,
+        "x": 54.0,
+        "y": 210.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "M_max := q·L^2/8",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 17
+          },
+          "type": "Define",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 5
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "M",
+                  "subscript": false
+                },
+                {
+                  "text": "max",
+                  "subscript": true
+                }
+              ],
+              "label": null
+            }
+          },
+          "rhs": {
+            "span": {
+              "start": 9,
+              "end": 17
+            },
+            "type": "Mul",
+            "left": {
+              "span": {
+                "start": 9,
+                "end": 10
+              },
+              "type": "Ident",
+              "name": {
+                "segments": [
+                  {
+                    "text": "q",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              }
+            },
+            "right": {
+              "span": {
+                "start": 12,
+                "end": 17
+              },
+              "type": "Div",
+              "left": {
+                "span": {
+                  "start": 12,
+                  "end": 15
+                },
+                "type": "Pow",
+                "left": {
+                  "span": {
+                    "start": 12,
+                    "end": 13
+                  },
+                  "type": "Ident",
+                  "name": {
+                    "segments": [
+                      {
+                        "text": "L",
+                        "subscript": false
+                      }
+                    ],
+                    "label": null
+                  }
+                },
+                "right": {
+                  "span": {
+                    "start": 14,
+                    "end": 15
+                  },
+                  "type": "Num",
+                  "text": "2"
+                }
+              },
+              "right": {
+                "span": {
+                  "start": 16,
+                  "end": 17
+                },
+                "type": "Num",
+                "text": "8"
+              }
+            },
+            "split": false
+          },
+          "tail": null
+        }
+      },
+      {
+        "id": "m4",
+        "page": 1,
+        "x": 260.0,
+        "y": 210.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "M_max = … kN·m",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 17
+          },
+          "type": "Evaluate",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 5
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "M",
+                  "subscript": false
+                },
+                {
+                  "text": "max",
+                  "subscript": true
+                }
+              ],
+              "label": null
+            }
+          },
+          "unit": {
+            "span": {
+              "start": 12,
+              "end": 17
+            },
+            "type": "Mul",
+            "left": {
+              "span": {
+                "start": 12,
+                "end": 14
+              },
+              "type": "Ident",
+              "name": {
+                "segments": [
+                  {
+                    "text": "kN",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              }
+            },
+            "right": {
+              "span": {
+                "start": 16,
+                "end": 17
+              },
+              "type": "Ident",
+              "name": {
+                "segments": [
+                  {
+                    "text": "m",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              }
+            },
+            "split": false
+          }
+        }
+      },
+      {
+        "id": "m5",
+        "page": 1,
+        "x": 54.0,
+        "y": 250.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "A := [1, 2, 3; 4, 5, 6; 7, 8, 10]",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 33
+          },
+          "type": "Define",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "A",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "rhs": {
+            "span": {
+              "start": 5,
+              "end": 33
+            },
+            "type": "Matrix",
+            "rows": 3,
+            "cols": 3,
+            "cells": [
+              {
+                "span": {
+                  "start": 6,
+                  "end": 7
+                },
+                "type": "Num",
+                "text": "1"
+              },
+              {
+                "span": {
+                  "start": 9,
+                  "end": 10
+                },
+                "type": "Num",
+                "text": "2"
+              },
+              {
+                "span": {
+                  "start": 12,
+                  "end": 13
+                },
+                "type": "Num",
+                "text": "3"
+              },
+              {
+                "span": {
+                  "start": 15,
+                  "end": 16
+                },
+                "type": "Num",
+                "text": "4"
+              },
+              {
+                "span": {
+                  "start": 18,
+                  "end": 19
+                },
+                "type": "Num",
+                "text": "5"
+              },
+              {
+                "span": {
+                  "start": 21,
+                  "end": 22
+                },
+                "type": "Num",
+                "text": "6"
+              },
+              {
+                "span": {
+                  "start": 24,
+                  "end": 25
+                },
+                "type": "Num",
+                "text": "7"
+              },
+              {
+                "span": {
+                  "start": 27,
+                  "end": 28
+                },
+                "type": "Num",
+                "text": "8"
+              },
+              {
+                "span": {
+                  "start": 30,
+                  "end": 32
+                },
+                "type": "Num",
+                "text": "10"
+              }
+            ]
+          },
+          "tail": null
+        }
+      },
+      {
+        "id": "m6",
+        "page": 1,
+        "x": 260.0,
+        "y": 250.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "A =",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 3
+          },
+          "type": "Evaluate",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "A",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "unit": null
+        }
+      },
+      {
+        "id": "m7",
+        "page": 1,
+        "x": 54.0,
+        "y": 320.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "\\det(A) =",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 9
+          },
+          "type": "Evaluate",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 7
+            },
+            "type": "Det",
+            "expr": {
+              "span": {
+                "start": 5,
+                "end": 6
+              },
+              "type": "Ident",
+              "name": {
+                "segments": [
+                  {
+                    "text": "A",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              }
+            }
+          },
+          "unit": null
+        }
+      },
+      {
+        "id": "m8",
+        "page": 1,
+        "x": 54.0,
+        "y": 350.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "k ≡ 2.5",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 9
+          },
+          "type": "GlobalDefine",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "k",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "rhs": {
+            "span": {
+              "start": 6,
+              "end": 9
+            },
+            "type": "Num",
+            "text": "2.5"
+          }
+        }
+      },
+      {
+        "id": "m9",
+        "page": 1,
+        "x": 54.0,
+        "y": 390.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "S(n) := program\n  s ← 0\n  for i ∈ 1..n\n    if i > 3\n      s ← s + i^k\n    else\n      s ← s + i\n  s",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 106
+          },
+          "type": "Define",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 4
+            },
+            "type": "FunctionHead",
+            "name": {
+              "name": {
+                "segments": [
+                  {
+                    "text": "S",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              },
+              "span": {
+                "start": 0,
+                "end": 1
+              }
+            },
+            "params": [
+              {
+                "name": {
+                  "segments": [
+                    {
+                      "text": "n",
+                      "subscript": false
+                    }
+                  ],
+                  "label": null
+                },
+                "span": {
+                  "start": 2,
+                  "end": 3
+                }
+              }
+            ]
+          },
+          "rhs": {
+            "span": {
+              "start": 8,
+              "end": 106
+            },
+            "type": "Program",
+            "body": [
+              {
+                "span": {
+                  "start": 18,
+                  "end": 25
+                },
+                "type": "LocalDef",
+                "target": {
+                  "span": {
+                    "start": 18,
+                    "end": 19
+                  },
+                  "type": "Ident",
+                  "name": {
+                    "segments": [
+                      {
+                        "text": "s",
+                        "subscript": false
+                      }
+                    ],
+                    "label": null
+                  }
+                },
+                "rhs": {
+                  "span": {
+                    "start": 24,
+                    "end": 25
+                  },
+                  "type": "Num",
+                  "text": "0"
+                }
+              },
+              {
+                "span": {
+                  "start": 28,
+                  "end": 102
+                },
+                "type": "For",
+                "var": {
+                  "name": {
+                    "segments": [
+                      {
+                        "text": "i",
+                        "subscript": false
+                      }
+                    ],
+                    "label": null
+                  },
+                  "span": {
+                    "start": 32,
+                    "end": 33
+                  }
+                },
+                "source": {
+                  "span": {
+                    "start": 38,
+                    "end": 42
+                  },
+                  "type": "Range",
+                  "first": {
+                    "span": {
+                      "start": 38,
+                      "end": 39
+                    },
+                    "type": "Num",
+                    "text": "1"
+                  },
+                  "second": null,
+                  "last": {
+                    "span": {
+                      "start": 41,
+                      "end": 42
+                    },
+                    "type": "Ident",
+                    "name": {
+                      "segments": [
+                        {
+                          "text": "n",
+                          "subscript": false
+                        }
+                      ],
+                      "label": null
+                    }
+                  }
+                },
+                "body": [
+                  {
+                    "span": {
+                      "start": 47,
+                      "end": 102
+                    },
+                    "type": "If",
+                    "branches": [
+                      {
+                        "kind": "if",
+                        "cond": {
+                          "span": {
+                            "start": 50,
+                            "end": 55
+                          },
+                          "type": "Gt",
+                          "left": {
+                            "span": {
+                              "start": 50,
+                              "end": 51
+                            },
+                            "type": "Ident",
+                            "name": {
+                              "segments": [
+                                {
+                                  "text": "i",
+                                  "subscript": false
+                                }
+                              ],
+                              "label": null
+                            }
+                          },
+                          "right": {
+                            "span": {
+                              "start": 54,
+                              "end": 55
+                            },
+                            "type": "Num",
+                            "text": "3"
+                          }
+                        },
+                        "body": [
+                          {
+                            "span": {
+                              "start": 62,
+                              "end": 75
+                            },
+                            "type": "LocalDef",
+                            "target": {
+                              "span": {
+                                "start": 62,
+                                "end": 63
+                              },
+                              "type": "Ident",
+                              "name": {
+                                "segments": [
+                                  {
+                                    "text": "s",
+                                    "subscript": false
+                                  }
+                                ],
+                                "label": null
+                              }
+                            },
+                            "rhs": {
+                              "span": {
+                                "start": 68,
+                                "end": 75
+                              },
+                              "type": "Add",
+                              "left": {
+                                "span": {
+                                  "start": 68,
+                                  "end": 69
+                                },
+                                "type": "Ident",
+                                "name": {
+                                  "segments": [
+                                    {
+                                      "text": "s",
+                                      "subscript": false
+                                    }
+                                  ],
+                                  "label": null
+                                }
+                              },
+                              "right": {
+                                "span": {
+                                  "start": 72,
+                                  "end": 75
+                                },
+                                "type": "Pow",
+                                "left": {
+                                  "span": {
+                                    "start": 72,
+                                    "end": 73
+                                  },
+                                  "type": "Ident",
+                                  "name": {
+                                    "segments": [
+                                      {
+                                        "text": "i",
+                                        "subscript": false
+                                      }
+                                    ],
+                                    "label": null
+                                  }
+                                },
+                                "right": {
+                                  "span": {
+                                    "start": 74,
+                                    "end": 75
+                                  },
+                                  "type": "Ident",
+                                  "name": {
+                                    "segments": [
+                                      {
+                                        "text": "k",
+                                        "subscript": false
+                                      }
+                                    ],
+                                    "label": null
+                                  }
+                                }
+                              },
+                              "split": false
+                            }
+                          }
+                        ],
+                        "span": {
+                          "start": 47,
+                          "end": 75
+                        }
+                      }
+                    ],
+                    "else": [
+                      {
+                        "span": {
+                          "start": 91,
+                          "end": 102
+                        },
+                        "type": "LocalDef",
+                        "target": {
+                          "span": {
+                            "start": 91,
+                            "end": 92
+                          },
+                          "type": "Ident",
+                          "name": {
+                            "segments": [
+                              {
+                                "text": "s",
+                                "subscript": false
+                              }
+                            ],
+                            "label": null
+                          }
+                        },
+                        "rhs": {
+                          "span": {
+                            "start": 97,
+                            "end": 102
+                          },
+                          "type": "Add",
+                          "left": {
+                            "span": {
+                              "start": 97,
+                              "end": 98
+                            },
+                            "type": "Ident",
+                            "name": {
+                              "segments": [
+                                {
+                                  "text": "s",
+                                  "subscript": false
+                                }
+                              ],
+                              "label": null
+                            }
+                          },
+                          "right": {
+                            "span": {
+                              "start": 101,
+                              "end": 102
+                            },
+                            "type": "Ident",
+                            "name": {
+                              "segments": [
+                                {
+                                  "text": "i",
+                                  "subscript": false
+                                }
+                              ],
+                              "label": null
+                            }
+                          },
+                          "split": false
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "span": {
+                  "start": 105,
+                  "end": 106
+                },
+                "type": "ExprStmt",
+                "expr": {
+                  "span": {
+                    "start": 105,
+                    "end": 106
+                  },
+                  "type": "Ident",
+                  "name": {
+                    "segments": [
+                      {
+                        "text": "s",
+                        "subscript": false
+                      }
+                    ],
+                    "label": null
+                  }
+                }
+              }
+            ]
+          },
+          "tail": null
+        }
+      },
+      {
+        "id": "m10",
+        "page": 1,
+        "x": 54.0,
+        "y": 520.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "S(10) =",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 7
+          },
+          "type": "Evaluate",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 5
+            },
+            "type": "Call",
+            "callee": {
+              "span": {
+                "start": 0,
+                "end": 1
+              },
+              "type": "Ident",
+              "name": {
+                "segments": [
+                  {
+                    "text": "S",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              }
+            },
+            "args": [
+              {
+                "type": "Expr",
+                "expr": {
+                  "span": {
+                    "start": 2,
+                    "end": 4
+                  },
+                  "type": "Num",
+                  "text": "10"
+                }
+              }
+            ]
+          },
+          "unit": null
+        }
+      },
+      {
+        "id": "m11",
+        "page": 1,
+        "x": 54.0,
+        "y": 560.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "f(x) := x^2·sin(x)",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 19
+          },
+          "type": "Define",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 4
+            },
+            "type": "FunctionHead",
+            "name": {
+              "name": {
+                "segments": [
+                  {
+                    "text": "f",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              },
+              "span": {
+                "start": 0,
+                "end": 1
+              }
+            },
+            "params": [
+              {
+                "name": {
+                  "segments": [
+                    {
+                      "text": "x",
+                      "subscript": false
+                    }
+                  ],
+                  "label": null
+                },
+                "span": {
+                  "start": 2,
+                  "end": 3
+                }
+              }
+            ]
+          },
+          "rhs": {
+            "span": {
+              "start": 8,
+              "end": 19
+            },
+            "type": "Mul",
+            "left": {
+              "span": {
+                "start": 8,
+                "end": 11
+              },
+              "type": "Pow",
+              "left": {
+                "span": {
+                  "start": 8,
+                  "end": 9
+                },
+                "type": "Ident",
+                "name": {
+                  "segments": [
+                    {
+                      "text": "x",
+                      "subscript": false
+                    }
+                  ],
+                  "label": null
+                }
+              },
+              "right": {
+                "span": {
+                  "start": 10,
+                  "end": 11
+                },
+                "type": "Num",
+                "text": "2"
+              }
+            },
+            "right": {
+              "span": {
+                "start": 13,
+                "end": 19
+              },
+              "type": "Call",
+              "callee": {
+                "span": {
+                  "start": 13,
+                  "end": 16
+                },
+                "type": "Ident",
+                "name": {
+                  "segments": [
+                    {
+                      "text": "sin",
+                      "subscript": false
+                    }
+                  ],
+                  "label": null
+                }
+              },
+              "args": [
+                {
+                  "type": "Expr",
+                  "expr": {
+                    "span": {
+                      "start": 17,
+                      "end": 18
+                    },
+                    "type": "Ident",
+                    "name": {
+                      "segments": [
+                        {
+                          "text": "x",
+                          "subscript": false
+                        }
+                      ],
+                      "label": null
+                    }
+                  }
+                }
+              ]
+            },
+            "split": false
+          },
+          "tail": null
+        }
+      },
+      {
+        "id": "m12",
+        "page": 1,
+        "x": 54.0,
+        "y": 590.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "ⅆ[x] f(x) →",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 15
+          },
+          "type": "Symbolic",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 11
+            },
+            "type": "Deriv",
+            "var": {
+              "name": {
+                "segments": [
+                  {
+                    "text": "x",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              },
+              "span": {
+                "start": 4,
+                "end": 5
+              }
+            },
+            "order": null,
+            "body": {
+              "span": {
+                "start": 7,
+                "end": 11
+              },
+              "type": "Call",
+              "callee": {
+                "span": {
+                  "start": 7,
+                  "end": 8
+                },
+                "type": "Ident",
+                "name": {
+                  "segments": [
+                    {
+                      "text": "f",
+                      "subscript": false
+                    }
+                  ],
+                  "label": null
+                }
+              },
+              "args": [
+                {
+                  "type": "Expr",
+                  "expr": {
+                    "span": {
+                      "start": 9,
+                      "end": 10
+                    },
+                    "type": "Ident",
+                    "name": {
+                      "segments": [
+                        {
+                          "text": "x",
+                          "subscript": false
+                        }
+                      ],
+                      "label": null
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "keywords": []
+        }
+      },
+      {
+        "id": "m13",
+        "page": 1,
+        "x": 54.0,
+        "y": 636.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "∑[n ∈ 1..10] 1/n^2 =",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 24
+          },
+          "type": "Evaluate",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 22
+            },
+            "type": "Sum",
+            "var": {
+              "name": {
+                "segments": [
+                  {
+                    "text": "n",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              },
+              "span": {
+                "start": 4,
+                "end": 5
+              }
+            },
+            "bounds": {
+              "lo": {
+                "span": {
+                  "start": 10,
+                  "end": 11
+                },
+                "type": "Num",
+                "text": "1"
+              },
+              "hi": {
+                "span": {
+                  "start": 13,
+                  "end": 15
+                },
+                "type": "Num",
+                "text": "10"
+              }
+            },
+            "body": {
+              "span": {
+                "start": 17,
+                "end": 22
+              },
+              "type": "Div",
+              "left": {
+                "span": {
+                  "start": 17,
+                  "end": 18
+                },
+                "type": "Num",
+                "text": "1"
+              },
+              "right": {
+                "span": {
+                  "start": 19,
+                  "end": 22
+                },
+                "type": "Pow",
+                "left": {
+                  "span": {
+                    "start": 19,
+                    "end": 20
+                  },
+                  "type": "Ident",
+                  "name": {
+                    "segments": [
+                      {
+                        "text": "n",
+                        "subscript": false
+                      }
+                    ],
+                    "label": null
+                  }
+                },
+                "right": {
+                  "span": {
+                    "start": 21,
+                    "end": 22
+                  },
+                  "type": "Num",
+                  "text": "2"
+                }
+              }
+            }
+          },
+          "unit": null
+        }
+      },
+      {
+        "id": "m14",
+        "page": 1,
+        "x": 54.0,
+        "y": 695.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "∫[x ∈ 0..1] x^2 =",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 21
+          },
+          "type": "Evaluate",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 19
+            },
+            "type": "Integral",
+            "var": {
+              "name": {
+                "segments": [
+                  {
+                    "text": "x",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              },
+              "span": {
+                "start": 4,
+                "end": 5
+              }
+            },
+            "bounds": {
+              "lo": {
+                "span": {
+                  "start": 10,
+                  "end": 11
+                },
+                "type": "Num",
+                "text": "0"
+              },
+              "hi": {
+                "span": {
+                  "start": 13,
+                  "end": 14
+                },
+                "type": "Num",
+                "text": "1"
+              }
+            },
+            "algorithm": null,
+            "body": {
+              "span": {
+                "start": 16,
+                "end": 19
+              },
+              "type": "Pow",
+              "left": {
+                "span": {
+                  "start": 16,
+                  "end": 17
+                },
+                "type": "Ident",
+                "name": {
+                  "segments": [
+                    {
+                      "text": "x",
+                      "subscript": false
+                    }
+                  ],
+                  "label": null
+                }
+              },
+              "right": {
+                "span": {
+                  "start": 18,
+                  "end": 19
+                },
+                "type": "Num",
+                "text": "2"
+              }
+            }
+          },
+          "unit": null
+        }
+      },
+      {
+        "id": "m15",
+        "page": 1,
+        "x": 54.0,
+        "y": 740.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "2 + 2 == 4",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 10
+          },
+          "type": "ExprRegion",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 10
+            },
+            "type": "Eq",
+            "left": {
+              "span": {
+                "start": 0,
+                "end": 5
+              },
+              "type": "Add",
+              "left": {
+                "span": {
+                  "start": 0,
+                  "end": 1
+                },
+                "type": "Num",
+                "text": "2"
+              },
+              "right": {
+                "span": {
+                  "start": 4,
+                  "end": 5
+                },
+                "type": "Num",
+                "text": "2"
+              },
+              "split": false
+            },
+            "right": {
+              "span": {
+                "start": 9,
+                "end": 10
+              },
+              "type": "Num",
+              "text": "4"
+            }
+          }
+        }
+      },
+      {
+        "id": "m16",
+        "page": 2,
+        "x": 54.0,
+        "y": 72.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "w := missing + 1",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 16
+          },
+          "type": "Define",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "w",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "rhs": {
+            "span": {
+              "start": 5,
+              "end": 16
+            },
+            "type": "Add",
+            "left": {
+              "span": {
+                "start": 5,
+                "end": 12
+              },
+              "type": "Ident",
+              "name": {
+                "segments": [
+                  {
+                    "text": "missing",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              }
+            },
+            "right": {
+              "span": {
+                "start": 15,
+                "end": 16
+              },
+              "type": "Num",
+              "text": "1"
+            },
+            "split": false
+          },
+          "tail": null
+        }
+      },
+      {
+        "id": "m17",
+        "page": 2,
+        "x": 54.0,
+        "y": 102.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "w =",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 3
+          },
+          "type": "Evaluate",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "w",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "unit": null
+        }
+      },
+      {
+        "id": "m18",
+        "page": 2,
+        "x": 54.0,
+        "y": 140.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "v := 0, 0.5..2",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 14
+          },
+          "type": "Define",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "v",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "rhs": {
+            "span": {
+              "start": 5,
+              "end": 14
+            },
+            "type": "Range",
+            "first": {
+              "span": {
+                "start": 5,
+                "end": 6
+              },
+              "type": "Num",
+              "text": "0"
+            },
+            "second": {
+              "span": {
+                "start": 8,
+                "end": 11
+              },
+              "type": "Num",
+              "text": "0.5"
+            },
+            "last": {
+              "span": {
+                "start": 13,
+                "end": 14
+              },
+              "type": "Num",
+              "text": "2"
+            }
+          },
+          "tail": null
+        }
+      },
+      {
+        "id": "m19",
+        "page": 2,
+        "x": 54.0,
+        "y": 170.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "z := 3 + 4i",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 11
+          },
+          "type": "Define",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "z",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "rhs": {
+            "span": {
+              "start": 5,
+              "end": 11
+            },
+            "type": "Add",
+            "left": {
+              "span": {
+                "start": 5,
+                "end": 6
+              },
+              "type": "Num",
+              "text": "3"
+            },
+            "right": {
+              "span": {
+                "start": 9,
+                "end": 11
+              },
+              "type": "Imag",
+              "text": "4",
+              "symbol": "i"
+            },
+            "split": false
+          },
+          "tail": null
+        }
+      },
+      {
+        "id": "m20",
+        "page": 2,
+        "x": 260.0,
+        "y": 170.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "z =",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 3
+          },
+          "type": "Evaluate",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "z",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "unit": null
+        }
+      },
+      {
+        "id": "m21",
+        "page": 2,
+        "x": 54.0,
+        "y": 210.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "B := identity(15)",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 17
+          },
+          "type": "Define",
+          "target": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "B",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "rhs": {
+            "span": {
+              "start": 5,
+              "end": 17
+            },
+            "type": "Call",
+            "callee": {
+              "span": {
+                "start": 5,
+                "end": 13
+              },
+              "type": "Ident",
+              "name": {
+                "segments": [
+                  {
+                    "text": "identity",
+                    "subscript": false
+                  }
+                ],
+                "label": null
+              }
+            },
+            "args": [
+              {
+                "type": "Expr",
+                "expr": {
+                  "span": {
+                    "start": 14,
+                    "end": 16
+                  },
+                  "type": "Num",
+                  "text": "15"
+                }
+              }
+            ]
+          },
+          "tail": null
+        }
+      },
+      {
+        "id": "m22",
+        "page": 2,
+        "x": 54.0,
+        "y": 240.0,
+        "enabled": true,
+        "kind": "math",
+        "text": "B =",
+        "statement": {
+          "span": {
+            "start": 0,
+            "end": 3
+          },
+          "type": "Evaluate",
+          "expr": {
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "type": "Ident",
+            "name": {
+              "segments": [
+                {
+                  "text": "B",
+                  "subscript": false
+                }
+              ],
+              "label": null
+            }
+          },
+          "unit": null
+        },
+        "format": {
+          "format.matrix-display": "table"
+        }
+      },
+      {
+        "id": "inc1",
+        "page": 2,
+        "x": 54.0,
+        "y": 470.0,
+        "enabled": true,
+        "kind": "include",
+        "path": "libs/helpers.eqv"
+      },
+      {
+        "id": "j1",
+        "page": 2,
+        "x": 54.0,
+        "y": 520.0,
+        "enabled": true,
+        "kind": "julia",
+        "block": {
+          "playing": true,
+          "using": [
+            "LinearAlgebra"
+          ],
+          "imports": [],
+          "code": "spectral(M) = maximum(abs.(eigvals(M)))",
+          "defines": [
+            "spectral"
+          ]
+        }
+      }
+    ],
+    "can_undo": false,
+    "can_redo": false,
+    "undo_label": null,
+    "redo_label": null,
+    "trusted": false
+  },
+  "revision": 0,
+  "environment": {
+    "kind": "shared",
+    "directory": "/mock/environments/DefaultEnv",
+    "absolute": false,
+    "kernel": "/mock/environments/DefaultEnv"
+  }
+}

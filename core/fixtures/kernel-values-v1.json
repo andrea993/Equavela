@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "finite-real",
+      "value": { "type": "real", "value": 1.25 }
+    },
+    {
+      "name": "non-finite-real",
+      "value": { "type": "real", "value": "-infinity" }
+    },
+    {
+      "name": "complex",
+      "value": { "type": "complex", "real": 2.5, "imag": -3.0 }
+    },
+    {
+      "name": "unicode-string",
+      "value": { "type": "string", "value": "velocità α" }
+    },
+    {
+      "name": "acceleration",
+      "value": {
+        "type": "quantity",
+        "magnitude": { "type": "real", "value": 9.81 },
+        "dimension": [
+          { "base": "length", "power": [1, 1] },
+          { "base": "time", "power": [-2, 1] }
+        ]
+      }
+    },
+    {
+      "name": "inline-column-major-matrix",
+      "value": {
+        "type": "matrix",
+        "rows": 2,
+        "cols": 2,
+        "storage": {
+          "type": "inline",
+          "values": [
+            { "type": "real", "value": 1.0 },
+            { "type": "real", "value": 2.0 },
+            { "type": "real", "value": 3.0 },
+            { "type": "real", "value": 4.0 }
+          ]
+        }
+      }
+    },
+    {
+      "name": "nested-and-mixed-matrix",
+      "value": {
+        "type": "matrix",
+        "rows": 3,
+        "cols": 1,
+        "storage": {
+          "type": "inline",
+          "values": [
+            { "type": "string", "value": "label" },
+            {
+              "type": "quantity",
+              "magnitude": { "type": "real", "value": 0.5 },
+              "dimension": [
+                { "base": "time", "power": [1, 1] }
+              ]
+            },
+            {
+              "type": "matrix",
+              "rows": 1,
+              "cols": 2,
+              "storage": {
+                "type": "inline",
+                "values": [
+                  { "type": "complex", "real": 1.0, "imag": 2.0 },
+                  { "type": "real", "value": "nan" }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "opaque-handle",
+      "value": {
+        "type": "handle",
+        "id": "h-17",
+        "julia_type": "Example.Model",
+        "summary": "Example.Model(3 parameters)"
+      }
+    }
+  ]
+}

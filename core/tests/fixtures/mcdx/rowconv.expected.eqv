@@ -1,0 +1,29 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 36, bottom: 72, left: 36}
+regions:
+  - id: r1
+    page: 1
+    at: [36, 72]
+    math: "r := M⟪1⟫"
+  - id: r2
+    page: 1
+    at: [36, 147]
+    math: "(A + B)⟪0⟫ᵀ ="
+  - id: r3
+    page: 1
+    at: [36, 222]
+    math: "c := convolve(u, h(t))"
+  - id: r4
+    page: 1
+    at: [36, 297]
+    math: "∂[x] f(x, y) ="
+  - id: r5
+    page: 1
+    at: [36, 372]
+    math: "∂[y^2] x·y^3 ="
+  - id: r6
+    page: 1
+    at: [36, 447]
+    math: "2 ∈ v ="

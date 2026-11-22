@@ -1,0 +1,21 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: "v := ([a, b, c] ← [1, 2, 3])ᵀ"
+  - id: r2
+    page: 1
+    at: [54, 102]
+    math: "y := g(x)/(z ← 3)"
+  - id: r3
+    page: 1
+    at: [54, 132]
+    math: "w := g(x)/(z ← 3)"
+  - id: r4
+    page: 1
+    at: [54, 162]
+    math: "u := (z ← 3) + 1"

@@ -1,0 +1,154 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+  header: {center: Beam under a uniform load, right: "Page {page}"}
+  footer: {left: "{file}", right: "Checked {date}"}
+settings:
+  format.precision: 3
+regions:
+  - id: t1
+    page: 1
+    at: [54, 72]
+    text: Print fixture - beam under a uniform load
+  - id: b1
+    page: 1
+    at: [54, 99]
+    text:
+      width: full
+      text: "Full-width text block: it spans from the left margin to the right margin whatever the page size, and it wraps onto a second line when the words do not fit on the first one."
+  - id: t2
+    page: 1
+    at: [54, 165]
+    text: A paragraph of ordinary width. The load q acts over the whole span L, and results follow the reference application conventions.
+  - id: m1
+    page: 1
+    at: [54, 228]
+    math: "L := 3.5 m@unit"
+  - id: m2
+    page: 1
+    at: [54, 258]
+    math: "q := 12 kN@unit/m@unit"
+  - id: m3
+    page: 1
+    at: [54, 288]
+    math: "M_max := q·L^2/8"
+  - id: m4
+    page: 1
+    at: [260, 288]
+    math: "M_max ="
+  - id: m5
+    page: 1
+    at: [54, 330]
+    math: "A := [1, 2, 3; 4, 5, 6; 7, 8, 10]"
+  - id: m6
+    page: 1
+    at: [300, 330]
+    math: "A ="
+  - id: m7
+    page: 1
+    at: [54, 396]
+    math: '\det(A) ='
+  - id: m8
+    page: 1
+    at: [54, 432]
+    math: "x := 0..4"
+  - id: m9
+    page: 1
+    at: [180, 432]
+    math: "g := 2"
+  - id: p1
+    page: 1
+    at: [54, 474]
+    plot:
+      version: 1
+      type: xy
+      size: [360, 220]
+      axes:
+        x: {title: Time (s)}
+        y: {title: Level}
+        y2: {scale: log10, min: 1, max: 1000, title: Secondary}
+      traces:
+        - {id: trace-1, x: "x", y: "x^g"}
+        - {id: trace-2, x: "x", y: "10^(x/2)", y_axis: right}
+  - id: t3
+    page: 2
+    at: [54, 72]
+    text: Second page
+  - id: m10
+    page: 2
+    at: [54, 105]
+    math: "k := 2.5"
+  - id: m11
+    page: 2
+    at: [54, 135]
+    math: "k^2 ="
+  - id: i1
+    page: 2
+    at: [54, 180]
+    image:
+      resource: img1
+      size: [180, 90]
+  - id: i2
+    page: 2
+    at: [270, 180]
+    image:
+      resource: img2
+      size: [150, 75]
+  - id: ar1
+    page: 2
+    at: [54, 300]
+    area:
+      title: Collapsed inputs
+      height: 90
+      collapsed: true
+  - id: hm
+    page: 2
+    at: [54, 330]
+    math: "hidden_marker := 41"
+  - id: am
+    page: 2
+    at: [54, 400]
+    math: "after_area := hidden_marker + 1"
+  - id: ar_res
+    page: 2
+    at: [54, 430]
+    math: "after_area ="
+resources:
+  img1:
+    media: svg
+    text: |
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="240" height="120" viewBox="0 0 240 120"><rect x="2" y="2" width="236" height="116" fill="#eef4ff" stroke="#1f4e9c" stroke-width="3"/><circle cx="70" cy="60" r="34" fill="#f2b134"/><polygon points="130,96 170,24 210,96" fill="#2c7a4b"/></svg>
+  img2:
+    media: png
+    base64: |
+      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
+      SUVORK5CYII=

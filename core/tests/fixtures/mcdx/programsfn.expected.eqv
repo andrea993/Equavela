@@ -1,0 +1,31 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: |
+      Z(A, Q, T) := program
+        g(x) ← x·Q + T
+        g(A)
+  - id: r2
+    page: 1
+    at: [54, 102]
+    math: |
+      F(n) := program
+        fact(k) ← program
+          if k ≤ 1
+            1
+          else
+            k·fact(k - 1)
+        fact(n)
+  - id: r3
+    page: 1
+    at: [54, 132]
+    math: |
+      P(n) := program
+        g() ← n + 1
+        if n > 0
+          g()

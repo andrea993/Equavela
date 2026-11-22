@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="47.7" actualHeight="25" top="20" left="0"><math><ml:define><ml:id>a</ml:id><ml:real>1</ml:real></ml:define></math></region>
+<region region-id="1" height="1" top="100" left="0"><Area IsCollapsed="true"><regions><region region-id="10" actualWidth="60" actualHeight="25" top="20" left="10"><math><ml:define><ml:id>b</ml:id><ml:apply><ml:plus /><ml:id>a</ml:id><ml:real>1</ml:real></ml:apply></ml:define></math></region><region region-id="11" actualWidth="60" actualHeight="25" top="60" left="10"><math><ml:define><ml:id>c</ml:id><ml:apply><ml:plus /><ml:id>b</ml:id><ml:real>1</ml:real></ml:apply></ml:define></math></region></regions></Area></region>
+<region region-id="2" actualWidth="60" actualHeight="25" top="140" left="0"><math><ml:define><ml:id>d</ml:id><ml:apply><ml:plus /><ml:id>c</ml:id><ml:real>1</ml:real></ml:apply></ml:define></math></region>
+<region region-id="3" height="90" top="300" left="0"><Area IsCollapsed="false" Title="Results"><regions><region region-id="30" actualWidth="60" actualHeight="25" top="10" left="0"><math><ml:define><ml:id>e</ml:id><ml:id>d</ml:id></ml:define></math></region><region region-id="31" height="20" top="50" left="0"><Area IsCollapsed="false"><regions /></Area></region></regions></Area></region>
+</regions>
+</worksheet>

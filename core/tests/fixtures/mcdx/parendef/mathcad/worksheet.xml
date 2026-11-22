@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="200" actualHeight="30" top="0" left="0"><math><ml:define><ml:id>v</ml:id><ml:apply><ml:transpose /><ml:parens><ml:localDefine><ml:matrix rows="1" cols="3"><ml:id>a</ml:id><ml:id>b</ml:id><ml:id>c</ml:id></ml:matrix><ml:matrix rows="1" cols="3"><ml:real>1</ml:real><ml:real>2</ml:real><ml:real>3</ml:real></ml:matrix></ml:localDefine></ml:parens></ml:apply></ml:define></math></region>
+<region region-id="1" actualWidth="200" actualHeight="30" top="40" left="0"><math><ml:define><ml:id>y</ml:id><ml:apply><ml:div /><ml:apply><ml:id>g</ml:id><ml:sequence><ml:id>x</ml:id></ml:sequence></ml:apply><ml:parens><ml:localDefine><ml:id>z</ml:id><ml:real>3</ml:real></ml:localDefine></ml:parens></ml:apply></ml:define></math></region>
+<region region-id="2" actualWidth="200" actualHeight="30" top="80" left="0"><math><ml:define><ml:id>w</ml:id><ml:apply><ml:div /><ml:apply><ml:id>g</ml:id><ml:sequence><ml:id>x</ml:id></ml:sequence></ml:apply><ml:localDefine><ml:id>z</ml:id><ml:real>3</ml:real></ml:localDefine></ml:apply></ml:define></math></region>
+<region region-id="3" actualWidth="200" actualHeight="30" top="120" left="0"><math><ml:define><ml:id>u</ml:id><ml:apply><ml:plus /><ml:localDefine><ml:id>z</ml:id><ml:real>3</ml:real></ml:localDefine><ml:real>1</ml:real></ml:apply></ml:define></math></region>
+</regions>
+</worksheet>

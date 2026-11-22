@@ -1,0 +1,770 @@
+/* Math and results. Layout is inline flow with inline-blocks for tall constructs; font sizes
+   and line heights are whole CSS px (R7); all rules and fences are SVG with strokes of at
+   least 1 pt (R5). Fonts: STIX Two Text for names and numbers, "MC Math" (STIX Two Math)
+   for operators and symbols; both bundled, no fallbacks.
+
+   The region's math font size is `--fs`: a math
+   region sets it inline and everything derived from it — superscripts, big operators, string
+   literals — is a ratio of it, so the whole box grows with the size. The default is the reference application's
+   11 pt. */
+
+.math {
+  /* the reference application's default math size, 11 pt. */
+  --fs: calc(44px / 3);
+  /* Unit names: bold italic and blue, as the reference application's default unit label style. A solid colour
+     (no transparency) so that screen and print are identical. */
+  --unit-color: #1d3a99;
+  display: inline-block;
+  font-family: "STIX Two Text", "MC Math";
+  font-size: var(--fs);
+  line-height: 18px;
+  white-space: nowrap;
+  /* The region's math font colour: a variable, so the red of a failed region still wins
+     (`.region.state-error .math`) and a region without a colour draws black. */
+  color: var(--math-color, #000000);
+}
+
+.math svg {
+  overflow: visible;
+}
+
+/* names and numbers */
+.id {
+  font-style: italic;
+}
+.id.up,
+.up {
+  font-style: normal;
+}
+.unit {
+  color: var(--unit-color);
+  font-weight: 700;
+}
+.diff {
+  font-family: "STIX Two Text";
+  font-style: normal;
+}
+.num-lit {
+  font-style: normal;
+}
+.str {
+  font-family: "Noto Sans";
+  font-size: calc(var(--fs) * 0.9375);
+}
+.name {
+  white-space: nowrap;
+}
+/* The `Given` keyword of a solve block: upright and bold, not a variable. */
+.name.kw {
+  font-family: "STIX Two Text", serif;
+  font-style: normal;
+  font-weight: 700;
+}
+
+/* Label styles of the worksheet: the colour the
+   worksheet gives a name's label. The colour arrives as a custom property of the sheet and only
+   when it differs from the built-in one, so a worksheet that stores nothing draws what it always
+   drew. The selector is two classes deep and the failure rules below are three, so the red of a
+   failed region still wins over any label colour. */
+.name[data-label="var"] {
+  color: var(--label-var-color, currentColor);
+}
+.name[data-label="const"] {
+  color: var(--label-const-color, #556b2f);
+}
+.name[data-label="fn"] {
+  color: var(--label-fn-color, currentColor);
+}
+.name[data-label="unit"] {
+  color: var(--label-unit-color, var(--unit-color));
+}
+.name[data-label="sys"] {
+  color: var(--label-sys-color, currentColor);
+}
+.name[data-label="kw"] {
+  color: var(--label-kw-color, currentColor);
+}
+
+/* operators */
+.op {
+  font-family: "MC Math";
+  font-style: normal;
+  padding: 0 3px;
+}
+.op.define,
+.op.global,
+.op.evaluate,
+.op.local,
+.op.symbolic {
+  padding: 0 4px;
+}
+.op.times,
+.op.binary,
+.op.rel {
+  padding: 0 3px;
+}
+.op.prefix {
+  padding: 0 1px 0 0;
+}
+.op.range {
+  padding: 0 2px;
+}
+.op.booleq {
+  display: inline-block;
+  padding: 0 3px;
+  vertical-align: -1px;
+}
+.op.booleq svg {
+  display: block;
+}
+.comma {
+  padding-right: 3px;
+}
+.postfix {
+  font-family: "STIX Two Text";
+}
+.prime {
+  font-family: "MC Math";
+}
+.juxt {
+  display: inline-block;
+  width: 4px;
+}
+/* An equation break is a forced line break: the lines stack
+   inside the innermost inline-block, a fence or the region, left aligned. The arrow is a subtle
+   gray editing aid (screen only); the continuation line is indented a little. */
+br.eq-break {
+  line-height: inherit;
+}
+.eq-break-arrow {
+  color: #9aa1b0;
+  /* The bundled math font carries the return arrow, also inside a string run. */
+  font-family: "MC Math";
+  font-size: 0.8em;
+  margin-left: 2px;
+  user-select: none;
+}
+.eq-break-indent {
+  display: inline-block;
+  width: 1.5em;
+}
+/* A fence that holds broken lines is centred on the math axis, as the reference application draws it. */
+.fenced.multiline {
+  vertical-align: middle;
+}
+
+/* symbolic arrow with its keywords above */
+.op.symbolic.keyed {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  padding: 0 4px;
+}
+/* One keyword line per group, stacked above the arrow, applied top to bottom. */
+.keywords {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: "STIX Two Text";
+  font-size: calc(var(--fs) * 0.6875);
+  line-height: calc(var(--fs) * 0.8125);
+}
+.keyword-line {
+  white-space: nowrap;
+}
+.op.symbolic.keyed .arrow {
+  font-family: "MC Math";
+  line-height: calc(var(--fs) * 0.875);
+}
+
+/* sub and superscripts */
+.sup,
+.sub {
+  font-size: calc(var(--fs) * 0.6875);
+  line-height: calc(var(--fs) * 0.6875);
+}
+.sup {
+  vertical-align: 7px;
+}
+.sub {
+  vertical-align: -4px;
+}
+.sup .sup,
+.sup .sub,
+.sub .sup,
+.sub .sub {
+  font-size: calc(var(--fs) * 0.5);
+  line-height: calc(var(--fs) * 0.5);
+}
+/* A literal subscript is drawn in the style of its name: italic like `.id`,
+   upright where the name's letters are (`.up`: a function, a Greek unit). */
+.sub.lit {
+  font-style: italic;
+}
+.sub.lit.up {
+  font-style: normal;
+}
+/* An index of a name that already has a literal subscript (a_b[i]) is a second-level
+   subscript: smaller and lower than the literal subscript, so the element index is not read
+   as part of the name. */
+.sub.idx.nested {
+  font-size: calc(var(--fs) * 0.5);
+  line-height: calc(var(--fs) * 0.5);
+  vertical-align: -9px;
+}
+.sup > .sup,
+.sup > .node > .sup {
+  vertical-align: 5px;
+}
+/* An exponent on a tall base (a fraction in parentheses, a matrix) sits at the base's top right,
+   its baseline just above the top of the base, as the reference application draws it. The flex box
+   keeps the base's baseline as the line's. */
+.pow.tall {
+  display: inline-flex;
+  align-items: flex-start;
+}
+.pow.tall > .sup {
+  margin-top: -5px;
+}
+
+/* fractions: equal rows around the bar keep the bar on the math axis */
+.frac {
+  display: inline-grid;
+  grid-template-rows: 1fr 4px 1fr;
+  justify-items: center;
+  vertical-align: middle;
+  margin: 0 2px;
+}
+.frac > .num,
+.frac > .den {
+  padding: 0 3px;
+}
+.frac > .num {
+  align-self: end;
+}
+.frac > .den {
+  align-self: start;
+}
+/* The bar is out of flow so that its width never counts toward the fraction's width. */
+.frac > .bar-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 4px;
+}
+/* Only the fraction's own rule: an absolute value inside a fraction is also `.bar` (a fence kind)
+   and must stay in flow. */
+.frac > .bar-wrap > .bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 4px;
+}
+
+/* fences stretch with their content (SVG, non-scaling stroke) */
+.fenced {
+  display: inline-block;
+  position: relative;
+  padding: 0 7px;
+  vertical-align: baseline;
+}
+.fenced.bar,
+.fenced.dbar {
+  padding: 0 6px;
+}
+.fence-side {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  height: calc(100% - 2px);
+}
+.fence-side.left {
+  left: 0;
+}
+.fence-side.right {
+  right: 0;
+}
+.fenced.call {
+  padding: 0 7px 0 7px;
+}
+
+/* matrices */
+.matrix {
+  display: inline-block;
+  position: relative;
+  padding: 2px 8px;
+  vertical-align: middle;
+}
+.matrix .fence-side {
+  top: 0;
+  bottom: 0;
+  height: 100%;
+}
+.matrix-grid {
+  display: inline-grid;
+  column-gap: 12px;
+  row-gap: 3px;
+  justify-items: center;
+  align-items: baseline;
+  vertical-align: middle;
+}
+.matrix-grid .cell {
+  white-space: nowrap;
+}
+/* the specification : a table is a matrix without brackets, with a rule under its names and
+   under its units; the units are drawn in the unit colour. */
+.matrix.table {
+  padding: 2px 4px;
+}
+.matrix.table .matrix-grid {
+  row-gap: 0;
+  column-gap: 0;
+}
+.matrix.table .cell {
+  padding: 2px 10px;
+}
+.matrix.table .cell.table-name {
+  border-bottom: 1px solid currentColor;
+}
+.matrix.table.with-units .cell.table-unit {
+  border-bottom: 1px solid currentColor;
+}
+.matrix.table .cell.table-unit,
+.matrix.table .cell.table-unit .name {
+  color: var(--unit-color);
+  font-style: normal;
+}
+/* A display-only ellipsis cell: the glyph itself, centred in its own
+   cell like any other one-line entry, in the bundled math font that has `⋯ ⋮ ⋱`
+   : screen and print draw the same. It is not a placeholder and gets no box. */
+.matrix-grid .cell .ellipsis-cell {
+  font-family: "MC Math";
+  font-style: normal;
+  color: inherit;
+}
+
+/* roots, over rules */
+.root {
+  display: inline-block;
+  position: relative;
+  padding-left: 12px;
+  vertical-align: baseline;
+}
+.root .radical {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+}
+.root .radicand {
+  display: inline-block;
+  position: relative;
+  padding-top: 3px;
+}
+.root .over-rule,
+.overline .over-rule {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 4px;
+}
+.root-index {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.overline,
+.vectorize {
+  display: inline-block;
+  position: relative;
+  padding-top: 3px;
+}
+/* the arrow is as wide as its operand; the head keeps its size (`VectorizeArrow`). */
+.vec-arrow {
+  position: absolute;
+  left: 0;
+  top: -5px;
+  width: 100%;
+  height: 6px;
+}
+
+/* big operators */
+.bigop {
+  display: inline-grid;
+  justify-items: center;
+  vertical-align: middle;
+  margin-right: 3px;
+}
+.bigop-glyph {
+  font-family: "MC Math";
+  font-size: calc(var(--fs) * 1.625);
+  line-height: calc(var(--fs) * 1.75);
+}
+.bigop-upper,
+.bigop-lower {
+  font-size: calc(var(--fs) * 0.75);
+  line-height: calc(var(--fs) * 0.875);
+  white-space: nowrap;
+}
+.opbody {
+  padding-left: 2px;
+}
+.integral {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  /* room above and below the sign for the bounds, so they never reach the next line. */
+  padding: calc(var(--fs) * 0.3) 0;
+}
+.int-glyph {
+  font-family: "MC Math";
+  font-size: calc(var(--fs) * 1.875);
+  line-height: calc(var(--fs) * 1.875);
+}
+/* the bounds sit as in LaTeX: the upper one just after the top of the sign, the lower one
+   tucked under its slant, closer to the sign, and the two further apart than the sign is high. */
+.int-bounds {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-self: stretch;
+  font-size: calc(var(--fs) * 0.6875);
+  line-height: calc(var(--fs) * 0.8125);
+  margin: calc(var(--fs) * -0.3) 0;
+}
+.int-hi {
+  /* only the lower bound tucks under the slant. The upper bound's
+     descenders and subscripts must stay clear of the sign's top hook. */
+  margin-left: calc(var(--fs) * 0.12);
+}
+.int-lo {
+  margin-left: calc(var(--fs) * -0.62);
+}
+.differential {
+  padding-left: 4px;
+}
+.limit {
+  display: inline-grid;
+  justify-items: center;
+  vertical-align: middle;
+  margin-right: 3px;
+}
+.limit-under {
+  font-size: calc(var(--fs) * 0.75);
+  line-height: calc(var(--fs) * 0.875);
+}
+
+/* placeholder */
+.ph {
+  display: inline-block;
+  width: calc(var(--fs) * 0.5);
+  height: calc(var(--fs) * 0.6875);
+  margin: 0 2px;
+  background: #b9c0cb;
+  vertical-align: baseline;
+}
+
+/* an empty placeholder is an editing aid: not printed */
+@media print {
+  .ph {
+    visibility: hidden;
+  }
+}
+
+/* programs */
+.prog,
+.prog-body {
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+  /* The paddings of a program are ratios of the region's size, like every other distance of the math
+     : 9 px, 14 px and 6 px at the default 11 pt (--fs = 44/3 px). */
+  padding-left: calc(var(--fs) * 0.6136);
+}
+.prog-body {
+  display: block;
+  margin-left: calc(var(--fs) * 0.9545);
+}
+.prog-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+}
+.prog-lines {
+  display: block;
+}
+.line,
+.block,
+.branch {
+  display: block;
+  white-space: nowrap;
+}
+.kw {
+  font-family: "STIX Two Text";
+  font-weight: 700;
+  padding-right: calc(var(--fs) * 0.4091);
+}
+
+/* results */
+.result {
+  display: inline;
+}
+.result.stale,
+.result.pending {
+  color: #8a93a1;
+}
+.unit-slot {
+  padding-left: 4px;
+}
+.unit-text {
+  font-family: "STIX Two Text";
+  font-style: italic;
+  font-weight: 700;
+  color: var(--unit-color);
+}
+.unit-text .sup {
+  font-style: normal;
+}
+.handle {
+  font-family: "Noto Sans";
+  font-size: calc(var(--fs) * 0.8125);
+}
+
+.result-matrix-wrap {
+  display: inline-block;
+  vertical-align: middle;
+}
+/* The box of a clipped matrix holds its corner handle: the
+   handle is positioned against this box, so it sits on the bottom-right corner of the matrix and
+   not of the unit label that follows it (`.resize-handle.corner` in page.css sets the rest). */
+.result-matrix-box {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+/* a clipped classic matrix has its brackets on the edges of its box, whole,
+   whatever part is scrolled into view; the matrix inside keeps only its vertical padding. */
+.result-matrix-box.bracketed {
+  padding: 0 8px;
+}
+.result-matrix-box.bracketed > .fence-side {
+  top: 0;
+  bottom: 0;
+  height: 100%;
+}
+.matrix.result-matrix.in-box {
+  padding: 2px 0;
+}
+/* The scrolling box takes the keyboard to scroll with the arrow keys, but a press on its scroll bar
+   must not draw the engine's focus ring around the whole box. */
+.result-matrix-scroll:focus,
+.result-matrix-scroll:focus-visible {
+  outline: none;
+}
+/* A large classic matrix sits in a box: it is clipped with scroll bars here and
+   printed clipped too, so the sheet and the PDF show the same box. A small matrix keeps its natural
+   size and gets no box at all. */
+.result-matrix-scroll {
+  display: inline-block;
+  max-width: var(--region-max-w, 560px);
+  max-height: 240px;
+  overflow: auto;
+  vertical-align: middle;
+  /* the clipped matrix, its brackets and its padding stay inside the box. */
+  contain: paint;
+}
+/* A stored box: its own width and height in points, so neither the
+   default maximum nor the default height applies; the matrix still scrolls inside it. */
+.result-matrix-scroll.sized {
+  max-width: none;
+  max-height: none;
+}
+/* The box between the brackets scrolls but never shows bars of its own: its bars stand outside the
+   brackets, and only while the matrix is active; at rest it has none. Switching `overflow` instead made the box a new scroll container and laid out every cell of
+   a large matrix again at each selection change. */
+.result-matrix-scroll {
+  scrollbar-width: none;
+}
+.result-matrix-scroll::-webkit-scrollbar {
+  display: none;
+}
+/* the bars of a clipped matrix, right of the closing bracket and under the box. Each is a thin
+   scrolling strip as long as the view, holding a spacer as long as the matrix; it scrolls the box and
+   follows it. The box keeps room for them, so they never cover what follows. */
+.matrix-scrollbar {
+  position: absolute;
+  display: block;
+}
+.matrix-scrollbar.vertical {
+  top: 0;
+  left: 100%;
+  margin-left: 2px;
+  width: 12px;
+  overflow-x: hidden;
+  overflow-y: scroll;
+}
+.matrix-scrollbar.vertical > span {
+  display: block;
+  width: 1px;
+}
+.matrix-scrollbar.horizontal {
+  top: 100%;
+  left: 8px;
+  margin-top: 2px;
+  height: 12px;
+  overflow-x: scroll;
+  overflow-y: hidden;
+}
+.matrix-scrollbar.horizontal > span {
+  display: block;
+  height: 1px;
+}
+.matrix-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.matrix-scrollbar::-webkit-scrollbar-thumb {
+  background: #b9bfc8;
+  border-radius: 5px;
+}
+.matrix-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.result-matrix-box.bar-y {
+  margin-right: 14px;
+}
+.result-matrix-box.bar-x {
+  margin-bottom: 14px;
+}
+.result-matrix .matrix-grid .cell.off {
+  visibility: hidden;
+}
+.result-matrix .matrix-grid .cell.dots {
+  position: relative;
+}
+.result-matrix .matrix-grid .cell.dots > * {
+  visibility: hidden;
+}
+.result-matrix .matrix-grid .cell.dots::after {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "MC Math";
+  font-style: normal;
+}
+.result-matrix .matrix-grid .cell.dots-v::after {
+  content: "⋮";
+}
+.result-matrix .matrix-grid .cell.dots-h::after {
+  content: "⋯";
+}
+.result-matrix .matrix-grid .cell.dots-d::after {
+  content: "⋱";
+}
+@media print {
+  /* WYSIWYG: the printed clipped matrix is the box, without the scrollbars a screen may
+     show. The rows and columns outside the box are not printed, as the spec decides. */
+  .result-matrix-scroll {
+    overflow: hidden;
+  }
+}
+/* the indices of a matrix result, plain grey text with no box of their own. The column indices
+   sit above the matrix, the row indices on its left, outside the opening bracket; each strip holds the
+   tracks of the matrix grid, so an index stands over its column or beside its row, and it is clipped
+   to the part of the matrix in view. The row under the matrix matches the row of column indices, so
+   the matrix stays centred on the line of its expression. */
+.indexed-matrix {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto auto;
+  column-gap: 4px;
+  vertical-align: middle;
+}
+.indexed-matrix > .matrix-indices.cols { grid-area: 1 / 2; }
+.indexed-matrix > .matrix-indices.rows { grid-area: 2 / 1; }
+.indexed-matrix > .indexed-body { grid-area: 2 / 2; }
+.indexed-matrix > .matrix-indices.under { grid-area: 3 / 2; }
+.matrix-indices {
+  position: relative;
+  overflow: hidden;
+  color: #8a9099;
+  font-family: "Noto Sans";
+  font-size: calc(var(--fs, 15px) * 0.7);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.matrix-indices .index-sizer {
+  display: block;
+  visibility: hidden;
+  height: 1.3em;
+}
+.matrix-indices.rows .index-sizer {
+  height: 0;
+}
+.matrix-indices .index-strip {
+  position: absolute;
+  display: grid;
+}
+.matrix-indices.cols .index-strip {
+  top: 0;
+  justify-items: center;
+}
+.matrix-indices.rows .index-strip {
+  right: 0;
+  justify-items: end;
+  align-items: center;
+}
+
+/* errors */
+.region.state-error .math {
+  box-shadow: inset 0 -2px 0 var(--error);
+}
+.region.state-error .math,
+.region.state-error .math .id,
+.region.state-error .math .num-lit {
+  color: var(--error);
+}
+
+/* Inline problem marks (screen only): only the failing sub-expression is underlined. */
+.problem-marks {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.problem-marks polyline {
+  fill: none;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+.problem-marks polyline.error {
+  stroke: var(--error);
+}
+.problem-marks polyline.warning {
+  stroke: var(--warn);
+}
+/* A region whose error was located: no whole-statement underline or red text. */
+.region.state-error.marked .math {
+  box-shadow: none;
+}
+.region.state-error.marked .math,
+.region.state-error.marked .math .id,
+.region.state-error.marked .math .num-lit {
+  color: inherit;
+}
+
+/* The part of a result selected for copying is shaded by an overlay rectangle
+   (`.result-selection-box`, screen only): a background on an inline span covers one line box only. */
+/* an empty unit cell is an optional slot, shown only while the table is edited. */
+.region:not(.editing) .matrix.table .cell.table-unit .ph {
+  visibility: hidden;
+}

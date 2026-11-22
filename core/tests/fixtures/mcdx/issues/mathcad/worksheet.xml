@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="400" actualHeight="40" top="0" left="0"><text item-idref="Ra"><regions><region region-id="1"><math><ml:id>q</ml:id></math></region></regions></text></region>
+<region region-id="2" actualHeight="30" top="60" left="0"><plot /></region>
+<region region-id="3" actualHeight="30" top="100" left="0"><reference href="C:\lib\Base.mcdx" item-idref="Rx" /></region>
+<region region-id="4" actualHeight="30" top="140" left="0"><Area><regions><region region-id="5" top="1" left="1"><math><ml:id>z</ml:id></math></region></regions></Area></region>
+<region region-id="6" actualHeight="30" top="180" left="0"><picture /></region>
+<region region-id="7" actualHeight="30" top="220" left="0"><oleObject /></region>
+<region region-id="8" actualHeight="30" top="260" left="0"><spec-table /></region>
+<region region-id="9" actualHeight="30" top="300" left="0"><gadget /></region>
+<region region-id="10" actualHeight="30" top="340" left="0"><math><ml:define><ml:id>S</ml:id><ml:program><ml:localDefine><ml:id>s</ml:id><ml:real>0</ml:real></ml:localDefine></ml:program></ml:define></math></region>
+<region region-id="11" actualHeight="30" top="380" left="0"><math><ml:define><ml:real>1</ml:real><ml:real>2</ml:real></ml:define></math></region>
+<region region-id="12" actualHeight="30" top="420" left="0"><math><ml:matrix rows="2" cols="2"><ml:real>1</ml:real><ml:real>2</ml:real></ml:matrix></math></region>
+<region region-id="13" actualHeight="30" top="460" left="0"><math /></region>
+<region region-id="14" actualHeight="30" top="500" left="0"><text item-idref="Rmissing" /></region>
+<region region-id="15" converted-from="Mathcad14" actualHeight="30" top="540" left="0"><math><ml:id>ok</ml:id></math><mc14-conversion-loss-annotations><annotation>Format of the equation was changed.</annotation></mc14-conversion-loss-annotations></region>
+<region region-id="16" actualHeight="30" top="580" left="0"><math><ml:eval><ml:apply><ml:id>Q</ml:id><ml:range><ml:real>0</ml:real><ml:real>1</ml:real><ml:real>9</ml:real></ml:range></ml:apply></ml:eval></math></region>
+<region region-id="17" actualWidth="300" actualHeight="40" top="620" left="0"><text item-idref="Rb"><regions><region region-id="18"><math><ml:id>a</ml:id></math></region><region region-id="19"><math><ml:apply><ml:summation /><ml:real>1</ml:real></ml:apply></math></region></regions></text></region>
+</regions>
+</worksheet>

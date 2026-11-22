@@ -1,0 +1,47 @@
+format: equavela-worksheet/1
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: "x := 1"
+  - id: r2
+    page: 1
+    at: [54, 100]
+    math: "y := 1"
+  - id: r3
+    page: 1
+    at: [54, 140]
+    solve:
+      given:
+        - 'x^2 + y^2 == 25'
+        - 'y == x'
+        - 'x > 0'
+      call: 's := Find(x, y)'
+  - id: r4
+    page: 1
+    at: [54, 260]
+    math: "s ="
+  - id: r5
+    page: 2
+    at: [54, 72]
+    enabled: false
+    solve:
+      call: 'Minimize(f, x) ='
+  - id: r6
+    page: 3
+    at: [54, 700]
+    solve:
+      given:
+        - 'x > 0'
+      call: 'Find(x) ='
+  - id: r7
+    page: 3
+    at: [54, 720]
+    math: "t := 1"
+  - id: r8
+    page: 4
+    at: [54, 100]
+    math: "u := 2"

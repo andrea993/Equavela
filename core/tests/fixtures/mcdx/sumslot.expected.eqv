@@ -1,0 +1,17 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 36, bottom: 72, left: 36}
+regions:
+  - id: r1
+    page: 1
+    at: [36, 72]
+    math: "∑[i ∈ 1..4] i ="
+  - id: r2
+    page: 1
+    at: [36, 147]
+    math: "v[k] > (∑[j! = k..□] (w - j))/2"
+  - id: r3
+    page: 1
+    at: [36, 222]
+    math: "∏[j ≠ k] j"

@@ -1,0 +1,27 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+settings:
+  format.precision: 3
+regions:
+  - id: t1
+    page: 1
+    at: [54, 72]
+    text: Deflection check
+  - id: m1
+    page: 1
+    at: [54, 100]
+    math: "E := 210 GPa@unit"
+  - id: m2
+    page: 1
+    at: [54, 130]
+    math: "I := 0.2 m@unit·(0.4 m@unit)^3/12"
+  - id: m3
+    page: 1
+    at: [54, 165]
+    math: "f := 5·18 kN@unit/m@unit·(6 m@unit)^4/(384·E·I)"
+  - id: m4
+    page: 1
+    at: [300, 165]
+    math: "f = … mm"

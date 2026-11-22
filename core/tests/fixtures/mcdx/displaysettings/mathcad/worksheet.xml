@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="150" actualHeight="30" top="0" left="0"><math><ml:define><ml:id>x</ml:id><ml:real>2</ml:real></ml:define></math></region>
+</regions>
+</worksheet>

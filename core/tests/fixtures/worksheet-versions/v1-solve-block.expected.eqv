@@ -1,0 +1,67 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: "x := 1"
+  - id: r2
+    page: 1
+    at: [54, 100]
+    math: "y := 1"
+  - id: r3
+    page: 1
+    at: [54, 140]
+    math: "Given"
+  - id: r3-c1
+    page: 1
+    at: [54, 168]
+    math: "x^2 + y^2 == 25"
+  - id: r3-c2
+    page: 1
+    at: [54, 196]
+    math: "y == x"
+  - id: r3-c3
+    page: 1
+    at: [54, 224]
+    math: "x > 0"
+  - id: r3-call
+    page: 1
+    at: [54, 252]
+    math: "s := Find(x, y)"
+  - id: r4
+    page: 1
+    at: [54, 372]
+    math: "s ="
+  - id: r5
+    page: 2
+    at: [54, 72]
+    enabled: false
+    math: "Given"
+  - id: r5-call
+    page: 2
+    at: [54, 100]
+    enabled: false
+    math: "Minimize(f, x) ="
+  - id: r6
+    page: 3
+    at: [54, 700]
+    math: "Given"
+  - id: r6-c1
+    page: 3
+    at: [54, 728]
+    math: "x > 0"
+  - id: r6-call
+    page: 3
+    at: [54, 756]
+    math: "Find(x) ="
+  - id: r7
+    page: 4
+    at: [54, 78.11]
+    math: "t := 1"
+  - id: r8
+    page: 4
+    at: [54, 134.11]
+    math: "u := 2"

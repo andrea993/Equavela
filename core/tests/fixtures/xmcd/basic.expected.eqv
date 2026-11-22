@@ -1,0 +1,85 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 36, bottom: 72, left: 72}
+  header: {left: "File: {file}", right: "Revisione: {date}"}
+  footer: {center: "Pagina {page} di è"}
+page-breaks:
+  - {page: 1, y: 352}
+settings:
+  ORIGIN: 1
+regions:
+  - id: r1
+    page: 1
+    at: [102, 72]
+    text:
+      width: 200
+      text: "{style=heading1}Titolo"
+  - id: r2
+    page: 1
+    at: [102, 102]
+    text:
+      width: 300
+      text: |
+        Testo **grassetto**,  {size=12}*corsivo*{size} e {color=#ff0000}rosso{color} con $x_0 := 2$ in linea.
+
+        {align=center}*Nota centrata*
+  - id: r3
+    page: 1
+    at: [102, 152]
+    math: "L := 3·m@unit"
+  - id: r4
+    page: 1
+    at: [272, 152]
+    math: "L = … mm"
+  - id: r5
+    page: 1
+    at: [102, 182]
+    math: |
+      f(s) := program
+        if s < 0
+          -s
+        else
+          √s
+  - id: r6
+    page: 1
+    at: [102, 252]
+    math: "g0 ≡ ∫[t ∈ 0..1] t^2"
+  - id: r7
+    page: 1
+    at: [102, 292]
+    math: "vsum([1; 2]) + `...` ="
+  - id: r8
+    page: 1
+    at: [102, 312]
+    math: "Given"
+  - id: r9
+    page: 1
+    at: [102, 332]
+    math: "Find(L) ="
+  - id: r10
+    page: 2
+    at: [102, 92]
+    image:
+      resource: img1
+      size: [20, 20]
+  - id: r11
+    page: 2
+    at: [132, 92]
+    image:
+      resource: img1
+      size: [10, 10]
+  - id: r12
+    page: 2
+    at: [102, 262]
+    include: Libreria.eqv
+  - id: r13
+    page: 2
+    at: [108, 302]
+    math: "y := 2·x_0"
+resources:
+  img1:
+    media: png
+    base64: |
+      iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLv
+      AAAAAElFTkSuQmCC

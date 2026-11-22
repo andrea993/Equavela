@@ -1,0 +1,3 @@
+total 1 imported 1 page-breaks 0
+note plot-trace-type-dropped 0 trace 7 has the trace type `error`, which is not drawn: it is imported as a line
+note plot-style-dropped - plot titles, legend settings, grids, tick settings, axis labels, reference markers, number formats, the number of points, a marker size, colors or line weights outside the model's range and unknown line styles or symbols are not imported; a trace with neither a line nor a symbol is imported as a line

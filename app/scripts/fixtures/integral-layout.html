@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Integral bound layout regression</title>
+<style>
+  body { margin: 24px; font-family: sans-serif; }
+  #cases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  section { padding: 16px; border: 1px solid #ddd; }
+  h2 { font-size: 14px; margin: 0 0 28px; }
+  output { display: block; margin-bottom: 24px; }
+  @media print { section { break-inside: avoid; } }
+</style>
+<h1>Integral upper limits</h1>
+<output id="result">Waiting for fonts…</output>
+<div id="cases"></div>
+<script type="module">
+  // Serve with pnpm --dir app dev, then open /scripts/fixtures/integral-layout.html.
+  // Real renderer and bundled fonts: jsdom cannot test glyph placement.
+  import React from "react";
+  import { createRoot } from "react-dom/client";
+  import { flushSync } from "react-dom";
+  import { MathExpr } from "/src/math/render.tsx";
+  import "/src/styles/fonts.ts";
+  import "/src/styles/math.css";
+  const h = React.createElement;
+  const name = (text, subscript) => ({ segments: [{ text, subscript: false }, ...(subscript ? [{ text: subscript, subscript: true }] : [])], label: null });
+  const variable = (text, subscript) => ({ type: "Ident", name: name(text, subscript) });
+  const num = text => ({ type: "Num", text });
+  const bounds = [
+    ["Number", num("1")],
+    ["Literal subscript", variable("T", "max")],
+    ["Greek subscript", variable("α", "max")],
+    ["Element index", { type: "Index", base: variable("T", "max"), indices: [num("1")] }],
+    ["Fraction", { type: "Div", left: variable("T", "max"), right: num("2") }],
+  ];
+  // Use the same DOM in screen and print, as in the worksheet.
+  flushSync(() => createRoot(document.getElementById("cases")).render(
+    [11, 18, 30].flatMap(size => bounds.map(([label, hi]) => h("section", { key: `${size}-${label}`, "data-case": `${size}pt ${label}` },
+      h("h2", null, `${size}pt — ${label}`),
+      h("span", { className: "math", style: { "--fs": `${size}pt` } }, h(MathExpr, { expr: {
+        type: "Integral", var: { name: name("x") }, bounds: { lo: num("0"), hi }, body: variable("x"), algorithm: null,
+      } })),
+    ))),
+  ));
+  await document.fonts.ready;
+  const failures = [];
+  for (const sample of document.querySelectorAll("section")) {
+    const glyph = sample.querySelector(".int-glyph").getBoundingClientRect();
+    const upper = sample.querySelector(".int-hi").getBoundingClientRect();
+    if (upper.left < glyph.right + 0.5) failures.push(sample.dataset.case);
+  }
+  const result = document.getElementById("result");
+  result.dataset.failed = String(failures.length);
+  result.textContent = failures.length ? `FAIL: upper limit overlaps the sign: ${failures.join(", ")}` : `${bounds.length * 3} layout checks passed`;
+</script>
+</html>

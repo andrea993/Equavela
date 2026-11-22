@@ -1,0 +1,121 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: |
+      S(n) := program
+        s ← 0
+        for i ∈ 1..n
+          if i == 3
+            continue
+          else if i > 8
+            break
+          s ← s +
+              i
+        s
+  - id: r2
+    page: 1
+    at: [54, 102]
+    math: |
+      F(n) := program
+        if n ≤ 2
+          return 1
+        else
+          a ← 1
+          return a
+  - id: r3
+    page: 1
+    at: [54, 132]
+    math: |
+      G(a) := program
+        try
+          a[0]
+        on error
+          return 0
+  - id: r4
+    page: 1
+    at: [54, 162]
+    math: |
+      H(a) := program
+        try
+          match(a, A)
+        on error
+          0
+  - id: r5
+    page: 1
+    at: [54, 192]
+    math: |
+      K(a) := program
+        k ← 0
+        while k < a
+          k ← k + 1
+        k
+  - id: r6
+    page: 1
+    at: [54, 222]
+    math: |
+      T(w) := program
+        v[0] ← 1
+        [a, b] ← w
+        for q ∈ w
+          z ← q
+        v
+  - id: r7
+    page: 1
+    at: [54, 252]
+    math: |
+      N(n) := program
+        y ← program
+          z ← 1
+          z
+        y
+  - id: r8
+    page: 1
+    at: [54, 282]
+    math: "program { a ← 1; a + 1 } ="
+  - id: r9
+    page: 1
+    at: [54, 312]
+    math: "f(ξ ← a, 1) ="
+  - id: r10
+    page: 1
+    at: [54, 342]
+    math: "program { k ← k }"
+  - id: r11
+    page: 1
+    at: [54, 372]
+    math: "program { if a < 1 { 1 } }"
+  - id: r12
+    page: 1
+    at: [54, 402]
+    math: |
+      V := 1 +
+          program { if a < 1 { 2 } else { 3 } }
+  - id: r13
+    page: 1
+    at: [54, 432]
+    math: "W := [(m ← 1), 2]"
+  - id: r14
+    page: 1
+    at: [54, 462]
+    math: "r := 0.01, 0.012..1"
+  - id: r15
+    page: 1
+    at: [54, 492]
+    math: "Q := ∑[i] v[i]"
+  - id: r16
+    page: 1
+    at: [54, 522]
+    math: 'L := \lim[T, ∞] 1/T'
+  - id: r17
+    page: 1
+    at: [54, 552]
+    math: "U := vsum(v)"
+  - id: r18
+    page: 1
+    at: [54, 612]
+    math: "program { □ } ="

@@ -1,0 +1,9 @@
+total 6 imported 3 page-breaks 0
+issue plot-not-imported 1 `plot3D` plots are not imported
+issue plot-not-imported 2 2 x expressions and 3 y expressions cannot be paired
+issue plot-not-imported 3 an empty axis expression (undefined x, default interval) is not imported
+note plot-trace-type-dropped 0 trace 2 has the trace type `points`, which is not drawn: it is imported as a line
+note plot-trace-type-dropped 0 trace 4 has the trace type `points`, which is not drawn: it is imported as a line
+note plot-style-dropped - plot titles, legend settings, grids, tick settings, axis labels, reference markers, number formats, the number of points, a marker size, colors or line weights outside the model's range and unknown line styles or symbols are not imported; a trace with neither a line nor a symbol is imported as a line
+note plot-limits-dropped 4 the x axis limits are not usable (unordered or not positive on a log axis)
+note plot-limits-dropped 5 the x axis limits are not usable (unordered or not positive on a log axis)

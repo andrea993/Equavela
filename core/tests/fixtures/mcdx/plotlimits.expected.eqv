@@ -1,0 +1,17 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    plot:
+      version: 1
+      type: xy
+      size: [300, 195]
+      axes:
+        x: {min: "-L/2", max: "L/2"}
+        y: {min: "undefinedname", max: 5}
+      traces:
+        - {id: trace-1, x: "t", y: "A", line: {width: 1, color: "#FF0000"}, show_in_legend: false}

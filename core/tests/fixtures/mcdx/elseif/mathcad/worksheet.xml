@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="200" actualHeight="30" top="0" left="0"><math><ml:define><ml:function><ml:id>Sgn</ml:id><ml:boundVars><ml:id>x</ml:id></ml:boundVars></ml:function><ml:program><ml:if><ml:test><ml:apply><ml:lessThan /><ml:id>x</ml:id><ml:real>0</ml:real></ml:apply></ml:test><ml:then><ml:program><ml:apply><ml:minus /><ml:real>1</ml:real></ml:apply></ml:program></ml:then><ml:elseif><ml:test><ml:apply><ml:equal /><ml:id>x</ml:id><ml:real>0</ml:real></ml:apply></ml:test><ml:then><ml:program><ml:real>0</ml:real></ml:program></ml:then></ml:elseif><ml:elseif><ml:test><ml:apply><ml:lessThan /><ml:id>x</ml:id><ml:real>10</ml:real></ml:apply></ml:test><ml:then><ml:program><ml:real>1</ml:real></ml:program></ml:then></ml:elseif><ml:else><ml:program><ml:real>2</ml:real></ml:program></ml:else></ml:if></ml:program></ml:define></math></region>
+</regions>
+</worksheet>

@@ -1,0 +1,122 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+settings:
+  format.precision: 3
+resources:
+  scheme:
+    media: svg
+    asset: assets/images/beam.svg
+regions:
+  - id: t1
+    page: 1
+    at: [54, 72]
+    text: Steel beam design — simply supported floor beam
+  - id: img
+    page: 1
+    at: [54, 100]
+    image:
+      resource: scheme
+      size: [270, 90]
+  - id: t2
+    page: 1
+    at: [54, 205]
+    text: Geometry and loads
+  - id: m1
+    page: 1
+    at: [54, 230]
+    math: "L := 6 m@unit"
+  - id: m2
+    page: 1
+    at: [54, 258]
+    math: "q := 18 kN@unit/m@unit"
+  - id: m3
+    page: 1
+    at: [54, 292]
+    math: "M_max := q·L^2/8"
+  - id: m4
+    page: 1
+    at: [190, 292]
+    math: "M_max = … kN·m"
+  - id: m5
+    page: 1
+    at: [54, 326]
+    math: "V_max := q·L/2"
+  - id: m6
+    page: 1
+    at: [190, 326]
+    math: "V_max = … kN"
+  - id: px
+    page: 1
+    at: [320, 200]
+    math: "x := 0, 0.25..6"
+  - id: pm
+    page: 1
+    at: [320, 228]
+    math: "M(x) := 18·x·(6 − x)/2"
+  - id: plot
+    page: 1
+    at: [320, 258]
+    plot:
+      version: 1
+      type: xy
+      size: [220, 120]
+      traces:
+        - {id: moment, x: "x", y: "M(x)"}
+  - id: t3
+    page: 1
+    at: [54, 370]
+    text: Section 200 × 400 mm
+  - id: m7
+    page: 1
+    at: [54, 395]
+    math: "b := 200 mm@unit"
+  - id: m8
+    page: 1
+    at: [190, 395]
+    math: "h := 400 mm@unit"
+  - id: m9
+    page: 1
+    at: [54, 428]
+    math: "W := b·h^2/6"
+  - id: m10
+    page: 1
+    at: [190, 428]
+    math: "W = … cm^3"
+  - id: m11
+    page: 1
+    at: [54, 465]
+    math: "σ := M_max/W"
+  - id: m12
+    page: 1
+    at: [190, 465]
+    math: "σ = … MPa"
+  - id: t4
+    page: 1
+    at: [54, 510]
+    text: Utilisation from the project's Julia module (julia/src)
+  - id: j1
+    page: 1
+    at: [54, 535]
+    julia:
+      using: [SteelBeamDesign]
+      define: [ratio]
+      code: |
+        ratio(s, f) = utilisation(s, f)
+  - id: reg
+    page: 1
+    at: [54, 600]
+    math: "util(s, f) := julia.ratio"
+  - id: m13
+    page: 1
+    at: [54, 632]
+    math: "U := util(σ/MPa@unit, 235)"
+  - id: m14
+    page: 1
+    at: [260, 632]
+    math: "U ="
+  - id: m15
+    page: 1
+    at: [54, 666]
+    math: "U < 1 ="

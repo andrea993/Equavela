@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<calculation xmlns="http://schemas.ptc.com/mathcad/settings/calculation10"><builtInVariables array-origin="1" convergence-tolerance="0.0001" constraint-tolerance="0.005" prn-col-width="8" prn-precision="6" random-seed="1" /><calculationBehavior automatic-recalculation="true" strings-use-origin="false" matrix-strict-singularity-check="false" exact-boolean="false" units-in-symbolics="false" constants-in-symbolics="false" /><units><currentUnitSystem name="si" /></units></calculation>

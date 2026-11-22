@@ -1,0 +1,242 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [126, 72]
+    plot:
+      version: 1
+      type: xy
+      size: [159.75, 129.75]
+      axes:
+        x: {min: -5, max: 5, show_grid: false}
+        y: {min: -2, max: 2, show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {color: "#ff0000"}, show_in_legend: false}
+  - id: r2
+    page: 1
+    at: [126, 222]
+    plot:
+      version: 1
+      type: xy
+      size: [171.75, 129.75]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {color: "#ff0000"}, show_in_legend: false}
+        - {id: trace-2, x: "t", y: "cos(t)", line: {style: dot, color: "#0000ff"}, show_in_legend: false}
+  - id: r3
+    page: 1
+    at: [126, 372]
+    plot:
+      version: 1
+      type: xy
+      size: [171.75, 157.5]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {color: "#ff0000"}, show_in_legend: false}
+        - {id: trace-2, x: "t/2", y: "cos(t)", line: {style: dot, color: "#0000ff"}, show_in_legend: false}
+        - {id: trace-3, x: "t/2", y: "t/10", line: {style: dash, color: "#00ff00"}, show_in_legend: false}
+  - id: r4
+    page: 1
+    at: [126, 522]
+    plot:
+      version: 1
+      type: xy
+      size: [167.25, 129.75]
+      axes:
+        x: {scale: log10, show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {color: "#ff0000"}, show_in_legend: false}
+  - id: r5
+    page: 2
+    at: [126, 72]
+    plot:
+      version: 1
+      type: xy
+      size: [170.25, 129.75]
+      axes:
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {color: "#ff0000"}, show_in_legend: false}
+  - id: r6
+    page: 2
+    at: [126, 222]
+    plot:
+      version: 1
+      type: xy
+      size: [170.25, 129.75]
+      axes:
+        x: {position: origin, show_grid: false}
+        y: {position: origin, show_grid: false}
+        y2: {position: origin, show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {color: "#ff0000"}, show_in_legend: false}
+  - id: r7
+    page: 2
+    at: [126, 372]
+    plot:
+      version: 1
+      type: xy
+      size: [170.25, 129.75]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {style: dot, color: "#ff0000"}, show_in_legend: false}
+  - id: r8
+    page: 2
+    at: [126, 522]
+    plot:
+      version: 1
+      type: xy
+      size: [170.25, 129.75]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {color: "#ffff00"}, show_in_legend: false}
+  - id: r9
+    page: 3
+    at: [126, 72]
+    plot:
+      version: 1
+      type: xy
+      size: [170.25, 129.75]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", presentation: markers, line: {color: "#ff0000"}, marker: {color: "#ff0000"}, show_in_legend: false}
+  - id: r10
+    page: 3
+    at: [126, 222]
+    plot:
+      version: 1
+      type: xy
+      size: [170.25, 129.75]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", type: bars, line: {color: "#ff0000"}, show_in_legend: false}
+  - id: r11
+    page: 3
+    at: [126, 372]
+    plot:
+      version: 1
+      type: xy
+      size: [170.25, 129.75]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", presentation: markers, type: stems, line: {color: "#ff0000"}, marker: {color: "#ff0000"}, show_in_legend: false}
+  - id: r12
+    page: 3
+    at: [126, 522]
+    plot:
+      version: 1
+      type: xy
+      size: [170.25, 129.75]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", presentation: line+markers, line: {color: "#ff0000"}, marker: {shape: x, color: "#ff0000"}, show_in_legend: false}
+  - id: r13
+    page: 4
+    at: [126, 72]
+    plot:
+      version: 1
+      type: xy
+      title: Title1
+      size: [192, 168]
+      axes:
+        x: {show_grid: false, title: Xlab}
+        y: {show_grid: false, title: Ylab}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {color: "#ff0000"}, show_in_legend: false}
+  - id: r14
+    page: 4
+    at: [126, 222]
+    plot:
+      version: 1
+      type: xy
+      size: [170.25, 129.75]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {color: "#ff0000"}, show_in_legend: false, legend_label: abc}
+  - id: r15
+    page: 4
+    at: [126, 372]
+    plot:
+      version: 1
+      type: xy
+      size: [170.25, 152.25]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "sin(t)", line: {color: "#ff0000"}}
+  - id: r16
+    page: 4
+    at: [126, 522]
+    plot:
+      version: 1
+      type: xy
+      size: [144, 108]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "M⟨1⟩", line: {color: "#ff0000"}, show_in_legend: false}
+  - id: r17
+    page: 5
+    at: [126, 72]
+    plot:
+      version: 1
+      type: xy
+      size: [145.5, 108]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "f(t, 2)", line: {color: "#ff0000"}, show_in_legend: false}
+  - id: r18
+    page: 5
+    at: [126, 222]
+    plot:
+      version: 1
+      type: xy
+      size: [153, 129.75]
+      axes:
+        x: {show_grid: false}
+        y: {show_grid: false}
+        y2: {show_grid: false}
+      traces:
+        - {id: trace-1, x: "t", y: "√t", line: {color: "#ff0000"}, show_in_legend: false}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="150" actualHeight="30" top="0" left="0"><math><ml:define><ml:id>V</ml:id><ml:apply><ml:summation /><ml:lambda><ml:boundVars><ml:placeholder /></ml:boundVars><ml:id>v</ml:id></ml:lambda><ml:upperBound><ml:placeholder /></ml:upperBound></ml:apply></ml:define></math></region>
+<region region-id="1" actualWidth="150" actualHeight="30" top="100" left="0"><math><ml:eval><ml:apply><ml:summation /><ml:lambda><ml:boundVars><ml:placeholder /></ml:boundVars><ml:id>v</ml:id></ml:lambda></ml:apply></ml:eval></math></region>
+<region region-id="2" actualWidth="150" actualHeight="30" top="200" left="0"><math><ml:eval><ml:apply><ml:summation /><ml:lambda><ml:boundVars><ml:placeholder /></ml:boundVars><ml:parens><ml:apply><ml:plus /><ml:id>v</ml:id><ml:id>w</ml:id></ml:apply></ml:parens></ml:lambda><ml:upperBound><ml:placeholder /></ml:upperBound></ml:apply></ml:eval></math></region>
+<region region-id="3" actualWidth="150" actualHeight="30" top="300" left="0"><math><ml:eval><ml:apply><ml:mult /><ml:real>2</ml:real><ml:apply><ml:summation /><ml:lambda><ml:boundVars><ml:placeholder /></ml:boundVars><ml:apply><ml:matcol /><ml:id>M</ml:id><ml:real>0</ml:real></ml:apply></ml:lambda><ml:upperBound><ml:placeholder /></ml:upperBound></ml:apply></ml:apply></ml:eval></math></region>
+<region region-id="4" actualWidth="150" actualHeight="30" top="400" left="0"><math><ml:eval><ml:apply><ml:summation /><ml:lambda><ml:boundVars><ml:placeholder /></ml:boundVars><ml:apply><ml:id>rows</ml:id><ml:id>X</ml:id></ml:apply></ml:lambda><ml:upperBound><ml:placeholder /></ml:upperBound></ml:apply></ml:eval></math></region>
+<region region-id="5" actualWidth="150" actualHeight="30" top="500" left="0"><math><ml:eval><ml:apply><ml:summation /><ml:lambda><ml:boundVars><ml:placeholder /></ml:boundVars><ml:id>v</ml:id></ml:lambda><ml:lowerBound><ml:real>1</ml:real></ml:lowerBound><ml:upperBound><ml:real>4</ml:real></ml:upperBound></ml:apply></ml:eval></math></region>
+<region region-id="6" actualWidth="150" actualHeight="30" top="600" left="0"><math><ml:define><ml:id>W</ml:id><ml:apply><ml:product /><ml:lambda><ml:boundVars><ml:placeholder /></ml:boundVars><ml:id>v</ml:id></ml:lambda><ml:upperBound><ml:placeholder /></ml:upperBound></ml:apply></ml:define></math></region>
+</regions>
+</worksheet>

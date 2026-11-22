@@ -1,0 +1,33 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    image:
+      resource: img1
+      size: [150, 75]
+  - id: r2
+    page: 1
+    at: [76.5, 184.5]
+    image:
+      resource: img2
+      size: [60, 30]
+  - id: r3
+    page: 1
+    at: [54, 259.5]
+    image:
+      resource: img1
+      size: [75, 37.5]
+resources:
+  img1:
+    media: png
+    base64: |
+      iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEElEQVR4nGP4z8Dwn4EBDAAZ+wP9
+      PKaI+AAAAABJRU5ErkJggg==
+  img2:
+    media: svg
+    text: |
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="40" height="20"><rect width="40" height="20"/></svg>

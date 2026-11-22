@@ -1,0 +1,2 @@
+total 5 imported 5 page-breaks 3
+note page-break-clamped 6 the reference application stored the break below the printable area of page 4; it ends that page at its printable bottom, where it frees no space

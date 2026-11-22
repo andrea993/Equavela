@@ -1,0 +1,2 @@
+total 5 imported 4 page-breaks 0
+issue math-unsupported 4 `percent (arity)` is not imported

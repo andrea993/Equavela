@@ -1,0 +1,18 @@
+{
+  "bundle": {
+    "targets": [
+      "nsis"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English"
+        ],
+        "compression": "lzma",
+        "template": "windows/installer.nsi",
+        "installerHooks": "windows/hooks.nsh"
+      }
+    }
+  }
+}

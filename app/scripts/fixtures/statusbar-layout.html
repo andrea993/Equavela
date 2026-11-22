@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Status bar overflow regression</title>
+<style>
+  body { overflow: auto !important; padding: 20px; }
+  section { margin-bottom: 24px; }
+  h1, h2 { font-size: 16px; }
+  output { display: block; margin-bottom: 20px; }
+</style>
+<h1>Status bar overflow regression</h1>
+<output id="result">Waiting for fonts…</output>
+<div id="cases"></div>
+<script type="module">
+  // Serve with pnpm --dir app dev, then open /scripts/fixtures/statusbar-layout.html.
+  import React from "react";
+  import { createRoot } from "react-dom/client";
+  import { flushSync } from "react-dom";
+  import { StatusBar } from "/src/components/Chrome.tsx";
+  import "/src/styles/fonts.ts";
+  import "/src/styles/chrome.css";
+  const h = React.createElement, noop = () => {};
+  const props = {
+    mode: "mock", kernel: { status: "busy" },
+    doc: { running: true, progress: { done: 1, total: 5, stopping: false } },
+    page: { current: 1, total: 10 }, calcMode: "auto", zoom: 1, viewMode: "page",
+    find: { query: "force", replacement: "load", index: 0, total: 3 },
+    onFind: noop, onReplace: noop, onFindStep: noop, onReplaceOne: noop, onReplaceAll: noop,
+    onToggleCalc: noop, onStop: noop, onZoom: noop, onViewMode: noop,
+    repl: { open: false, onToggle: noop }, panel: { open: false, problems: 2, onToggle: noop },
+    environment: { summary: { kind: "project", directory: "/work/Bridge/julia" }, onOpen: noop },
+  };
+  flushSync(() => createRoot(document.getElementById("cases")).render(
+    [640, 820, 1280, 1600].map(width => h("section", { key: width, style: { width }, "data-width": width },
+      h("h2", null, `${width} px — progress, environment, REPL and search active`), h(StatusBar, props))),
+  ));
+  await document.fonts.ready;
+  let checks = 0;
+  const failures = [];
+  const check = (ok, message) => { checks++; if (!ok) failures.push(message); };
+  for (const sample of document.querySelectorAll("section")) {
+    const bar = sample.querySelector(".statusbar"), box = bar.getBoundingClientRect();
+    check(box.width <= Number(sample.dataset.width) + 1, `${sample.dataset.width}: wider than container`);
+    check(["auto", "scroll"].includes(getComputedStyle(bar).overflowX), `${sample.dataset.width}: overflow not contained`);
+    const last = bar.querySelector(".view-toggle button:last-child");
+    last.focus();
+    await new Promise(requestAnimationFrame);
+    const target = last.getBoundingClientRect();
+    check(target.right <= box.right + 1 && target.left >= box.left, `${sample.dataset.width}: last control unreachable on focus`);
+    check(target.top >= box.top && target.bottom <= box.bottom, `${sample.dataset.width}: control clipped vertically`);
+    const zoom = bar.querySelector(".zoom-controls button");
+    check(zoom.offsetWidth > 0 && bar.querySelector('[data-testid="repl-toggle"]').offsetWidth > 0,
+      `${sample.dataset.width}: a control was hidden`);
+  }
+  const result = document.getElementById("result");
+  result.dataset.failed = String(failures.length);
+  result.textContent = failures.length ? `FAIL: ${failures.join("; ")}` : `${checks} layout checks passed`;
+</script>
+</html>

@@ -1,0 +1,12 @@
+{
+  "bundle": {
+    "resources": {
+      "../../build/package/julia/": "julia/",
+      "../../build/package/python/": "python/",
+      "../../build/package/sysimage/": "sysimage/",
+      "../../build/package/kernel/": "kernel/",
+      "../../build/package/depot/": "depot/",
+      "dictionaries/en_US/README_en_US.txt": "dictionaries/en_US/README_en_US.txt"
+    }
+  }
+}

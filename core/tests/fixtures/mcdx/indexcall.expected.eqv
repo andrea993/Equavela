@@ -1,0 +1,29 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: "f(x) := x + 1"
+  - id: r2
+    page: 1
+    at: [54, 147]
+    math: "g(x) := 2·x"
+  - id: r3
+    page: 1
+    at: [54, 222]
+    math: "F := [f; g]"
+  - id: r4
+    page: 1
+    at: [54, 297]
+    math: "F[0](3) ="
+  - id: r5
+    page: 1
+    at: [54, 372]
+    math: "F[i](x) ="
+  - id: r6
+    page: 1
+    at: [54, 447]
+    math: "M[i, j](2) ="

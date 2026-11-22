@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<worksheet version="3.0.3" xmlns="http://schemas.mathsoft.com/worksheet30" xmlns:ws="http://schemas.mathsoft.com/worksheet30" xmlns:ml="http://schemas.mathsoft.com/math30">
+	<settings>
+		<presentation>
+			<textRendering>
+				<textStyles>
+					<textStyle name="Normal"><blockAttr text-align="left"/><inlineAttr font-family="Arial" font-size="10" font-weight="normal" font-style="normal" underline="false" vertical-align="baseline"/></textStyle>
+					<textStyle name="Heading 1"><blockAttr text-align="left"/><inlineAttr font-family="Arial" font-size="14" font-weight="bold"/></textStyle>
+					<textStyle name="Note" base-style="Normal"><blockAttr text-align="center"/><inlineAttr font-style="italic"/></textStyle>
+				</textStyles>
+			</textRendering>
+		</presentation>
+		<calculation><builtInVariables array-origin="1" convergence-tolerance="0.001" constraint-tolerance="0.001" random-seed="1" prn-precision="4" prn-col-width="8"/><calculationBehavior exact-boolean="true"/><units><currentUnitSystem name="si" customized="false"/></units></calculation>
+		<pageModel paper-code="9" orientation="portrait" page-width="595.5" page-height="841.5"><margins left="72" right="36" top="72" bottom="72"/><header><left>{\rtf1\ansi{\fonttbl{\f0\fswiss Arial;}}\pard\plain\f0\fs18 File: \{f\}\par }</left><right>{\rtf1\ansi\pard\qr\plain Revisione: \{fd\}\par }</right></header><footer><center>{\rtf1\ansi\pard\plain Pagina \{n\} di \{nn\} \'e8\par }</center></footer></pageModel>
+	</settings>
+	<regions>
+		<region region-id="1" left="30" top="0" width="200" height="14"><math><ml:define><ml:id xml:space="preserve">N</ml:id><ml:real>4</ml:real></ml:define></math></region>
+		<region region-id="2" left="30" top="20" width="200" height="14"><math><ml:define><ml:id xml:space="preserve">k</ml:id><ml:range><ml:real>0</ml:real><ml:apply><ml:minus/><ml:id xml:space="preserve">N</ml:id><ml:real>1</ml:real></ml:apply></ml:range></ml:define></math></region>
+		<region region-id="3" left="30" top="40" width="200" height="14"><math><ml:define><ml:apply><ml:indexer/><ml:id xml:space="preserve">d</ml:id><ml:real>1</ml:real></ml:apply><ml:real>1</ml:real></ml:define></math></region>
+		<region region-id="4" left="30" top="60" width="200" height="14"><math><ml:define><ml:apply><ml:indexer/><ml:id xml:space="preserve">d</ml:id><ml:apply><ml:plus/><ml:id xml:space="preserve">k</ml:id><ml:real>2</ml:real></ml:apply></ml:apply><ml:apply><ml:mult/><ml:apply><ml:indexer/><ml:id xml:space="preserve">d</ml:id><ml:apply><ml:plus/><ml:id xml:space="preserve">k</ml:id><ml:real>1</ml:real></ml:apply></ml:apply><ml:real>2</ml:real></ml:apply></ml:define></math></region>
+		<region region-id="5" left="30" top="80" width="200" height="14"><math><ml:eval><ml:id xml:space="preserve">d</ml:id></ml:eval></math></region>
+		<region region-id="6" left="30" top="100" width="200" height="14"><math><ml:define><ml:id xml:space="preserve">i</ml:id><ml:range><ml:real>1</ml:real><ml:real>3</ml:real></ml:range></ml:define></math></region>
+		<region region-id="7" left="30" top="120" width="200" height="14"><math><ml:define><ml:id xml:space="preserve">j</ml:id><ml:range><ml:real>1</ml:real><ml:real>3</ml:real></ml:range></ml:define></math></region>
+		<region region-id="8" left="30" top="140" width="200" height="14"><math><ml:define><ml:apply><ml:indexer/><ml:id xml:space="preserve">L</ml:id><ml:sequence><ml:id xml:space="preserve">i</ml:id><ml:id xml:space="preserve">j</ml:id></ml:sequence></ml:apply><ml:apply><ml:mult/><ml:apply><ml:plus/><ml:apply><ml:mult/><ml:id xml:space="preserve">i</ml:id><ml:real>10</ml:real></ml:apply><ml:id xml:space="preserve">j</ml:id></ml:apply><ml:apply><ml:lessThan/><ml:id xml:space="preserve">j</ml:id><ml:id xml:space="preserve">i</ml:id></ml:apply></ml:apply></ml:define></math></region>
+		<region region-id="9" left="30" top="160" width="200" height="14"><math><ml:eval><ml:id xml:space="preserve">L</ml:id></ml:eval></math></region>
+		<region region-id="10" left="30" top="180" width="200" height="14"><math><ml:define><ml:id xml:space="preserve">o</ml:id><ml:real>1</ml:real></ml:define></math></region>
+		<region region-id="11" left="30" top="200" width="200" height="14"><math><ml:define><ml:apply><ml:indexer/><ml:id xml:space="preserve">v</ml:id><ml:id xml:space="preserve">i</ml:id></ml:apply><ml:apply><ml:mult/><ml:id xml:space="preserve">i</ml:id><ml:real>2</ml:real></ml:apply></ml:define></math></region>
+		<region region-id="12" left="30" top="220" width="200" height="14"><math><ml:eval><ml:id xml:space="preserve">v</ml:id></ml:eval></math></region>
+		<region region-id="13" left="30" top="240" width="200" height="14"><math><ml:define><ml:apply><ml:matcol/><ml:id xml:space="preserve">X</ml:id><ml:apply><ml:plus/><ml:id xml:space="preserve">i</ml:id><ml:id xml:space="preserve">o</ml:id></ml:apply></ml:apply><ml:apply><ml:mult/><ml:id xml:space="preserve">v</ml:id><ml:id xml:space="preserve">i</ml:id></ml:apply></ml:define></math></region>
+		<region region-id="14" left="30" top="260" width="200" height="14"><math><ml:eval><ml:id xml:space="preserve">X</ml:id></ml:eval></math></region>
+	</regions>
+</worksheet>

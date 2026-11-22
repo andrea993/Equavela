@@ -1,0 +1,425 @@
+Jacob	Jacob(F(x), x, [k])	Array characteristics and linear algebra	Jacobian of column vector F with respect to column vector x.
+dft	dft(A)	Fourier and wavelet	Forward Fourier transform of a complex vector or matrix.
+idft	idft(Z)	Fourier and wavelet	Inverse of dft.
+dftr	dftr(B)	Fourier and wavelet	Forward Fourier transform of real data.
+idftr	idftr(Z)	Fourier and wavelet	Inverse of dftr.
+cfft	cfft(v)	Fourier and wavelet	Deprecated legacy name, replaced by dft (still works in the reference application).
+icfft	icfft(v)	Fourier and wavelet	Deprecated legacy name, replaced by idft.
+cpt	cpt(a, n)	Fourier and wavelet	Local cosine packet table, n levels.
+Bspline	Bspline(m, n)	Fourier and wavelet	Analysis and synthesis spline wavelet filters.
+wave	wave(v)	Fourier and wavelet	Daubechies four-coefficient wavelet transform.
+iwave	iwave(u)	Fourier and wavelet	Inverse wavelet transform.
+J0	J0(z)	Special functions	Bessel function of the first kind, order 0.
+J1	J1(z)	Special functions	Bessel first kind, order 1.
+Jn	Jn(m, z)	Special functions	Bessel first kind, order m.
+Y0	Y0(z)	Special functions	Bessel second kind, order 0.
+Y1	Y1(z)	Special functions	Bessel second kind, order 1.
+Yn	Yn(m, z)	Special functions	Bessel second kind, order m.
+I0	I0(z)	Special functions	Modified Bessel first kind, order 0.
+I1	I1(z)	Special functions	Modified Bessel first kind, order 1.
+In	In(m, z)	Special functions	Modified Bessel first kind, order m.
+K0	K0(z)	Special functions	Modified Bessel second kind, order 0.
+K1	K1(z)	Special functions	Modified Bessel second kind, order 1.
+Kn	Kn(m, z)	Special functions	Modified Bessel second kind, order m.
+H1	H1(m, z)	Special functions	Hankel function of the first kind.
+H2	H2(m, z)	Special functions	Hankel function of the second kind.
+Ai	Ai(z)	Special functions	Airy function of the first kind.
+DAi	DAi(z)	Special functions	Derivative of Ai.
+Bi	Bi(z)	Special functions	Airy function of the second kind.
+DBi	DBi(z)	Special functions	Derivative of Bi.
+ber	ber(m, x)	Special functions	Real Kelvin function of order m.
+bei	bei(m, x)	Special functions	Imaginary Kelvin function of order m.
+js	js(m, z)	Special functions	Spherical Bessel, first kind.
+ys	ys(m, z)	Special functions	Spherical Bessel, second kind.
+erf	erf(x)	Special functions	Error function (x dimensionless, complex allowed).
+erfc	erfc(x)	Special functions	Complementary error function.
+Γ	Γ(z) / Γ(a, x)	Special functions	Euler gamma function.
+lnΓ	lnΓ(z)	Special functions	Natural log of the gamma function.
+Psi	Psi(y)	Special functions	Digamma function (derivative of ln of gamma).
+fhyper	fhyper(a, b, c, x)	Special functions	Gauss hypergeometric 2F1, -1 < x < 1.
+mhyper	mhyper(a, b, x)	Special functions	Confluent hypergeometric 1F1.
+ibeta	ibeta(a, x, y)	Special functions	Incomplete beta function.
+Jac	Jac(n, a, b, x)	Special functions	Jacobi polynomial.
+READFILE	READFILE("file", "type", [colwidths, [rows, [cols, [emptyfill, ["decsymb"]]]]])	File access	General reader for .xls/.xlsx, delimited/fixed-width text and ODS.
+WRITEFILE	WRITEFILE("file", M)	File access	Writes .ods/.xls/.xlsx or tab-delimited text.
+READTEXT	READTEXT("file", ["type", ["delimiter", colwidths, ["rowspec", ["colspec", [emptyfill, ["blankrows", [options]]]]]]])	File access	Reads text data.
+WRITETEXT	WRITETEXT("file", M, [rows, [cols, ["decsymb"]]])	File access	Writes tab-delimited text.
+READBIN	READBIN("file", "type", [[endian], [cols], [skip], [maxrows]])	File access	Reads binary data.
+WRITEBIN	WRITEBIN("file", "type", endian, M)	File access	Writes binary data.
+READCSV	READCSV("file")	File access	Reads CSV.
+WRITECSV	WRITECSV("file", M, [rows, [cols, ["decsymb"]]])	File access	Writes CSV.
+READPRN	READPRN("file")	File access	Reads numeric PRN and the reference application `.MATRIX` files with complex or string data.
+WRITEPRN	WRITEPRN("file", M, [rows, [cols]])	File access	Writes numeric PRN, or a the reference application `.MATRIX` file for complex or string data, and returns the selected matrix.
+APPENDPRN	APPENDPRN("file", M)	File access	Appends numeric rows to PRN, serialized within the kernel process, and returns M.
+WRITEEXCEL	WRITEEXCEL("file", M, [rows, [cols]], ["range"])	File access	Writes an .xls or .xlsx range.
+READ_IMAGE	READ_IMAGE("file")	File access	Grayscale image matrix (BMP, GIF, JPG, TGA, PCX, PBM, PGM, PPM, TIF).
+READBMP	READBMP("file")	File access	Grayscale bitmap.
+WRITEBMP	WRITEBMP("file", M)	File access	Writes grayscale image.
+READRGB	READRGB("file")	File access	Packed RGB matrix.
+WRITERGB	WRITERGB("file", M)	File access	Writes packed RGB.
+READ_RED	READ_RED("file")	File access	Red component.
+READ_GREEN	READ_GREEN("file")	File access	Green component.
+READ_BLUE	READ_BLUE("file")	File access	Blue component.
+READ_HLS	READ_HLS("file")	File access	Hue, lightness, saturation array.
+WRITE_HLS	WRITE_HLS("file", M)	File access	Writes HLS image.
+READ_HSV	READ_HSV("file")	File access	Hue, saturation, value array.
+WRITE_HSV	WRITE_HSV("file", M)	File access	Writes HSV image.
+READ_HLS_SAT	READ_HLS_SAT("file")	File access	HLS saturation.
+READ_HSV_SAT	READ_HSV_SAT("file")	File access	HSV saturation.
+READ_LIGHT	READ_LIGHT("file")	File access	HLS lightness.
+READ_VALUE	READ_VALUE("file")	File access	HSV value.
+READ_HUE	READ_HUE("file")	File access	Hue from HLS or HSV.
+READWAV	READWAV("file")	File access	Audio samples, one column per channel.
+WRITEWAV	WRITEWAV("file", s, b, M)	File access	Writes WAV with sample rate s and resolution b.
+GETWAVINFO	GETWAVINFO("file")	File access	Vector of WAV format information.
+J0.sc	J0.sc(z)	Special functions	Scaled J0 function.
+J1.sc	J1.sc(z)	Special functions	Scaled J1 function.
+Jn.sc	Jn.sc(m, z)	Special functions	Scaled Jn function.
+Y0.sc	Y0.sc(z)	Special functions	Scaled Y0 function.
+Y1.sc	Y1.sc(z)	Special functions	Scaled Y1 function.
+Yn.sc	Yn.sc(m, z)	Special functions	Scaled Yn function.
+I0.sc	I0.sc(z)	Special functions	Scaled I0 function.
+I1.sc	I1.sc(z)	Special functions	Scaled I1 function.
+In.sc	In.sc(m, z)	Special functions	Scaled In function.
+K0.sc	K0.sc(z)	Special functions	Scaled K0 function.
+K1.sc	K1.sc(z)	Special functions	Scaled K1 function.
+Kn.sc	Kn.sc(m, z)	Special functions	Scaled Kn function.
+H1.sc	H1.sc(m, z)	Special functions	Scaled H1 function.
+H2.sc	H2.sc(m, z)	Special functions	Scaled H2 function.
+Ai.sc	Ai.sc(z)	Special functions	Scaled Ai function.
+DAi.sc	DAi.sc(z)	Special functions	Scaled DAi function.
+Bi.sc	Bi.sc(z)	Special functions	Scaled Bi function.
+DBi.sc	DBi.sc(z)	Special functions	Scaled DBi function.
+Gamma	Gamma(z) / Gamma(a, x)	Special functions	Euler gamma function.
+lnGamma	lnGamma(z)	Special functions	Natural log of the gamma function.
+hist	hist(intvls, data)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Histogram frequencies for the intervals.
+histogram	histogram(intvls, data)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Two-column matrix: interval midpoints and frequencies.
+boxplot	boxplot(Data)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Matrix for a box plot, per column.
+boxplotgraph	boxplotgraph(Data)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Two-element vector for box-plot drawing in an XY plot.
+pareto	pareto(Data)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Matrix for a Pareto plot.
+fullfact	fullfact(k, [levels])	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Full factorial design of k factors.
+fractfact	fractfact(k, p)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Two-level fractional factorial 2^(k-p) with the reference application's generators.
+plackettburman	plackettburman(n)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Plackett-Burman design of n runs for n-1 factors.
+boxbehnken	boxbehnken(k)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Box-Behnken design of 3 to 7 factors.
+taguchi	taguchi(k, levels)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Taguchi orthogonal array for k factors.
+randomize	randomize(D)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	The runs of a design matrix in a random order.
+foldover	foldover(D, [factor])	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Design followed by its fold-over block.
+doelabel	doelabel(D, L)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Factor names and level values for a design matrix.
+effects	effects(D, Y, [k | term])	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Effects of the factors and interactions at each level.
+quickscreen	quickscreen(D, Y, [k | term])	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Mean response at the - and + level of each term.
+anova	anova(D, Y, [k | term])	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Analysis of variance of a replicated design.
+Normal	Normal(n)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	n draws of the standard normal distribution.
+Uniform	Uniform(n)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	n draws uniform on [-6, 6].
+LogNormal	LogNormal(n)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	n draws of the lognormal distribution of parameters 0 and 1.
+Weibull	Weibull(n)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	n draws of the Weibull distribution of shape 1 and scale 1.
+montecarlo	montecarlo(F, n, Rvals, [Limits], [dist])	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	n Monte Carlo samples of F at random arguments.
+triangular	triangular(n)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Triangular window of n points.
+hamming	hamming(n)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Hamming window of n points.
+hanning	hanning(n)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Hann window of n points.
+blackman	blackman(n)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Blackman window of n points.
+gaussian	gaussian(n, a)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Gaussian window of n points.
+qqplot	qqplot(v1, [v2 OR "distribution"])	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Two-column Q-Q plot data.
+Grubbs	Grubbs(v, a)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Suspected outlier indices, test statistic, distance to critical value.
+GrubbsClassic	GrubbsClassic(v, a)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Most likely single outlier.
+ThreeSigma	ThreeSigma(v)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Indices of points with test statistic > 3.
+trim	trim(v, vindex)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Removes entries specified by vindex.
+markNaN	markNaN(M, vindex)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Sets the indexed elements to NaN.
+matchNaN	matchNaN(M)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Indices of NaN entries.
+filterNaN	filterNaN(M)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Removes rows containing NaN.
+Nipals	Nipals(DATA, NumPC, maxiter, "scale/noscale", Acc)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Principal component analysis by NIPALS.
+Nipals2	Nipals2(Nipals, numAddPC)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Additional principal components.
+scores	scores(Nipals)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	PCA scores.
+loadings	loadings(Nipals)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	PCA loadings.
+PCAeigenvals	PCAeigenvals(Nipals)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	PCA eigenvalues.
+PCAvariance	PCAvariance(Nipals)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Accumulated percentage of explained variance.
+localmax	localmax(M1, [w]) / localmax(x, y, M2, [w])	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Local maxima of 2D/3D data.
+localmin	localmin(M1, [w]) / localmin(x, y, M2, [w])	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Local minima of 2D/3D data.
+supsmooth	supsmooth(vx, vy)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Adaptive nearest-neighbor least-squares smoothing.
+ksmooth	ksmooth(vx, vy, b)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Gaussian kernel smoothing whose kernel standard deviation is the bandwidth b.
+medsmooth	medsmooth(v, [n], [m])	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Median smoothing, window n.
+VSmooth	VSmooth(v, w)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Repeated median smoothing.
+expsmooth	expsmooth(v, a)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Exponential smoothing with weight a.
+movavg	movavg(v, n)	Other data analysis (graphical, outliers, PCA, smoothing, local extrema)	Moving average, window n.
+rkfixed	rkfixed(init, x1, x2, intvls, D)	Differential equations	4th-order Runge-Kutta, fixed step.
+Rkadapt	Rkadapt(init, x1, x2, intvls, D)	Differential equations	4th-order Runge-Kutta, adaptive step.
+Bulstoer	Bulstoer(init, x1, x2, intvls, D)	Differential equations	Bulirsch-Stoer, smooth systems.
+Adams	Adams(init, x1, x2, intvls, D, [tol])	Differential equations	Adams-Bashforth, nonstiff.
+BDF	BDF(init, x1, x2, intvls, D, [J], [tol])	Differential equations	Backward differentiation, stiff.
+Radau	Radau(init, x1, x2, intvls, D, [J], [M], [tol])	Differential equations	Radau5, stiff.
+Stiffb	Stiffb(init, x1, x2, intvls, D, AJ)	Differential equations	Bulirsch-Stoer, stiff, augmented Jacobian AJ.
+Stiffr	Stiffr(init, x1, x2, intvls, D, AJ)	Differential equations	Rosenbrock, stiff.
+AdamsBDF	AdamsBDF(init, x1, x2, intvls, D, [J], [tol])	Differential equations	Detects stiffness, calls Adams or BDF.
+statespace	statespace(init, t1, t2, intvls, A, [B, u])	Differential equations	Linear first-order ODE system x' = A(t)x + B(t)u(t).
+sbval	sbval(v1, x1, x2, D, load1, scorei)	Differential equations	Finds missing initial values by shooting.
+bvalfit	bvalfit(v1, v2, x1, x2, xf, D, load1, load2, scoreb)	Differential equations	Boundary-value problem by shooting to a match point xf.
+numol	numol(x_endpts, xpts, t_endpts, tpts, num_pde, num_pae, pde_func, pinit, bc_func)	Differential equations	Method-of-lines solver for 1D transient PDE systems.
+relax	relax(A, B, C, D, E, S, U, rjac)	Differential equations	Relaxation solver for Poisson/Laplace elliptic PDE.
+multigrid	multigrid(M, ncycle)	Differential equations	Multigrid solver for 2D elliptic PDE on a square.
+bspline	bspline(vx, vy, u, n)	Interpolation and prediction	B-spline of degree n with knots u.
+loess	loess(vx, vy, span) / loess(Mx, vy, span)	Regression and curve fitting	Localized second-order polynomial regression.
+Spline2	Spline2(vx, vy, n, [vw], [u], [level])	Interpolation and prediction	Optimal order-n B-spline knots.
+Binterp	Binterp(x, b)	Interpolation and prediction	B-spline value (and derivatives) from Spline2 output.
+DWS	DWS(b)	Interpolation and prediction	Durbin-Watson statistic of Spline2 output.
+Bicubic2D	Bicubic2D(vx, vy, Z, p, q)	Interpolation and prediction	Bicubic interpolation at (p, q).
+predict	predict(v, m, n)	Interpolation and prediction	n values predicted past the end of v (linear prediction, m coefficients).
+polyint	polyint(vx, vy, x)	Interpolation and prediction	Polynomial interpolation at x and expected error.
+polyiter	polyiter(vx, vy, x, N, e)	Interpolation and prediction	Polynomial interpolation with max order N and max error e.
+rationalint	rationalint(vx, vy, x)	Interpolation and prediction	Rational function interpolation and error.
+Thielecoeff	Thielecoeff(vx, vy)	Interpolation and prediction	Thiele continued fraction coefficients.
+Thiele	Thiele(vx, coeff, x)	Interpolation and prediction	Thiele interpolation at x.
+line	line(vx, vy)	Regression and curve fitting	Vector [a; b] for the least-squares line a + b*x.
+slope	slope(vx, vy)	Regression and curve fitting	Slope of the least-squares line.
+intercept	intercept(vx, vy)	Regression and curve fitting	Intercept of the least-squares line.
+stderr	stderr(vx, vy)	Regression and curve fitting	Standard error of the linear regression.
+medfit	medfit(vx, vy)	Regression and curve fitting	Median-median line [a; b].
+rationalfit	rationalfit(vx, vy, conf, m, n, [Stdy], [LBUB], [Acc], ["noscale"])	Regression and curve fitting	Rational polynomial fit, parameters with confidence limits.
+rationalfitnp	rationalfitnp(vx, vy, conf, m, n, [Stdy], [LBUB], [Acc], ["noscale"])	Regression and curve fitting	Like rationalfit, avoiding poles.
+polyfit	polyfit(X, Y, n/"terms"/M)	Regression and curve fitting	Function for a multivariate polynomial regression surface.
+polyfitc	polyfitc(X, Y, n/"terms"/M, [conf])	Regression and curve fitting	Regression coefficients with extra information.
+polyfitstat	polyfitstat(X, Y, n/"terms"/M, [conf])	Regression and curve fitting	Statistics of the polynomial regression model.
+genfit	genfit(vx, vy, vg, F)	Regression and curve fitting	Levenberg-Marquardt nonlinear fit of F(x, u) with guess vg.
+expfit	expfit(vx, vy, [vg])	Regression and curve fitting	Coefficients of A*exp(b*x) + C.
+lnfit	lnfit(vx, vy)	Regression and curve fitting	Logarithmic fit (named on the category page; no detail signature found).
+logfit	logfit(vx, vy, vg)	Regression and curve fitting	Coefficients of a*ln(x + b) + c.
+lgsfit	lgsfit(vx, vy, vg)	Regression and curve fitting	Coefficients of a/(1 + b*exp(-c*x)).
+pwrfit	pwrfit(vx, vy, vg)	Regression and curve fitting	Coefficients of a*x^b + c.
+sinfit	sinfit(vx, vy, vg)	Regression and curve fitting	Coefficients of a*sin(x + b) + c.
+LeastSquaresFit	LeastSquaresFit(vx, vy, F, guess, conf, [Stdy], [LBUB], [Acc])	Regression and curve fitting	Nonlinear fit with parameter confidence limits.
+confidence	confidence(vx, vy, F, b, conf)	Regression and curve fitting	Confidence limits of fit parameters b.
+linfit	linfit(vx, vy, F)	Regression and curve fitting	Least-squares coefficients for a linear combination of the functions in F.
+multidfit	multidfit(X, Y, G, F)	Regression and curve fitting	General multivariate fit.
+rows	rows(A)	Array characteristics and linear algebra	Number of rows.
+cols	cols(A)	Array characteristics and linear algebra	Number of columns.
+length	length(v)	Array characteristics and linear algebra	Number of elements of column vector v.
+last	last(v)	Array characteristics and linear algebra	Index of the last element of v (depends on ORIGIN).
+stack	stack(A, B, C, …)	Array creation, joining and subdividing	Places arrays top to bottom.
+augment	augment(A, B, C, …)	Array creation, joining and subdividing	Places arrays side by side, left to right.
+submatrix	submatrix(A, ir, jr, ic, jc)	Array creation, joining and subdividing	Rows ir..jr and columns ic..jc of A.
+identity	identity(n)	Array creation, joining and subdividing	n x n identity matrix.
+matrix	matrix(m, n, f)	Array creation, joining and subdividing	m x n matrix, element (i, j) = f(i, j), i = 0..m-1 and j = 0..n-1.
+diag	diag(v/M)	Array creation, joining and subdividing	Vector to diagonal matrix, or square matrix to its diagonal vector.
+tr	tr(M)	Array characteristics and linear algebra	Trace (sum of the diagonal) of a square matrix.
+rank	rank(A)	Array characteristics and linear algebra	Number of linearly independent columns.
+eigenvals	eigenvals(M)	Array characteristics and linear algebra	Eigenvalues as a column vector in Julia's order: ascending for a symmetric or Hermitian matrix, otherwise by real part then imaginary part.
+eigenvecs	eigenvecs(M, ["L"])	Array characteristics and linear algebra	All normalized eigenvectors as columns, in eigenvals order, with LAPACK's signs.
+match	match(z, A, [modifier | f])	Sorting, ranking, lookup, convolution	Indices of matching elements, nested array for matrices, column-wise.
+max	max(A, B, C, …)	Array characteristics and linear algebra	Largest value over arrays, scalars or strings.
+min	min(A, B, C, …)	Array characteristics and linear algebra	Smallest value over the arguments.
+floor	floor(z)	Rounding and truncation	Greatest integer <= z.
+ceil	ceil(z)	Rounding and truncation	Smallest integer >= z.
+trunc	trunc(z)	Rounding and truncation	Integer part (fraction removed).
+round	round(z, [n])	Rounding and truncation	z rounded to n decimals (default 0).
+Floor	Floor(z, y)	Rounding and truncation	Greatest multiple of y <= z.
+Ceil	Ceil(z, y)	Rounding and truncation	Smallest multiple of y >= z.
+Round	Round(z, y)	Rounding and truncation	round(z/y)*y, nearest multiple of y.
+Trunc	Trunc(z, y)	Rounding and truncation	trunc(z/y)*y.
+mod	mod(x, y)	Combinatorics and number theory	Remainder of x/y with the sign of x.
+atan2	atan2(x, y)	Complex numbers and sign	Angle of point (x, y), -pi to pi (excl. -pi).
+combin	combin(n, k)	Combinatorics and number theory	Number of combinations, n >= k >= 0.
+Re	Re(Z)	Complex numbers and sign	Real part of a scalar or matrix.
+Im	Im(Z)	Complex numbers and sign	Imaginary part.
+sqrt	sqrt(x)	Logarithm and exponential	Square root of x (also the operator on the Operators palette).
+exp	exp(z)	Logarithm and exponential	e^z (more robust algorithm than the power operator for extreme exponents).
+ln	ln(z)	Logarithm and exponential	Natural log, principal branch for complex or negative real z.
+log	log(z, [b])	Logarithm and exponential	Base-b log of z.
+sin	sin(z)	Trigonometric and inverse trigonometric	Sine, radians.
+cos	cos(z)	Trigonometric and inverse trigonometric	Cosine.
+tan	tan(z)	Trigonometric and inverse trigonometric	Tangent.
+asin	asin(z)	Trigonometric and inverse trigonometric	Inverse sine (complex result outside [-1, 1]).
+acos	acos(z)	Trigonometric and inverse trigonometric	Inverse cosine.
+atan	atan(z)	Trigonometric and inverse trigonometric	Inverse tangent.
+abs	abs(x)	Complex numbers and sign	Absolute value of a number, magnitude of a complex number, or element-wise for arrays.
+sort	sort(v)	Sorting, ranking, lookup, convolution	Vector in ascending order (heapsort; unstable; imaginary part ignored).
+reverse	reverse(A)	Sorting, ranking, lookup, convolution	Reverses vector elements or matrix rows.
+csort	csort(A, n)	Sorting, ranking, lookup, convolution	Rearranges rows so column n ascends.
+rsort	rsort(A, n)	Sorting, ranking, lookup, convolution	Rearranges columns so row n ascends.
+mean	mean(A, B, C, …)	Descriptive statistics	Arithmetic mean over all elements of the arguments.
+median	median(A, B, C, …)	Descriptive statistics	Median (real values).
+var	var(A, B, C, …)	Descriptive statistics	Population variance (divides by N).
+Var	Var(A, B, C, …)	Descriptive statistics	Sample variance.
+stdev	stdev(A, B, C, …)	Descriptive statistics	Population standard deviation.
+Stdev	Stdev(A, B, C, …)	Descriptive statistics	Sample standard deviation.
+IsScalar	IsScalar(x)	Conditional, type tests and errors	1 if x is a real or complex scalar.
+IsArray	IsArray(x)	Conditional, type tests and errors	1 if x is a vector or matrix.
+IsFunction	IsFunction(x)	Conditional, type tests and errors	1 if x is a function.
+IsRange	IsRange(x)	Conditional, type tests and errors	1 if x is a range.
+SIUnitsOf	SIUnitsOf(x)	Conditional, type tests and errors	Unit of x scaled to SI.
+IsString	IsString(x)	Conditional, type tests and errors	1 if x is a string.
+lookup	lookup(z, A, B, [modifier | f])	Sorting, ranking, lookup, convolution	Finds z in A, returns entries of B at the same positions as a column-wise vector.
+vlookup	vlookup(z, A, c, [modifier | f])	Sorting, ranking, lookup, convolution	Searches the first column of A, returns column c entries.
+hlookup	hlookup(z, A, r, [modifier | f])	Sorting, ranking, lookup, convolution	Searches the first row of A, returns row r entries.
+vhlookup	vhlookup(z1, z2, A, [modifier | f])	Sorting, ranking, lookup, convolution	Entry at intersection of z1 (first column) and z2 (first row).
+Rank	Rank(v)	Sorting, ranking, lookup, convolution	Rank positions of the elements of v (ties averaged, first rank is 1).
+order	order(v)	Sorting, ranking, lookup, convolution	Indices (relative to ORIGIN) that sort v.
+norm1	norm1(M)	Array characteristics and linear algebra	L1 norm: maximum absolute column sum (square M).
+norm2	norm2(M)	Array characteristics and linear algebra	L2 norm: largest singular value of a square matrix M.
+norme	norme(M)	Array characteristics and linear algebra	Euclidean (Frobenius) norm.
+normi	normi(M)	Array characteristics and linear algebra	Infinity norm: maximum absolute row sum.
+cond1	cond1(M)	Array characteristics and linear algebra	Condition number, L1 norm (square M).
+cond2	cond2(M)	Array characteristics and linear algebra	Condition number, L2 norm.
+conde	conde(M)	Array characteristics and linear algebra	Condition number, Euclidean norm.
+condi	condi(M)	Array characteristics and linear algebra	Condition number, infinity norm.
+qr	qr(M)	Matrix factorization	Legacy lowercase spelling of QR (deprecated).
+geninv	geninv(A)	Array characteristics and linear algebra	Generalized (pseudo) inverse, least-squares left inverse.
+lsolve	lsolve(M, v)	Array characteristics and linear algebra	Solves M*x = v by LU.
+gmean	gmean(A, B, C, …)	Descriptive statistics	Geometric mean (positive reals).
+hmean	hmean(A, B, C, …)	Descriptive statistics	Harmonic mean (positive reals).
+mode	mode(A, B, C, …)	Descriptive statistics	Most frequent value.
+percentile	percentile(v, p)	Descriptive statistics	Value below which fraction p (0..1) of v lies.
+permut	permut(n, k)	Combinatorics and number theory	Number of permutations.
+gcd	gcd(A, B, C, …)	Combinatorics and number theory	Greatest common divisor of dimensionless integers.
+lcm	lcm(A, B, C, …)	Combinatorics and number theory	Least common multiple.
+sign	sign(x)	Complex numbers and sign	Sign of a real number: -1, 0, 1.
+signum	signum(z, [x])	Complex numbers and sign	Vectorized sign of a real or complex number.
+csgn	csgn(z)	Complex numbers and sign	Half-plane of z: 0 at 0, 1 for right half-plane (or on positive imaginary axis), -1 otherwise.
+arg	arg(z)	Complex numbers and sign	Principal argument, -pi to pi inclusive.
+angle	angle(x, y)	Complex numbers and sign	Polar angle of point (x, y), 0 to 2*pi (excl.).
+sinh	sinh(z)	Hyperbolic and inverse hyperbolic	Hyperbolic sine.
+cosh	cosh(z)	Hyperbolic and inverse hyperbolic	Hyperbolic cosine.
+tanh	tanh(z)	Hyperbolic and inverse hyperbolic	Hyperbolic tangent.
+asinh	asinh(z)	Hyperbolic and inverse hyperbolic	Inverse hyperbolic sine.
+csch	csch(z)	Hyperbolic and inverse hyperbolic	Hyperbolic cosecant.
+sech	sech(z)	Hyperbolic and inverse hyperbolic	Hyperbolic secant.
+coth	coth(z)	Hyperbolic and inverse hyperbolic	Hyperbolic cotangent.
+csc	csc(z)	Trigonometric and inverse trigonometric	Cosecant.
+sec	sec(z)	Trigonometric and inverse trigonometric	Secant.
+cot	cot(z)	Trigonometric and inverse trigonometric	Cotangent.
+sinc	sinc(z)	Trigonometric and inverse trigonometric	sin(z)/z, 1 at 0.
+acosh	acosh(z)	Hyperbolic and inverse hyperbolic	Inverse hyperbolic cosine.
+atanh	atanh(z)	Hyperbolic and inverse hyperbolic	Inverse hyperbolic tangent.
+acsch	acsch(z)	Hyperbolic and inverse hyperbolic	Inverse hyperbolic cosecant.
+asech	asech(z)	Hyperbolic and inverse hyperbolic	Inverse hyperbolic secant.
+acoth	acoth(z)	Hyperbolic and inverse hyperbolic	Inverse hyperbolic cotangent.
+acsc	acsc(z)	Trigonometric and inverse trigonometric	Inverse cosecant.
+asec	asec(z)	Trigonometric and inverse trigonometric	Inverse secant.
+acot	acot(z)	Trigonometric and inverse trigonometric	Inverse cotangent.
+ln0	ln0(z)	Logarithm and exponential	Like ln, but returns -1e307 at z = 0.
+concat	concat("S1", "S2", …)	Strings	Joins strings.
+strlen	strlen("S")	Strings	Number of characters.
+substr	substr("S", m, n)	Strings	n characters from position m, counted from ORIGIN as array indices.
+search	search("S", "SubS", m)	Strings	Start position (counted from ORIGIN) of SubS at or after m, or -1 when absent.
+num2str	num2str(z)	Strings	Scalar to string.
+str2num	str2num("Sn")	Strings	String to constant (complex, engineering notation allowed).
+vec2str	vec2str(v)	Strings	Vector of code points (9, 10, 13, 32..255) to string.
+str2vec	str2vec("S")	Strings	String to vector of code points.
+format	format("Sf", x1, x2, …)	Strings	Template with {0}, {1}, … placeholders.
+Leg	Leg(n, x)	Special functions	Legendre polynomial.
+Tcheb	Tcheb(n, x)	Special functions	Chebyshev polynomial, first kind.
+Ucheb	Ucheb(n, x)	Special functions	Chebyshev polynomial, second kind.
+Her	Her(n, x)	Special functions	Hermite polynomial.
+Lag	Lag(n, x)	Special functions	Laguerre polynomial.
+δ	δ(m, n)	Special functions	Kronecker delta: 1 if m = n, else 0.
+Φ	Φ(x)	Special functions	Heaviside step: 0 for x < 0, 1 for x > 0, 0.5 at 0.
+ε	ε(i, j, k)	Special functions	Antisymmetric tensor of rank 3 (indices ORIGIN..ORIGIN+2).
+IsNaN	IsNaN(x)	Conditional, type tests and errors	1 if x is NaN.
+cholesky	cholesky(M)	Matrix factorization	Legacy lowercase spelling of a test worksheet (deprecated, still works).
+Cholesky	Cholesky(M, [p, [u]])	Matrix factorization	Returns nested [P; L] (pivoted, lower by default).
+LU	LU(M)	Matrix factorization	Returns nested [P; L; U] with P*M = L*U.
+QR	QR(M, [p])	Matrix factorization	Returns nested [P; Q; R] with M*P = Q*R.
+svds	svds(A)	Matrix factorization	Singular values (sqrt of eigenvalues of A^H*A).
+svd	svd(A)	Matrix factorization	Returns nested [s; U; V^H] with A = U*diag(s)*V^H.
+genvals	genvals(M, N)	Array characteristics and linear algebra	Generalized eigenvalues of M*x = v*N*x in Julia's order, by real part then imaginary part.
+genvecs	genvecs(M, N, ["L"])	Array characteristics and linear algebra	Generalized eigenvectors as unit columns, in genvals order.
+eigenvec	eigenvec(M, z)	Array characteristics and linear algebra	One unit-length eigenvector for eigenvalue z by inverse iteration.
+kronecker	kronecker(M, N)	Array characteristics and linear algebra	Kronecker product of M and N (numeric evaluation needs square matrices).
+rref	rref(A)	Array characteristics and linear algebra	Row-reduced echelon form.
+logspace	logspace(min, max, npts)	Array creation, joining and subdividing	npts log-spaced points from min to max (positive reals, compatible units).
+logpts	logpts(minexp, dec, dnpts)	Array creation, joining and subdividing	dec decades of log-spaced points starting at 10^minexp, dnpts per decade.
+polyroots	polyroots(v)	Solving and optimization	Roots of the polynomial with coefficients v (constant term first, 2 <= length <= 99).
+polycoeff	polycoeff(vx, vy)	Interpolation and prediction	Coefficients of the interpolating polynomial.
+linterp	linterp(vx, vy, x)	Interpolation and prediction	Linear interpolation.
+lspline	lspline(vx, vy) / lspline(Mxy, Mz)	Interpolation and prediction	Cubic spline, linear end condition.
+pspline	pspline(vx, vy) / pspline(Mxy, Mz)	Interpolation and prediction	Cubic spline, parabolic end condition.
+cspline	cspline(vx, vy) / cspline(Mxy, Mz)	Interpolation and prediction	Cubic spline coefficients with cubic end conditions (vs for interp).
+interp	interp(vs, vx, vy, x) / interp(vs, Mxy, Mz, X)	Interpolation and prediction	Interpolated value from the vs produced by cspline, lspline, pspline, bspline or loess.
+cvar	cvar(A, B)	Descriptive statistics	Covariance of A and B (divides by m*n; conjugates).
+covar	covar(vx, vy)	Descriptive statistics	Covariance of two vectors (page covariance.html).
+corr	corr(A, B)	Descriptive statistics	Pearson correlation coefficient.
+Ftest	Ftest(v1, v2)	Descriptive statistics	F-test statistic and probability for equal variance.
+Spear	Spear(v1, v2)	Descriptive statistics	Spearman rank correlation, returns 5-element vector.
+kendltau	kendltau(v1, v2)	Descriptive statistics	Kendall's tau-b, the z-score of the normal approximation with the tie correction of its variance, and the two-sided probability, as SciPy.
+kendltau2	kendltau2(M)	Descriptive statistics	Kendall's tau for a contingency table M.
+contingtbl	contingtbl(M)	Descriptive statistics	Chi-squared, dof, probability, Cramer's V, contingency coefficient.
+skew	skew(A, B, C, …)	Descriptive statistics	Skewness.
+kurt	kurt(A, B, C, …)	Descriptive statistics	Kurtosis.
+rnorm	rnorm(m, μ, σ)	Probability distributions and random numbers	Vector of m random numbers, normal distribution.
+rnd	rnd(x)	Probability distributions and random numbers	Uniformly distributed random scalar between 0 and x.
+Seed	Seed(x)	Probability distributions and random numbers	Resets the shared generator to integer x in 1..2147483647 and returns the previously configured seed.
+dbeta	dbeta(x, s1, s2)	Probability distributions and random numbers	Probability density, beta distribution.
+pbeta	pbeta(x, s1, s2)	Probability distributions and random numbers	Cumulative probability, beta distribution.
+qbeta	qbeta(p, s1, s2)	Probability distributions and random numbers	Inverse cumulative probability, beta distribution.
+rbeta	rbeta(m, s1, s2)	Probability distributions and random numbers	Vector of m random numbers, beta distribution.
+dbinom	dbinom(k, n, q)	Probability distributions and random numbers	Probability density, binomial distribution.
+pbinom	pbinom(k, n, q)	Probability distributions and random numbers	Cumulative probability, binomial distribution.
+qbinom	qbinom(p, n, q)	Probability distributions and random numbers	Inverse cumulative probability, binomial distribution.
+rbinom	rbinom(m, n, q)	Probability distributions and random numbers	Vector of m random numbers, binomial distribution.
+dcauchy	dcauchy(x, l, s)	Probability distributions and random numbers	Probability density, Cauchy distribution.
+pcauchy	pcauchy(x, l, s)	Probability distributions and random numbers	Cumulative probability, Cauchy distribution.
+qcauchy	qcauchy(p, l, s)	Probability distributions and random numbers	Inverse cumulative probability, Cauchy distribution.
+rcauchy	rcauchy(m, l, s)	Probability distributions and random numbers	Vector of m random numbers, Cauchy distribution.
+dchisq	dchisq(x, d)	Probability distributions and random numbers	Probability density, chi-squared distribution.
+pchisq	pchisq(x, d)	Probability distributions and random numbers	Cumulative probability, chi-squared distribution.
+qchisq	qchisq(p, d)	Probability distributions and random numbers	Inverse cumulative probability, chi-squared distribution.
+rchisq	rchisq(m, d)	Probability distributions and random numbers	Vector of m random numbers, chi-squared distribution.
+dexp	dexp(x, r)	Probability distributions and random numbers	Probability density, exponential distribution.
+pexp	pexp(x, r)	Probability distributions and random numbers	Cumulative probability, exponential distribution.
+qexp	qexp(p, r)	Probability distributions and random numbers	Inverse cumulative probability, exponential distribution.
+rexp	rexp(m, r)	Probability distributions and random numbers	Vector of m random numbers, exponential distribution.
+dF	dF(x, d1, d2)	Probability distributions and random numbers	Probability density, F distribution.
+pF	pF(x, d1, d2)	Probability distributions and random numbers	Cumulative probability, F distribution.
+qF	qF(p, d1, d2)	Probability distributions and random numbers	Inverse cumulative probability, F distribution.
+rF	rF(m, d1, d2)	Probability distributions and random numbers	Vector of m random numbers, F distribution.
+dgamma	dgamma(x, s)	Probability distributions and random numbers	Probability density, gamma distribution.
+pgamma	pgamma(x, s)	Probability distributions and random numbers	Cumulative probability, gamma distribution.
+qgamma	qgamma(p, s)	Probability distributions and random numbers	Inverse cumulative probability, gamma distribution.
+rgamma	rgamma(m, s)	Probability distributions and random numbers	Vector of m random numbers, gamma distribution.
+dgeom	dgeom(k, q)	Probability distributions and random numbers	Probability density, geometric distribution.
+pgeom	pgeom(k, q)	Probability distributions and random numbers	Cumulative probability, geometric distribution.
+qgeom	qgeom(p, q)	Probability distributions and random numbers	Inverse cumulative probability, geometric distribution.
+rgeom	rgeom(m, q)	Probability distributions and random numbers	Vector of m random numbers, geometric distribution.
+dhypergeom	dhypergeom(m, a, b, n)	Probability distributions and random numbers	Probability density, hypergeometric distribution.
+phypergeom	phypergeom(m, a, b, n)	Probability distributions and random numbers	Cumulative probability, hypergeometric distribution.
+qhypergeom	qhypergeom(p, a, b, n)	Probability distributions and random numbers	Inverse cumulative probability, hypergeometric distribution.
+rhypergeom	rhypergeom(m, a, b, n)	Probability distributions and random numbers	Vector of m random numbers, hypergeometric distribution.
+dlnorm	dlnorm(x, μ, σ)	Probability distributions and random numbers	Probability density, log normal distribution.
+plnorm	plnorm(x, μ, σ)	Probability distributions and random numbers	Cumulative probability, log normal distribution.
+qlnorm	qlnorm(p, μ, σ)	Probability distributions and random numbers	Inverse cumulative probability, log normal distribution.
+rlnorm	rlnorm(m, μ, σ)	Probability distributions and random numbers	Vector of m random numbers, log normal distribution.
+dlogis	dlogis(x, l, s)	Probability distributions and random numbers	Probability density, logistic distribution.
+plogis	plogis(x, l, s)	Probability distributions and random numbers	Cumulative probability, logistic distribution.
+qlogis	qlogis(p, l, s)	Probability distributions and random numbers	Inverse cumulative probability, logistic distribution.
+rlogis	rlogis(m, l, s)	Probability distributions and random numbers	Vector of m random numbers, logistic distribution.
+dnbinom	dnbinom(k, n, q)	Probability distributions and random numbers	Probability density, negative binomial distribution.
+pnbinom	pnbinom(k, n, q)	Probability distributions and random numbers	Cumulative probability, negative binomial distribution.
+qnbinom	qnbinom(p, n, q)	Probability distributions and random numbers	Inverse cumulative probability, negative binomial distribution.
+rnbinom	rnbinom(m, n, p)	Probability distributions and random numbers	Vector of m random numbers, negative binomial distribution.
+dnorm	dnorm(x, μ, σ)	Probability distributions and random numbers	Probability density, normal distribution.
+pnorm	pnorm(x, μ, σ)	Probability distributions and random numbers	Cumulative probability, normal distribution.
+qnorm	qnorm(p, μ, σ)	Probability distributions and random numbers	Inverse cumulative probability, normal distribution.
+dpois	dpois(k, λ)	Probability distributions and random numbers	Probability density, Poisson distribution.
+ppois	ppois(k, λ)	Probability distributions and random numbers	Cumulative probability, Poisson distribution.
+qpois	qpois(p, λ)	Probability distributions and random numbers	Inverse cumulative probability, Poisson distribution.
+rpois	rpois(m, λ)	Probability distributions and random numbers	Vector of m random numbers, Poisson distribution.
+dt	dt(x, d)	Probability distributions and random numbers	Probability density, Student's t distribution.
+pt	pt(x, d)	Probability distributions and random numbers	Cumulative probability, Student's t distribution.
+qt	qt(p, d)	Probability distributions and random numbers	Inverse cumulative probability, Student's t distribution.
+rt	rt(m, d)	Probability distributions and random numbers	Vector of m random numbers, Student's t distribution.
+dunif	dunif(x, a, b)	Probability distributions and random numbers	Probability density, uniform distribution.
+punif	punif(x, a, b)	Probability distributions and random numbers	Cumulative probability, uniform distribution.
+qunif	qunif(p, a, b)	Probability distributions and random numbers	Inverse cumulative probability, uniform distribution.
+runif	runif(m, a, b)	Probability distributions and random numbers	Vector of m random numbers, uniform distribution.
+dweibull	dweibull(x, s)	Probability distributions and random numbers	Probability density, Weibull distribution.
+pweibull	pweibull(x, s)	Probability distributions and random numbers	Cumulative probability, Weibull distribution.
+qweibull	qweibull(p, s)	Probability distributions and random numbers	Inverse cumulative probability, Weibull distribution.
+rweibull	rweibull(m, s)	Probability distributions and random numbers	Vector of m random numbers, Weibull distribution.
+cnorm	cnorm(x)	Probability distributions and random numbers	Cumulative normal distribution with mean 0, variance 1.
+convol	convol(S, K, [BC], [OV])	Sorting, ranking, lookup, convolution	Convolution of an array with a kernel, 1D or 2D, with an arbitrary phase.
+convolve	convolve(S, K, [BC], [OV])	Sorting, ranking, lookup, convolution	Convolution of an array with a kernel, 1D or 2D, with an arbitrary phase.
+crosscorr	crosscorr(S, K, [BC], [OV])	Sorting, ranking, lookup, convolution	Cross-correlation of an array with a kernel, 1D or 2D: the convolution with the kernel reversed, at the same BC and OV.
+deconvolve	deconvolve(vz, vx)	Sorting, ranking, lookup, convolution	1D deconvolution of two vectors: the first n - m + 1 elements of the circular deconvolution.
+vec	vec(x, y, z) / vec(x, y) / vec(x)	Array creation, joining and subdividing	Vector from first x, second y (step y-x) to last z.
+vsum	vsum(v)	Array characteristics and linear algebra	Sum of the elements of an array, in reading order (a matrix row by row) and keeping the units.
+READODS	READODS("file", ["range", [emptyfill]])	File access	Reads the cells of a range of an OpenDocument spreadsheet (.ods) as a matrix.
+WRITEODS	WRITEODS("file", M, ["sheet"])	File access	Updates a named sheet in an OpenDocument workbook while preserving other sheets and their existing workbook content.
+if	if(cond, x, y)	Conditional, type tests and errors	Returns x if cond is true (nonzero), else y.
+error	error("S")	Conditional, type tests and errors	Raises S as an error message.

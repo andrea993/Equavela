@@ -1,0 +1,20 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: "[A11, A12; [A211; A212], A22] := f(x)"
+  - id: r2
+    page: 1
+    at: [54, 102]
+    math: "f(a, [x, y] ← [1, 2])"
+  - id: r3
+    page: 1
+    at: [54, 132]
+    math: |
+      S(M) := program
+        [a, [b; c]] ← M
+        a + b + c

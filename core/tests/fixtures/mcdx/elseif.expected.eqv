@@ -1,0 +1,18 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: |
+      Sgn(x) := program
+        if x < 0
+          -1
+        else if x == 0
+          0
+        else if x < 10
+          1
+        else
+          2

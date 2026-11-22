@@ -1,0 +1,132 @@
+/* Text regions: one stylesheet for the editor DOM and the read-only render:
+   semantic `sup` / `sub` elements and the classes tx-b, tx-i, tx-u, so that the idle editor is
+   pixel-identical to the render that is printed. Line heights are whole CSS px, font sizes
+   `pt × 4/3`; the font is the
+   bundled Noto Sans with no fallback (R4); nothing here is editor chrome. */
+
+.text-region {
+  font-family: "Noto Sans";
+  font-size: calc(40px / 3);
+  line-height: 17px;
+  color: #000000;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  outline: none;
+  caret-color: #000000;
+}
+
+.text-region .tx-p {
+  margin: 0;
+  padding: 0;
+  min-height: 17px;
+}
+/* The last paragraph of a region has no space after, whatever its style states. */
+.text-region .tx-p:last-child {
+  margin-bottom: 0 !important;
+}
+.text-region .tx-b {
+  font-weight: 700;
+}
+.text-region .tx-i {
+  font-style: italic;
+}
+.text-region .tx-u {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.text-region sub,
+.text-region sup {
+  font-size: 0.75em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+.text-region sub {
+  top: 0.25em;
+}
+.text-region sup {
+  top: -0.4em;
+}
+
+/* inline math: the math renderer's inline-block, on the text baseline */
+.text-region .tx-math {
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.text-region .tx-bad {
+  font-family: "STIX Two Text";
+  font-style: italic;
+  color: var(--error);
+}
+.text-region .tx-inline {
+  cursor: text;
+  position: relative;
+}
+.text-region .tx-inline:focus {
+  outline: none;
+}
+.text-region .tx-inline.editing {
+  background: rgba(31, 78, 180, 0.06);
+}
+
+@media print {
+  .text-region .tx-inline.editing {
+    background: none;
+  }
+}
+
+/* Misspelt words: painted by the CSS Custom Highlight API over the text, so
+   no element is added, the layout never moves and nothing reaches the print or the PDF. */
+::highlight(mm-spelling) {
+  text-decoration: underline wavy #d32f2f;
+  text-decoration-skip-ink: none;
+}
+@media print {
+  ::highlight(mm-spelling) {
+    text-decoration: none;
+  }
+}
+/* Find's occurrences on the sheet, painted like the spelling marks: screen only. */
+::highlight(mm-find-match) {
+  background-color: rgba(255, 214, 0, 0.45);
+}
+::highlight(mm-find-current) {
+  background-color: rgba(255, 140, 0, 0.6);
+}
+@media print {
+  ::highlight(mm-find-match),
+  ::highlight(mm-find-current) {
+    background-color: transparent;
+  }
+}
+.spelling-dialog .spell-licence {
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 11px;
+}
+.spelling-dialog fieldset {
+  min-width: 0;
+}
+.spelling-dialog select {
+  max-width: 100%;
+}
+.spelling-dialog .spell-download {
+  display: flex;
+  gap: 6px;
+}
+.spelling-dialog .spell-download select {
+  flex: 1;
+  min-width: 0;
+}
+.spelling-dialog .spell-installed {
+  margin: 0;
+  padding-left: 16px;
+}
+.spelling-dialog .spell-consent {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #c8cdd6;
+  background: #f6f8fb;
+}

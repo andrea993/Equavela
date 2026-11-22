@@ -1,0 +1,38 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 87]
+    math: "a := 1"
+  - id: r2
+    page: 1
+    at: [54, 147]
+    area:
+      title: Area
+      height: 84.75
+      collapsed: true
+  - id: r3
+    page: 1
+    at: [61.5, 183]
+    math: "b := a + 1"
+  - id: r4
+    page: 1
+    at: [61.5, 213]
+    math: "c := b + 1"
+  - id: r5
+    page: 1
+    at: [54, 261]
+    math: "d := c + 1"
+  - id: r6
+    page: 1
+    at: [54, 381]
+    area:
+      title: Results
+      height: 73.5
+  - id: r7
+    page: 1
+    at: [54, 409.5]
+    math: "e := d"

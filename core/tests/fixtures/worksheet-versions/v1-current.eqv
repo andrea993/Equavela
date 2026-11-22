@@ -1,0 +1,15 @@
+format: equavela-worksheet/1
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+settings:
+  origin: 0
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    text: Simply supported beam
+  - id: r2
+    page: 1
+    at: [54, 120]
+    math: "q := 12"

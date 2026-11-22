@@ -1,0 +1,11 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 35.43, right: 35.43, bottom: 35.43, left: 35.43}
+  header: {left: Frame Rev. B, center: "{file}", right: Sheet 1}
+  footer: {left: Issued by A. Drius Uncontrolled when printed, center: "{page}", right: "C {date}"}
+regions:
+  - id: r1
+    page: 1
+    at: [49.6, 49.6]
+    math: "a := 1"

@@ -1,0 +1,34 @@
+# the reference application physical constants: one table read by
+# EqRuntime (constants.jl, which builds the SI quantities) and by the Rust code generator and
+# dimensional analysis (core/src/constants.rs), so both sides agree on names and dimensions.
+#
+# <name> <dimension> <value in SI base units>
+# <dimension> is the exponent of length, mass, time, current, temperature, amount and luminous
+# intensity, comma separated (same order as units.tsv). A name with a literal subscript is
+# written `base_sub` (`ε_0`), as in the linear math text. `@alias <name> <target>` is a second
+# spelling of the same constant.
+#
+# Values are CODATA 2022 (NIST SP 961, 2024 release). c, h, e, k and N_A are exact (2019 SI
+# redefinition); R, ħ, σ and Φ₀ are exact consequences of those (the printed digits are the
+# nearest double). The measured ones are α, m_u, R∞, ε₀ and μ₀.
+#
+# Resolution: a definition in the worksheet wins; these names are
+# constants otherwise. None of them is a unit name. The spec's bare spellings `ec`, `mu`, `NA`
+# are NOT aliases: `mu` in particular is far too common as a user variable.
+c      1,0,-1,0,0,0,0   299792458
+e.c    0,0,1,1,0,0,0    1.602176634e-19
+h      2,1,-1,0,0,0,0   6.62607015e-34
+ħ      2,1,-1,0,0,0,0   1.0545718176461565e-34
+k      2,1,-2,0,-1,0,0  1.380649e-23
+m.u    0,1,0,0,0,0,0    1.66053906892e-27
+N.A    0,0,0,0,0,-1,0   6.02214076e23
+R      2,1,-2,0,-1,-1,0 8.31446261815324
+R∞     -1,0,0,0,0,0,0   10973731.568157
+α      0,0,0,0,0,0,0    7.2973525643e-3
+ε_0    -3,-1,4,2,0,0,0  8.8541878188e-12
+μ_0    1,1,-2,-2,0,0,0  1.25663706127e-6
+σ      0,1,-3,0,-4,0,0  5.670374419184431e-8
+Φ_0    2,1,-2,-1,0,0,0  2.0678338484619295e-15
+@alias ε0 ε_0
+@alias μ0 μ_0
+@alias Φ0 Φ_0

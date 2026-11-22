@@ -1,0 +1,43 @@
+format: equavela-worksheet/2
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: "L := 3.5 m"
+  - id: r2
+    page: 1
+    at: [54, 120]
+    math: "F := 2 kN·m"
+  - id: r3
+    page: 1
+    at: [54, 168]
+    math: "F = … kN·m"
+  - id: r4
+    page: 1
+    at: [54, 216]
+    math: "s := 3"
+  - id: r5
+    page: 1
+    at: [54, 264]
+    math: "y := s + 1"
+  - id: r6
+    page: 1
+    at: [54, 312]
+    math: "f(s) := 2·s"
+  - id: r7
+    page: 1
+    at: [54, 360]
+    math: "∑[s ∈ 1..3] s"
+  - id: r8
+    page: 1
+    at: [54, 408]
+    text: "A length $x := 3.5 m$ and a plain $3 s$"
+  - id: r9
+    page: 1
+    at: [54, 456]
+    plot:
+      type: xy
+      traces: [{id: t1, x: "x", y: "x·2 m"}]

@@ -1,0 +1,25 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 36, bottom: 72, left: 36}
+regions:
+  - id: r1
+    page: 1
+    at: [36, 72]
+    math: "V := vsum(v)"
+  - id: r2
+    page: 1
+    at: [36, 147]
+    math: "vsum(v) ="
+  - id: r3
+    page: 1
+    at: [36, 222]
+    math: "vsum((v + w)) ="
+  - id: r4
+    page: 1
+    at: [36, 297]
+    math: "2·vsum(M⟨0⟩) ="
+  - id: r5
+    page: 1
+    at: [36, 372]
+    math: "vsum(rows(X)) ="

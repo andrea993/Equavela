@@ -1,0 +1,2868 @@
+/* Window chrome: title bar, ribbon, tabs, status bar, dialogs. Our own style (no the vendor assets).
+   Fonts are bundled; no generic or system fallback anywhere. */
+
+:root {
+  --chrome-bg: #eef0f3;
+  --chrome-panel: #ffffff;
+  --chrome-border: #c9ced6;
+  --chrome-text: #1d2430;
+  --chrome-muted: #6b7482;
+  --accent: #1f6feb;
+  --accent-soft: #dbe8fd;
+  --ok: #1a8f3c;
+  --warn: #b26a00;
+  --error: #c62828;
+  --area-bg: #7f858f;
+  /* Contextual ribbon tabs. */
+  --context: #8a3ffc;
+  --context-soft: #efe6ff;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Noto Sans";
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--chrome-text);
+  background: var(--chrome-bg);
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.grow {
+  flex: 1;
+}
+
+.hint {
+  color: var(--chrome-muted);
+}
+
+/* ---- title bar ------------------------------------------------------------------------ */
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 34px;
+  padding: 0 8px;
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.titlebar .tool {
+  color: #f3f4f6;
+}
+
+.titlebar .tool:hover:not(:disabled) {
+  background: #374151;
+}
+
+.quick-access {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.quick-access .tool-label {
+  display: none;
+}
+
+.quick-access .separator {
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: #4b5563;
+}
+
+/* The Recent menu of the quick access: anchored under its button, above the
+   ribbon. It is chrome, so it is never printed. */
+.recent {
+  position: relative;
+  display: inline-flex;
+}
+
+.recent-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: min(260px, calc(100vw - 24px));
+  max-width: min(480px, calc(100vw - 24px));
+  padding: 4px;
+  border: 1px solid #c9ced8;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #1d2330;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+}
+
+.recent-file {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.recent-file:hover,
+.recent-file:focus-visible {
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.recent-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.recent-file-folder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--chrome-muted);
+  font-size: 11px;
+}
+
+.recent-heading {
+  padding: 6px 8px 2px;
+  color: var(--chrome-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.window-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* the project commands, apart from the worksheet's quick access: on the right,
+   framed as a group of their own, with their names written while there is room. */
+.project-access {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  border: 1px solid #4b5563;
+  border-radius: 4px;
+}
+.project-access .tool {
+  flex-direction: row;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+@media (max-width: 1100px) {
+  .project-access .tool-label {
+    display: none;
+  }
+}
+
+/* ---- buttons -------------------------------------------------------------------------- */
+
+.tool {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 28px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tool:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: #a8c4f5;
+}
+
+.tool.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* A checkbox command of a ribbon group: a real checkbox with its label beside
+   it, in the same row as the small buttons of the group. */
+.tool.check {
+  flex-direction: row;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.tool.check input {
+  margin: 0;
+}
+
+.tool-icon {
+  font-size: 16px;
+  line-height: 18px;
+}
+
+.tool-label {
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+/* ---- ribbon --------------------------------------------------------------------------- */
+
+.ribbon {
+  /* the body is as high as three rows of small buttons and a group title, no more. */
+  --ribbon-body-height: 80px;
+  /* compact mode is one row of icons, so the body is lower. */
+  --ribbon-compact-height: 38px;
+  --ribbon-body-top: 3px;
+  --ribbon-scrollbar: 6px;
+  background: var(--chrome-panel);
+  border-bottom: 1px solid var(--chrome-border);
+}
+
+.ribbon-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-border);
+  padding: 0 4px;
+  /* the tab row is as high at every width (the search field shrinks to its icon). */
+  box-sizing: border-box;
+  height: 36px;
+  overflow: hidden;
+}
+
+/* the tabs never wrap; they scroll when the window is narrow. */
+.ribbon-tablist {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ribbon-tab.contextual {
+  color: var(--context);
+  border-top: 2px solid var(--context);
+  background: var(--context-soft);
+}
+
+.ribbon-tab.contextual.active {
+  background: var(--chrome-panel);
+}
+
+.ribbon-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 260px;
+  min-width: 0;
+  margin: 3px 0;
+  padding: 1px 8px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 4px;
+  background: var(--chrome-panel);
+  color: var(--chrome-muted);
+  cursor: text;
+  text-align: left;
+}
+
+.ribbon-search:hover {
+  border-color: var(--accent);
+}
+
+.ribbon-search-text {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ribbon-search kbd {
+  font: inherit;
+  font-size: 11px;
+  padding: 0 4px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+}
+
+.ribbon-compact.active {
+  color: var(--accent);
+}
+
+.ribbon-tab {
+  flex: 0 0 auto;
+  min-width: 60px;
+  padding: 4px 14px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ribbon-tab:hover {
+  background: #e3e6eb;
+}
+
+.ribbon-tab.active {
+  background: var(--chrome-panel);
+  border-color: var(--chrome-border);
+  margin-bottom: -1px;
+  font-weight: 700;
+}
+
+.ribbon-collapse,
+.ribbon-compact {
+  width: 28px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ribbon-body {
+  display: flex;
+  align-items: flex-start;
+  /* one fixed height on every tab, contextual tabs included, at every window width and in
+     compact mode. It never depends on the content: a group stacks, shrinks to icons or scrolls
+     sideways, it never wraps into a taller ribbon. The bottom of the body is the reserve of a
+     thin horizontal scrollbar, and the groups have a fixed height above it, so the scrollbar
+     appearing or not does not move anything either. */
+  box-sizing: border-box;
+  height: var(--ribbon-body-height);
+  flex: 0 0 auto;
+  padding: var(--ribbon-body-top) 6px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* the arrows at the edges of a ribbon body with more commands past them. They sit over
+   the body (the frame adds no height) and fade the commands under them. */
+.ribbon-body-frame {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.ribbon-scroll {
+  position: absolute;
+  top: 0;
+  bottom: var(--ribbon-scrollbar);
+  width: 22px;
+  border: none;
+  padding: 0;
+  color: var(--chrome-text);
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.ribbon-scroll.left {
+  left: 0;
+  background: linear-gradient(to right, var(--chrome-bg) 55%, transparent);
+}
+
+.ribbon-scroll.right {
+  right: 0;
+  background: linear-gradient(to left, var(--chrome-bg) 55%, transparent);
+}
+
+.ribbon-scroll:hover {
+  color: var(--chrome-accent, var(--chrome-text));
+}
+
+.ribbon-body::-webkit-scrollbar {
+  height: var(--ribbon-scrollbar);
+}
+
+.ribbon-body::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--chrome-border);
+}
+
+.ribbon-group {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: calc(var(--ribbon-body-height) - var(--ribbon-body-top) - var(--ribbon-scrollbar));
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 8px;
+  border-right: 1px solid var(--chrome-border);
+}
+
+.ribbon-commands {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+/* Keep label/icon pairs at intrinsic width; the ribbon body scrolls instead of overlapping them. */
+.ribbon-commands > .tool {
+  flex: 0 0 auto;
+}
+
+/* Secondary commands: small buttons with the icon beside the label, three rows per column. */
+.ribbon-commands.stacked {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(3, auto);
+  align-content: start;
+  gap: 0 2px;
+}
+
+.ribbon-commands.stacked .tool {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 0 6px;
+}
+
+.ribbon-commands.stacked .tool-icon {
+  font-size: 13px;
+  line-height: 16px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.tool-icon {
+  white-space: nowrap;
+}
+
+.ribbon-icon {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.ribbon-group-title {
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+  color: var(--chrome-muted);
+  white-space: nowrap;
+}
+
+/* compact mode (by choice, or forced by a narrow window): icons only, no group titles, and
+   one row per group in a lower body. */
+.ribbon.compact {
+  --ribbon-body-height: var(--ribbon-compact-height);
+}
+
+.ribbon.compact .ribbon-commands.stacked,
+.ribbon.compact .ribbon-fields,
+.ribbon.compact .plot-trace-list {
+  grid-template-rows: auto;
+}
+
+/* A field of a compact ribbon is its control alone, in one row: the caption above it and the
+   explanatory hints are hidden (the control's tooltip and accessible name keep the caption). */
+.ribbon.compact .ribbon-field > .ribbon-field-label,
+.ribbon.compact .ribbon-hint {
+  display: none;
+}
+
+.ribbon.compact .ribbon-field {
+  flex-direction: row;
+  align-items: center;
+}
+
+.ribbon.compact .ribbon-body {
+  padding: var(--ribbon-body-top) 4px 0;
+}
+
+.ribbon.compact .ribbon-group-title,
+.ribbon.compact .tool.has-icon .tool-label {
+  display: none;
+}
+
+.ribbon.compact .ribbon-group {
+  padding: 0 4px;
+}
+
+@media (max-width: 900px) {
+  .ribbon {
+    --ribbon-body-height: var(--ribbon-compact-height);
+  }
+
+  .ribbon .ribbon-commands.stacked,
+  .ribbon .ribbon-fields,
+  .ribbon .plot-trace-list {
+    grid-template-rows: auto;
+  }
+
+  .ribbon .ribbon-field > .ribbon-field-label,
+  .ribbon .ribbon-hint {
+    display: none;
+  }
+
+  .ribbon .ribbon-field {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .ribbon .ribbon-body {
+    padding: var(--ribbon-body-top) 4px 0;
+  }
+
+  .ribbon .ribbon-group-title,
+  .ribbon .tool.has-icon .tool-label {
+    display: none;
+  }
+
+  .ribbon .ribbon-group {
+    padding: 0 4px;
+  }
+}
+
+/* below 700 px the search field is only its icon. */
+@media (max-width: 700px) {
+  .ribbon-search {
+    flex: 0 0 auto;
+  }
+
+  .ribbon-search-text,
+  .ribbon-search kbd {
+    display: none;
+  }
+}
+
+/* ---- document tabs -------------------------------------------------------------------- */
+
+.doc-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 6px 0;
+  background: var(--chrome-bg);
+  min-height: 27px;
+}
+
+.doc-tab {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--chrome-border);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  background: #dfe3e8;
+}
+
+.doc-tab.active {
+  background: var(--chrome-panel);
+  font-weight: 700;
+}
+
+.doc-tab button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 3px 8px;
+}
+
+.doc-tab-close {
+  padding: 3px 6px;
+  color: var(--chrome-muted);
+}
+
+.doc-tab-close:hover {
+  color: var(--error);
+}
+
+/* ---- workspace ------------------------------------------------------------------------ */
+
+.workspace {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The project explorer: compact rows like a code editor's file tree. */
+.project-tree {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 240px;
+  min-width: 0;
+  border-right: 1px solid var(--chrome-border);
+  background: var(--chrome-panel);
+  font-size: 13px;
+  user-select: none;
+}
+
+.project-tree .tree-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 6px 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chrome-muted);
+}
+
+.project-tree .tree-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.project-tree .tree-tools { display: flex; gap: 1px; }
+
+.project-tree .tree-tools button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.project-tree .tree-tools button:hover { background: rgba(0, 0, 0, 0.08); }
+
+.project-tree .tree-body { flex: 1; overflow: auto; padding-bottom: 24px; }
+
+.project-tree .tree-body.drop { background: var(--accent-soft); }
+
+.project-tree .tree-row {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding-right: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+}
+
+.project-tree .tree-row:hover { background: rgba(0, 0, 0, 0.05); }
+
+.project-tree .tree-row[aria-selected="true"] { background: var(--accent-soft); }
+
+.project-tree .tree-row:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+
+.project-tree .tree-row[aria-current="page"] .tree-name { font-weight: 600; }
+
+.project-tree .tree-row.drop { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.project-tree .tree-chevron { flex: 0 0 12px; width: 12px; height: 12px; position: relative; }
+
+.project-tree .tree-chevron:not(.none)::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  border: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  opacity: 0.7;
+  transition: transform 0.1s;
+  transform-origin: 2px 4px;
+}
+
+.project-tree .tree-chevron.open::before { transform: rotate(90deg); }
+
+.project-tree .tree-icon { flex: 0 0 16px; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1; }
+
+.project-tree .tree-icon.folder { fill: #dcb67a; stroke: #b8913f; }
+
+.project-tree .tree-icon.worksheet { fill: #e8f0fb; stroke: #3b6db3; }
+
+.project-tree .tree-icon.worksheet .stroke { fill: none; }
+
+.project-tree .tree-icon.julia { stroke: none; }
+
+.project-tree .tree-icon.julia circle:nth-child(1) { fill: #389826; }
+
+.project-tree .tree-icon.julia circle:nth-child(2) { fill: #cb3c33; }
+
+.project-tree .tree-icon.julia circle:nth-child(3) { fill: #9558b2; }
+
+.project-tree .tree-icon.image { fill: #f3f6ee; stroke: #6a8d3a; }
+
+.project-tree .tree-icon.image .fill { fill: #6a8d3a; stroke: none; }
+
+.project-tree .tree-icon.other { fill: #f4f4f4; stroke: #8a8f99; }
+
+.project-tree .tree-name { flex: none; white-space: nowrap; }
+/* the specification : the References section below the file tree. */
+.project-tree .tree-references { flex: none; max-height: 40%; display: flex; flex-direction: column; border-top: 1px solid var(--chrome-border); }
+.project-tree .tree-references .tree-body { padding-bottom: 6px; }
+.project-tree .tree-references .tree-row.missing .tree-name { color: #8a1c2f; }
+.project-tree .tree-references .tree-row.export { cursor: default; font-family: var(--math-font, inherit); }
+.project-tree .tree-empty { padding: 4px 12px; color: var(--chrome-muted); font-size: 11px; }
+.project-tree .tree-muted { color: var(--chrome-muted); }
+.project-tree .tree-selection-summary { flex: none; padding: 5px 12px; border-top: 1px solid var(--chrome-border); color: var(--chrome-muted); font-size: 11px; }
+
+.project-tree .tree-dirty {
+  color: var(--accent);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.project-tree .tree-error-count,
+.project-tree .tree-resource-count {
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: #fde8eb;
+  color: #8a1c2f;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.project-tree .tree-badge {
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--chrome-muted);
+  font-size: 10px;
+}
+
+.project-tree .tree-edit { padding: 1px 8px 1px 0; }
+
+.project-tree .tree-edit input { width: 100%; height: 20px; padding: 0 4px; font: inherit; box-sizing: border-box; }
+
+.project-tree .tree-error {
+  margin-top: 2px;
+  padding: 3px 6px;
+  border: 1px solid #c4314b;
+  background: #fde8eb;
+  color: #8a1c2f;
+  font-size: 12px;
+  white-space: normal;
+}
+
+.tree-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid #c9ced8;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+  font-size: 13px;
+}
+
+.tree-menu button { padding: 4px 10px; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+
+.tree-menu button:hover:not(:disabled), .tree-menu button:focus-visible { background: var(--accent-soft); outline: none; }
+
+.tree-menu button:disabled { color: var(--chrome-muted); cursor: default; }
+
+.tree-menu hr { margin: 4px 0; border: 0; border-top: 1px solid #e3e6ec; }
+
+.sheet-host {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+@media print {
+  .workspace {
+    display: block;
+  }
+  .sheet-host {
+    position: static;
+  }
+}
+
+.no-document {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The message bar: one style per level. Error is the red it always was. */
+.message-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 12px;
+  background: #fdecea;
+  color: #7f1d1d;
+  border-bottom: 1px solid #f1b7b1;
+}
+
+.message-bar.message-success {
+  background: #e6f4ea;
+  color: #14532d;
+  border-bottom-color: #a7d7b2;
+}
+
+.message-bar.message-info {
+  background: #e8f1fb;
+  color: #1e3a5f;
+  border-bottom-color: #b6d0ee;
+}
+
+.message-bar.message-warning {
+  background: #fff4d6;
+  color: #6b4a00;
+  border-bottom-color: #f0d58a;
+}
+
+.message-mark {
+  display: inline-block;
+  width: 1.4em;
+  font-weight: 700;
+  text-align: center;
+}
+
+.message-bar button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* First-run notice: informational, never covers the sheet. */
+.engine-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px;
+  background: #e8f1fb;
+  color: #1e3a5f;
+  border-bottom: 1px solid #b6d0ee;
+  font-size: 13px;
+}
+
+.engine-notice-title {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.engine-notice-hint {
+  opacity: 0.85;
+}
+
+.engine-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: engine-spin 1s linear infinite;
+}
+
+@keyframes engine-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- status bar ----------------------------------------------------------------------- */
+
+.statusbar {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: center;
+  gap: 12px;
+  height: 28px;
+  padding: 0 10px;
+  background: var(--chrome-panel);
+  border-top: 1px solid var(--chrome-border);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Reserve only 6 px of the 28 px row, leaving the 22 px controls fully visible. */
+.statusbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.statusbar::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--chrome-border);
+}
+
+/* Every control stays usable when optional kernel/progress information fills the row. */
+.statusbar > .status-item {
+  flex: 0 0 auto;
+}
+
+.statusbar > .grow {
+  flex: 1 0 0;
+  min-width: 0;
+}
+
+/* Small windows: the zoom slider gives way to its buttons. */
+@media (max-width: 700px) {
+  .statusbar {
+    gap: 8px;
+  }
+
+  .statusbar .zoom-controls input[type="range"] {
+    display: none;
+  }
+}
+
+.status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusbar button {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  padding: 1px 6px;
+}
+
+.statusbar button:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.statusbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.statusbar button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--chrome-muted);
+  display: inline-block;
+}
+
+.calc-mode.auto .dot,
+.kernel.ready .dot {
+  background: var(--ok);
+}
+
+.calc-mode.manual .dot,
+.kernel.starting .dot,
+.kernel.busy .dot {
+  background: var(--warn);
+}
+
+.kernel.crashed .dot {
+  background: var(--error);
+}
+
+.calc-mode {
+  font-weight: 700;
+}
+
+.find input,
+.replace input {
+  width: 120px;
+  padding: 1px 4px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+}
+
+.find-count {
+  color: var(--chrome-muted);
+}
+
+/* Math mode of Find and Replace: the toggle and the math boxes, which
+   take the place and the size of the text fields; the math grows with what is typed. */
+.statusbar button.find-mode {
+  min-width: 22px;
+  font-weight: 700;
+}
+
+.statusbar button.find-mode[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.find-math {
+  display: inline-flex;
+  align-items: center;
+  min-width: 120px;
+  max-width: 260px;
+  min-height: 20px;
+  padding: 0 4px;
+  overflow: hidden;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+  background: #ffffff;
+}
+
+.find-math .tx-inline {
+  min-width: 100%;
+  cursor: text;
+}
+
+.progress progress {
+  width: 120px;
+  height: 8px;
+}
+
+.progress .stop {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.mock-badge {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #fde68a;
+  color: #78350f;
+  font-weight: 700;
+}
+
+.zoom-controls input[type="range"] {
+  width: 110px;
+}
+
+.zoom-value {
+  min-width: 38px;
+  text-align: right;
+}
+
+.statusbar .page-jump { display: inline-flex; align-items: center; gap: 4px; }
+.statusbar .page-jump input { width: 5ch; text-align: right; }
+.statusbar .page-jump input[aria-invalid="true"] { border-color: var(--error); }
+.statusbar .page-jump-error { color: var(--error); }
+
+.view-toggle {
+  gap: 2px;
+}
+
+/* ---- dialogs -------------------------------------------------------------------------- */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  /* the specification : the gap above a dialog shrinks in a short window. */
+  padding-top: var(--dialog-top);
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 50;
+  --dialog-top: min(120px, 12vh);
+}
+
+/* a dialog never runs below the window; what does not fit scrolls inside it, so its
+   buttons stay reachable, and the scroll never reaches the worksheet behind. 34px are the
+   vertical padding and border, 16px a margin under the dialog. */
+.dialog {
+  width: 460px;
+  max-height: calc(100vh - var(--dialog-top, 0px) - 34px - 16px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 16px 18px;
+  background: var(--chrome-panel);
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.environment-manager { min-width: 460px; max-width: 640px; }
+.project-settings-dialog { width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; box-sizing: border-box; }
+.project-settings-dialog dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 12px; }
+.project-settings-dialog dt { color: var(--chrome-muted); }
+.project-settings-dialog dd { margin: 0; overflow-wrap: anywhere; }
+.project-settings-dialog .environment-path { font-family: monospace; }
+.project-settings-dialog label { display: grid; gap: 6px; }
+.project-settings-dialog select { width: 100%; min-width: 0; }
+.project-settings-dialog .dialog-buttons { flex-wrap: wrap; }
+.project-settings-hint { color: var(--chrome-muted); font-size: 12px; }
+.project-exports h3 { margin: 10px 0 4px; font-size: 13px; }
+.project-exports ul { max-height: 160px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.project-exports li { padding: 2px 0; }
+.project-export-name { font-weight: 600; }
+.project-image-usage-dialog { width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; box-sizing: border-box; }
+.project-image-usage-table-wrap { overflow-x: auto; }
+.project-image-usage-dialog table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.project-image-usage-dialog th, .project-image-usage-dialog td { padding: 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--chrome-border); overflow-wrap: anywhere; }
+.project-image-owner { display: block; max-width: 100%; padding: 2px 0; border: 0; background: transparent; color: var(--accent); cursor: pointer; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.project-image-owner:hover { text-decoration: underline; }
+.project-text-recovery-dialog { width: min(1000px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; box-sizing: border-box; }
+.project-text-recovery-layout { display: grid; grid-template-columns: minmax(180px, 300px) minmax(0, 1fr); gap: 16px; }
+.project-text-recovery-list { max-height: 55vh; overflow: auto; }
+.project-text-recovery-list ul { list-style: none; margin: 0; padding: 0; }
+.project-text-recovery-list li + li { margin-top: 6px; }
+.project-text-recovery-list button { display: grid; gap: 3px; width: 100%; padding: 8px; border: 1px solid var(--chrome-border); border-radius: 4px; background: transparent; color: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.project-text-recovery-list button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.project-text-recovery-list time { font-size: 11px; color: var(--chrome-muted); }
+.project-text-recovery-preview { min-width: 0; overflow-wrap: anywhere; }
+.project-text-recovery-preview h3 { margin-top: 0; font-size: 13px; }
+.project-text-recovery-preview pre { max-height: 45vh; overflow: auto; padding: 10px; border: 1px solid var(--chrome-border); font-family: "Noto Sans Mono", monospace; font-size: 12px; white-space: pre; tab-size: 4; user-select: text; }
+.project-text-recovery-dialog .dialog-buttons { flex-wrap: wrap; }
+@media (max-width: 700px) {
+  .project-text-recovery-layout { grid-template-columns: minmax(0, 1fr); }
+  .project-text-recovery-list { max-height: 22vh; }
+}
+.environment-manager dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0 0 10px; }
+.environment-manager dt { color: var(--chrome-muted); }
+.environment-manager dd { margin: 0; }
+.environment-manager .environment-path { overflow-wrap: anywhere; font-family: monospace; font-size: 12px; }
+.environment-manager .environment-warning { color: var(--error); font-family: inherit; }
+.environment-manager .environment-error { margin: 6px 0; color: var(--error); }
+.environment-manager h3 { margin: 12px 0 6px; font-size: 13px; }
+.environment-manager table { width: 100%; border-collapse: collapse; }
+.environment-manager th { text-align: left; color: var(--chrome-muted); font-weight: normal; }
+.environment-manager td, .environment-manager th { padding: 2px 6px 2px 0; }
+.environment-manager .environment-empty { margin: 0; color: var(--chrome-muted); }
+.environment-manager .environment-metadata { margin: 10px 0; padding: 8px; border: 1px solid var(--chrome-border); border-radius: 4px; }
+.environment-manager .environment-metadata pre { max-height: 260px; overflow: auto; margin: 8px 0 0; white-space: pre; font: 12px/1.45 monospace; }
+.environment-manager button {
+  padding: 3px 8px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+  background: var(--chrome-panel);
+  cursor: pointer;
+}
+.environment-manager .environment-choice { display: flex; flex-wrap: wrap; gap: 4px; }
+.environment-manager button:disabled {
+  color: var(--chrome-muted);
+  background: var(--chrome-bg);
+  border-color: var(--chrome-border);
+  cursor: not-allowed;
+}
+.environment-manager .environment-confirm {
+  margin: 10px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent-soft);
+}
+.environment-manager .environment-confirm > :first-child { margin-top: 0; }
+.environment-manager .environment-confirm .primary:not(:disabled) {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.project-dialog { max-width: calc(100vw - 32px); box-sizing: border-box; }
+.project-dialog label { margin-top: 10px; min-width: 0; }
+.project-dialog input { min-width: 0; width: 100%; box-sizing: border-box; }
+.project-dialog .project-error { margin-top: 10px; color: var(--error); overflow-wrap: anywhere; }
+
+.dialog h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+/* The result format dialog holds nine fields: it spaces its rows and
+   scrolls instead of growing past a short window. */
+.dialog.result-format {
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+
+.dialog.result-format label {
+  margin-top: 8px;
+}
+
+.dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* A checkbox and its label on one line, the whole label clickable. */
+.dialog label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The math font dialog: the size list and the two palette rows. A swatch
+   is a button, so it is reachable from the keyboard; the chosen one carries a ring. */
+.dialog.math-font .swatch-field,
+.dialog.label-styles .swatch-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.dialog.math-font .swatch-label,
+.dialog.label-styles .swatch-label {
+  font-size: 12px;
+  color: var(--chrome-muted);
+}
+
+.dialog.math-font .swatches,
+.dialog.label-styles .swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dialog.math-font .swatch,
+.dialog.label-styles .swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.dialog.math-font .swatch.active,
+.dialog.label-styles .swatch.active {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 1px;
+}
+
+/* Automatic (the default colour) and None (no highlight): the colour of the box, with a cross for
+   the two defaults, so neither looks like a colour of the palette. */
+.dialog.math-font .swatch.automatic,
+.dialog.label-styles .swatch.automatic {
+  background-image: linear-gradient(135deg, transparent 45%, #ffffff 45%, #ffffff 55%, transparent 55%);
+}
+
+.dialog.math-font .swatch.none {
+  background-color: #ffffff;
+  background-image: linear-gradient(135deg, transparent 45%, #c00000 45%, #c00000 55%, transparent 55%);
+}
+
+/* The label styles dialog: the list of the six styles, then the three
+   flags as a row of checkboxes, then the colour row it shares with the math font dialog. */
+.dialog.label-styles label.flag {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.dialog.label-styles > label:first-of-type {
+  margin-top: 8px;
+}
+
+.dialog input {
+  padding: 4px 6px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+}
+
+.dialog h3 {
+  margin: 14px 0 8px;
+  font-size: 13px;
+}
+
+.dialog .dialog-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+}
+
+.dialog .dialog-problem {
+  margin: 10px 0 0;
+  color: var(--error);
+}
+
+/* A field the dialog refuses: the message says what is wrong. */
+.dialog .error {
+  color: var(--error);
+}
+
+/* The page setup dialog and its header and footer section: a label and the three slots
+   of one line on a row of their own. */
+.dialog.page-setup {
+  width: 560px;
+}
+
+.dialog .dialog-row.chrome-row {
+  grid-template-columns: auto 1fr 1fr 1fr;
+  align-items: end;
+}
+
+.dialog .dialog-label {
+  align-self: center;
+  font-size: 12px;
+  color: var(--chrome-muted);
+}
+
+.dialog.import-report {
+  width: min(760px, 90vw);
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.dialog.import-report h3 {
+  margin: 12px 0 6px;
+  font-size: 13px;
+}
+
+.import-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.import-report-table th,
+.import-report-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--chrome-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.import-report-table td:first-child {
+  white-space: nowrap;
+}
+
+.dialog.shortcut-sheet {
+  width: min(640px, 90vw);
+  max-height: 85vh;
+  overflow: auto;
+}
+
+.dialog.shortcut-sheet h3 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+}
+
+.sheet-layout {
+  flex-direction: row !important;
+  align-items: center;
+}
+
+.shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.shortcut-table th,
+.shortcut-table td {
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--chrome-border);
+  text-align: left;
+}
+
+.shortcut-table td:first-child {
+  width: 40%;
+  white-space: nowrap;
+}
+
+/* Help > Keyboard Shortcuts > Print: only the sheet, full width, without the buttons. */
+@media print {
+  body.printing-shortcut-sheet * {
+    visibility: hidden;
+  }
+
+  body.printing-shortcut-sheet .dialog.shortcut-sheet,
+  body.printing-shortcut-sheet .dialog.shortcut-sheet * {
+    visibility: visible;
+  }
+
+  body.printing-shortcut-sheet .dialog.shortcut-sheet {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    box-shadow: none;
+  }
+
+  body.printing-shortcut-sheet .dialog.shortcut-sheet .dialog-buttons,
+  body.printing-shortcut-sheet .dialog.shortcut-sheet .sheet-layout {
+    display: none;
+  }
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dialog-buttons button {
+  padding: 4px 14px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+  background: var(--chrome-bg);
+  cursor: pointer;
+}
+
+.dialog-buttons .primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.math-palette {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 124px);
+  overflow: auto;
+  padding: 12px 14px 16px;
+  background: var(--chrome-panel);
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.math-palette > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.math-palette h2,
+.math-palette h3 {
+  margin: 0;
+}
+
+.math-palette h2 {
+  font-size: 15px;
+}
+
+.math-palette h3 {
+  margin-top: 10px;
+  color: var(--chrome-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.math-palette > header button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+/* Cells are as wide as their label (never clipped); a label wider than the panel wraps. */
+/* Compact cells (GitHub ): a thin padding and no visible border at rest, so a palette
+   shows as many entries as possible; the border appears on hover and focus. */
+.palette-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 3px;
+}
+
+.palette-grid button {
+  flex: 0 1 auto;
+  min-width: 30px;
+  max-width: 100%;
+  min-height: 26px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.15;
+  padding: 1px 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+  cursor: pointer;
+  font-family: "MC Math", "STIX Two Text";
+  font-size: 15px;
+}
+
+.palette-grid button:hover,
+.palette-grid button:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Floating, pinnable palettes: not modal, never covered by the page. */
+.palette-panel {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  /* Wide and tall enough that a palette like Symbols shows (nearly) all its entries without
+     scrolling, never past the window. */
+  width: min(520px, calc(100vw - 16px));
+  max-height: calc(100vh - 96px);
+  overflow: hidden;
+  padding: 0;
+}
+
+.palette-panel > header {
+  padding: 8px 8px 6px 12px;
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
+.palette-panel > header h2 {
+  flex: 1;
+}
+
+.palette-panel > header button {
+  font-size: 16px;
+}
+
+.palette-panel[data-pinned="true"] {
+  border-color: var(--accent);
+}
+
+/* the chips are the sections of the panel's own palette, and they wrap onto several lines
+   (the Units palette has a section per dimension); : a chip scrolls its section to the top of
+   the list and the chip of the section at the top is the active one. */
+.palette-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 0 12px 6px;
+}
+
+.palette-sections button {
+  padding: 1px 6px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 10px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.palette-sections button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.palette-search {
+  margin: 0 12px 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.palette-prefixes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 0 12px 6px;
+}
+
+.palette-prefixes button {
+  min-width: 26px;
+  padding: 2px 5px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+  cursor: pointer;
+  font-family: "MC Math", "STIX Two Text";
+}
+
+.palette-prefixes button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.palette-body {
+  /* The list takes what the panel has left and scrolls: a flex item keeps its content height
+     unless it may shrink, and the panel then clipped the end of the list. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 12px 12px;
+}
+
+.palette-empty {
+  color: var(--chrome-muted);
+  font-size: 13px;
+}
+
+.palette-grid button:disabled {
+  color: var(--chrome-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Function catalogue (F2) and command palette (Ctrl+K). */
+.catalogue-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 160px);
+}
+
+.catalogue-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.catalogue-controls input {
+  flex: 1;
+}
+
+.catalogue-controls select {
+  max-width: 220px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+}
+
+.catalogue-note {
+  margin: 6px 0 0;
+  color: var(--chrome-muted);
+  font-size: 12px;
+}
+
+.catalogue-body {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  margin-top: 10px;
+}
+
+.catalogue-list {
+  flex: 1.2;
+  min-height: 200px;
+  max-height: 340px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+}
+
+.catalogue-list li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.catalogue-list li.active {
+  background: var(--accent-soft);
+}
+
+.catalogue-name {
+  min-width: 78px;
+  font-weight: 600;
+}
+
+.catalogue-signature {
+  overflow: hidden;
+  color: var(--chrome-muted);
+  font-family: "Noto Sans Mono";
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalogue-detail {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.catalogue-detail h3 {
+  margin: 0 0 6px;
+  font-family: "Noto Sans Mono";
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.catalogue-detail p {
+  margin: 0 0 6px;
+}
+
+.catalogue-category,
+.catalogue-count,
+.catalogue-empty {
+  color: var(--chrome-muted);
+  font-size: 12px;
+}
+
+.catalogue-dialog .dialog-buttons .catalogue-count {
+  margin-right: auto;
+  align-self: center;
+}
+
+.commands-dialog {
+  width: min(680px, calc(100vw - 32px));
+  padding: 10px;
+}
+
+.insertion-backdrop {
+  padding: 0;
+  background: transparent;
+}
+
+.insertion-backdrop .commands-dialog {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.insertion-backdrop .commands-list {
+  max-height: 260px;
+  min-height: 0;
+}
+
+.commands-dialog input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font-size: 14px;
+}
+
+.commands-list {
+  max-height: min(420px, calc(100vh - 260px));
+  margin: 8px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.commands-list li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.commands-list li.active {
+  background: var(--accent-soft);
+}
+
+/* a command or palette name is chrome text; operators, symbols, constants, units and
+   functions keep the math font they are typed in. */
+.command-label {
+  min-width: 56px;
+  font-family: "Noto Sans";
+  font-weight: 600;
+}
+.command-label.glyph {
+  font-family: "MC Math", "STIX Two Text", "Noto Sans";
+}
+
+.command-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--chrome-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-group {
+  color: var(--chrome-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.command-shortcut {
+  padding: 0 5px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+  background: var(--chrome-bg);
+  font-family: "Noto Sans Mono";
+  font-size: 11px;
+}
+
+/* A size picker among the stacked small buttons: label and list on one row. */
+.ribbon-commands.stacked .size-picker {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 0 6px;
+}
+.ribbon-commands.stacked .size-picker select {
+  height: 18px;
+}
+
+/* An icon-only command: the label is the tooltip and the accessible name, not text. */
+.tool.icon-only .tool-label {
+  display: none;
+}
+
+/* Text Formatting tab: font size picker */
+.size-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+.size-picker select {
+  font-family: "Noto Sans";
+  font-size: 12px;
+  height: 24px;
+}
+
+/* Colour picker of the Text tab: the palette of squares and the RGB dialog */
+.color-picker {
+  position: relative;
+}
+.color-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+  background: var(--chrome-panel);
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+}
+.color-chip {
+  width: 28px;
+  height: 14px;
+  border: 1px solid var(--chrome-border);
+}
+.color-chip[data-empty] {
+  background: repeating-linear-gradient(45deg, #fff 0 3px, #ddd 3px 6px);
+}
+.color-palette {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+  background: var(--chrome-panel);
+  border: 1px solid var(--chrome-border);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.color-caption {
+  font-size: 10px;
+  opacity: 0.7;
+}
+.color-row {
+  display: flex;
+  gap: 3px;
+  max-width: 190px;
+  flex-wrap: wrap;
+}
+.color-swatch {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 2px;
+}
+.color-swatch:hover,
+.color-swatch.active {
+  outline: 2px solid var(--chrome-accent, #2563eb);
+  outline-offset: 1px;
+}
+.color-none,
+.color-more {
+  padding: 3px 6px;
+  font-size: 12px;
+  text-align: left;
+}
+.color-dialog {
+  width: 400px;
+}
+.color-picker-body {
+  display: flex;
+  gap: 10px;
+}
+.color-area {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  cursor: crosshair;
+  touch-action: none;
+}
+.color-hue {
+  position: relative;
+  width: 18px;
+  height: 200px;
+  cursor: ns-resize;
+  touch-action: none;
+  background: linear-gradient(to bottom, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+.color-area-cursor {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #000;
+  pointer-events: none;
+}
+.color-hue-cursor {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  height: 4px;
+  margin-top: -2px;
+  border: 1px solid #000;
+  background: #fff;
+  pointer-events: none;
+}
+.color-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.color-compare {
+  display: flex;
+  height: 28px;
+  border: 1px solid var(--chrome-border);
+}
+.color-compare span {
+  flex: 1;
+}
+.dialog .color-channel {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.dialog .color-channel input {
+  width: 72px;
+}
+
+/* ---- side panel ------------------------------------------- */
+
+.side-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: var(--inspector-width, 300px);
+  min-width: 220px;
+  flex: none;
+  background: var(--chrome-panel);
+  border-left: 1px solid var(--chrome-border);
+  font-size: 12px;
+  min-height: 0;
+}
+
+.side-panel-resizer {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.side-panel-resizer:hover, .side-panel-resizer:focus-visible { background: color-mix(in srgb, var(--accent) 24%, transparent); }
+.side-panel-resizer:focus-visible { outline: 1px solid var(--accent); }
+
+.side-tabs {
+  display: flex;
+  overflow-x: auto;
+  align-items: stretch;
+  border-bottom: 1px solid var(--chrome-border);
+}
+
+.side-tab,
+.side-close {
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  border-bottom: 2px solid transparent;
+}
+
+.side-tab:hover,
+.side-close:hover {
+  background: var(--accent-soft);
+}
+
+.side-tab.active {
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.side-close {
+  margin-left: auto;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 4px;
+  min-width: 14px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--error);
+  color: #fff;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.side-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 0;
+}
+
+.side-filter {
+  box-sizing: border-box;
+  width: calc(100% - 16px);
+  margin: 0 8px 4px;
+  font: inherit;
+}
+
+.side-note {
+  padding: 2px 10px;
+  color: var(--chrome-muted);
+}
+
+.side-note.indent {
+  padding-left: 26px;
+}
+
+.side-empty {
+  padding: 8px 10px;
+  color: var(--chrome-muted);
+}
+
+.side-list {
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.side-list.nested,
+.side-list.exports {
+  padding-left: 14px;
+}
+
+.side-group {
+  padding: 6px 10px 2px;
+  color: var(--chrome-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.side-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.side-row:hover:not(:disabled),
+.side-row.active {
+  background: var(--accent-soft);
+}
+
+.side-row:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.side-row {
+  white-space: nowrap;
+}
+
+.side-row .row-name {
+  flex: none;
+}
+
+.side-row .row-value {
+  flex: none;
+}
+
+.side-row .row-source {
+  flex: none;
+  margin-left: auto;
+  color: var(--chrome-muted);
+  font-size: 11px;
+}
+
+/* Kernel names remain beside the expression; long rows scroll horizontally. */
+.side-row .row-repl {
+  flex: none;
+  color: var(--chrome-muted);
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  user-select: text;
+}
+
+.side-row .row-label {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* A math region in the Outline is drawn as math, one line high (a fraction fits); a program shows its
+   first line. */
+.side-row .row-math {
+  display: inline-flex;
+  align-items: center;
+  max-height: 2.8em;
+  overflow: hidden;
+}
+
+.outline-row.level-1 {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.outline-row.level-2 {
+  font-weight: 600;
+}
+
+/* Text regions whose paragraph carries Heading 3. */
+.outline-row.level-3 {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.row-kind {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--chrome-muted);
+}
+
+.row-kind.text {
+  background: #6a7a8c;
+}
+
+.row-kind.math {
+  background: var(--accent);
+}
+
+.include-head {
+  align-items: center;
+  gap: 4px;
+}
+
+.include-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.include-toggle:disabled {
+  cursor: default;
+}
+
+.include-chevron {
+  width: 0;
+  height: 0;
+  flex: none;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.1s;
+}
+
+.include-chevron.open {
+  transform: rotate(90deg);
+}
+
+.include-open {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--chrome-border, currentColor);
+  border-radius: 3px;
+  background: none;
+  color: var(--chrome-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.include-open:hover {
+  color: inherit;
+}
+
+.row-kind.include {
+  background: #2e7d32;
+}
+
+.row-kind.julia {
+  background: #8e24aa;
+}
+
+.problem.error .row-kind.severity {
+  background: var(--error);
+}
+
+.problem.warning .row-kind.severity {
+  background: var(--warn);
+}
+
+.problem-kind {
+  font-weight: 600;
+}
+
+.problem-file {
+  color: var(--chrome-muted);
+}
+
+/* the actions of a missing-package error, under its row. */
+.problem-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 8px 6px 28px;
+}
+
+.problem-actions button {
+  font: inherit;
+  font-size: 11px;
+}
+
+.side-row .row-label {
+  white-space: normal;
+}
+
+.tag {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  font-size: 10px;
+  color: var(--chrome-muted);
+}
+
+.tag.warn {
+  background: #fdeccc;
+  color: var(--warn);
+}
+
+.muted {
+  color: var(--chrome-muted);
+}
+
+.panel-toggle .badge {
+  margin-left: 4px;
+}
+
+/* ---- hover card --------------------------------------------- */
+
+.hover-card {
+  position: fixed;
+  z-index: 60;
+  max-width: 320px;
+  padding: 6px 9px;
+  background: var(--chrome-panel);
+  border: 1px solid var(--chrome-border);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.hover-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.hover-value {
+  margin-top: 2px;
+}
+
+.hover-where,
+.hover-repl,
+.hover-hint {
+  margin-top: 2px;
+  color: var(--chrome-muted);
+}
+
+.side-tab {
+  white-space: nowrap;
+  padding: 6px 7px;
+}
+
+/* ---- Plot tab: the controls of the selected plot ---- */
+.plot-trace-list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(3, 18px);
+  grid-auto-columns: 132px;
+  gap: 1px 2px;
+  align-content: start;
+  margin-left: 4px;
+}
+
+.plot-trace-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--chrome-text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.plot-trace-item:hover {
+  background: var(--chrome-bg);
+}
+
+.plot-trace-item.selected {
+  border-color: var(--context);
+  background: var(--context-soft);
+}
+
+.plot-trace-swatch {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+}
+
+.plot-trace-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* a field group is at most three rows high; more rows start another column. */
+.ribbon-fields {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(3, auto);
+  align-content: start;
+  gap: 1px 8px;
+  font-size: 12px;
+}
+
+.ribbon-fields.ribbon-fields-inline {
+  display: flex;
+}
+
+.ribbon-field-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+  height: 18px;
+}
+
+/* the controls of a field row are as high as the row, so three rows fit the body. */
+.ribbon-field-row input,
+.ribbon-field-row select,
+.ribbon-field-row .plot-slot {
+  box-sizing: border-box;
+  height: 18px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.ribbon-field-label {
+  flex: 0 0 auto;
+  min-width: 38px;
+  color: var(--chrome-muted);
+  white-space: nowrap;
+}
+
+.ribbon-field {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.ribbon-commands.stacked .ribbon-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+}
+
+.ribbon-commands.stacked .ribbon-field select,
+.ribbon-commands.stacked .ribbon-field input {
+  box-sizing: border-box;
+  height: 18px;
+}
+
+.ribbon-fields select,
+.ribbon-field select {
+  max-width: 96px;
+  font-size: 12px;
+}
+
+.ribbon-fields input[type="number"] {
+  width: 48px;
+  font-size: 12px;
+}
+
+.ribbon-fields input[type="color"] {
+  width: 28px;
+  height: 18px;
+  padding: 0;
+}
+
+.ribbon-fields .plot-slot.ribbon-expression {
+  min-width: 120px;
+  max-width: 220px;
+  min-height: 18px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 2px;
+  background: #fff;
+  color: #000;
+}
+
+/* a Plot tab field being edited opens full size in a box over the ribbon and the sheet,
+   anchored at the field (PlotSlot sets left, top and min-width); the ribbon groups clip anything taller
+   than their rows. */
+.ribbon-fields .plot-slot.ribbon-expression .tx-inline.floating {
+  position: fixed;
+  z-index: 1000;
+  min-height: 18px;
+  padding: 1px 3px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* The size box of the Matrix tab: two narrow fields side by side, the width of
+   four digits each, so the Display group does not widen the ribbon into a second line. */
+.ribbon-size-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.ribbon-size-box .ribbon-size-times {
+  padding-bottom: 3px;
+  color: var(--chrome-muted);
+  font-size: 12px;
+}
+
+.ribbon-size-box input {
+  width: 44px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.ribbon-hint {
+  align-self: center;
+  max-width: 170px;
+  color: var(--chrome-muted);
+  font-size: 12px;
+}
+
+.ribbon-presentation {
+  margin-right: 6px;
+}
+
+/* Compact ribbon (by choice or below 900 px): narrower trace entries so the next group stays in reach. */
+.ribbon.compact .plot-trace-list {
+  grid-auto-columns: 104px;
+}
+
+@media (max-width: 900px) {
+  .ribbon .plot-trace-list {
+    grid-auto-columns: 104px;
+  }
+}
+
+.ribbon-shape {
+  align-self: center;
+  padding: 0 6px;
+  white-space: nowrap;
+  color: var(--fg-muted, inherit);
+  user-select: none;
+}
+
+/* The right-click menu. */
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 220px;
+  max-width: 340px;
+  padding: 4px 0;
+  background: var(--chrome-panel);
+  color: var(--chrome-text);
+  border: 1px solid var(--chrome-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+  outline: none;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  padding: 4px 14px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.context-menu-item.active:not(:disabled) {
+  background: #dbe7f7;
+}
+
+.context-menu-item.strong .context-menu-label {
+  /* The corrections of a misspelt word. */
+  font-weight: 700;
+}
+.context-menu-item:disabled {
+  color: var(--chrome-muted);
+  cursor: default;
+}
+
+.context-menu-shortcut {
+  color: var(--chrome-muted);
+  font-size: 12px;
+}
+
+.context-menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--chrome-border);
+}
+
+/* the tabs of project files that are not worksheets. */
+.file-tab {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.file-tab .file-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--chrome-border);
+  background: var(--chrome-panel);
+  font-size: 12px;
+}
+
+.file-tab .file-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--chrome-muted); }
+
+.file-tab .file-size { color: var(--chrome-muted); }
+
+.file-tab .file-tools { display: flex; gap: 2px; }
+
+.file-tab .file-tools .tool { min-width: 26px; padding: 2px 5px; font-size: 14px; }
+
+.file-tab .file-tools .tool:hover:not(:disabled) { background: rgba(0, 0, 0, 0.08); }
+
+.file-tab .file-tools .tool:disabled { opacity: 0.4; cursor: default; }
+
+.file-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  font-family: "DejaVu Sans Mono", Consolas, "Courier New", monospace;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.file-gutter {
+  flex: 0 0 auto;
+  min-width: 3.5em;
+  padding: 8px 10px 8px 6px;
+  overflow: hidden;
+  border-right: 1px solid #edf0f4;
+  background: #fafbfc;
+  color: #a0a7b2;
+  text-align: right;
+  user-select: none;
+}
+
+.file-code { position: relative; flex: 1; min-width: 0; }
+
+.file-code pre,
+.file-code textarea {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  font: inherit;
+  line-height: inherit;
+  white-space: pre;
+  tab-size: 4;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.file-code pre { color: #1d2330; pointer-events: none; }
+
+.file-code textarea {
+  resize: none;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: #1d2330;
+}
+
+.file-code textarea::selection { background: rgba(59, 109, 179, 0.25); }
+
+.file-image {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
+  background: repeating-conic-gradient(#f3f4f6 0% 25%, #ffffff 0% 50%) 50% / 16px 16px;
+}
+
+.file-image img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* a project worksheet's sheet sits under its file bar. */
+.file-tab.sheet-frame { background: transparent; }
+
+.sheet-frame .sheet-under-bar { position: relative; flex: 1; min-height: 0; }
+
+/* Load in worksheets beside the file's Save icon. */
+.file-module { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; font-size: 12px; color: var(--chrome-muted); cursor: pointer; }
+
+/* Browse… beside the project directory field. */
+.project-path { display: flex; align-items: flex-end; gap: 6px; }
+.project-path label { flex: 1; min-width: 0; }
+
+/* the full path of a document tab, shown after the pointer rests on it. */
+.doc-tab-tip { position: fixed; z-index: 60; max-width: 70vw; padding: 3px 7px; border: 1px solid var(--chrome-border); border-radius: 3px; background: #ffffff; color: var(--chrome-text, #1d2430); font-size: 12px; white-space: pre; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12); pointer-events: none; }
+
+/* the Find, Replace and Go to line bar at the top of a text tab. */
+.code-bar { display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-bottom: 1px solid var(--chrome-border); background: var(--chrome-panel); font-size: 12px; }
+.code-bar input { width: 180px; height: 20px; padding: 0 4px; font: inherit; box-sizing: border-box; }
+.code-bar button { height: 20px; padding: 0 6px; border: 1px solid var(--chrome-border); border-radius: 3px; background: #ffffff; font: inherit; cursor: pointer; }
+.code-bar .code-bar-note { color: var(--chrome-muted); }
+.code-bar .code-bar-close { margin-left: auto; border: 0; background: transparent; }
+
+/* the completion list under the caret of a text tab. */
+.file-code { position: relative; }
+.code-completion { position: absolute; z-index: 20; max-height: calc(12 * 20px); min-width: 160px; max-width: 420px; margin: 0; padding: 2px 0; overflow-y: auto; list-style: none; border: 1px solid var(--chrome-border); border-radius: 3px; background: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14); font-family: "Noto Sans Mono", monospace; font-size: 12px; }
+.code-completion li { height: 20px; padding: 0 8px; line-height: 20px; white-space: nowrap; cursor: pointer; }
+.code-completion li[aria-selected="true"] { background: var(--accent-soft); }
+
+/* the specification : the Julia REPL panel above the status bar. */
+.repl-panel { position: relative; display: flex; flex: none; flex-direction: column; min-height: 0; border-top: 1px solid var(--chrome-border); background: #fbfcfe; font-size: 12px; }
+.repl-separator { position: absolute; left: 0; right: 0; top: -3px; height: 6px; cursor: ns-resize; z-index: 2; }
+.repl-head { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border-bottom: 1px solid var(--chrome-border); background: var(--chrome-panel); }
+.repl-head .repl-title { font-weight: 600; }
+.repl-head .repl-target { color: var(--chrome-muted); }
+.repl-head button { height: 20px; padding: 0 6px; border: 1px solid var(--chrome-border); border-radius: 3px; background: #ffffff; font: inherit; cursor: pointer; }
+.repl-log { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px; font-family: "Noto Sans Mono", monospace; }
+.repl-log pre { margin: 0; white-space: pre-wrap; }
+.repl-entry { padding: 3px 0; border-bottom: 1px dashed #e3e6eb; }
+.repl-input { color: #7a3db8; }
+.repl-input::before { content: "julia> "; color: #389826; font-weight: 600; }
+.repl-value { color: #1d2430; }
+.repl-error summary { color: #b3261e; cursor: pointer; }
+.repl-duration, .repl-note { color: var(--chrome-muted); font-family: "Noto Sans"; font-size: 11px; }
+.repl-prompt { position: relative; display: flex; align-items: flex-start; gap: 6px; padding: 4px 8px; border-top: 1px solid var(--chrome-border); font-family: "Noto Sans Mono", monospace; }
+.repl-completions { position: absolute; left: 56px; bottom: 100%; z-index: 3; max-height: 160px; min-width: 160px; margin: 0; padding: 2px 0; overflow: auto; list-style: none; border: 1px solid var(--chrome-border); background: #ffffff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); font-family: "Noto Sans Mono", monospace; font-size: 12px; }
+.repl-completions li { padding: 1px 8px; cursor: pointer; white-space: pre; }
+.repl-completions li.selected { background: #dbe7fb; }
+.repl-prompt span { color: #389826; font-weight: 600; line-height: 20px; }
+.repl-prompt textarea { flex: 1; min-height: 20px; resize: none; border: 0; outline: none; background: transparent; font: inherit; line-height: 20px; }
+
+/* the REPL name in the hover card, copyable. */
+.hover-repl code {
+  font-family: "Noto Sans Mono", monospace;
+  user-select: text;
+}
+.terminal-host { flex: 1; min-height: 0; padding: 4px 8px; overflow: hidden; }
+.terminal-host .xterm { height: 100%; }
+.terminal-host .xterm-viewport { background-color: #fbfcfe; }
+
+
+.ribbon-tabs .command-stop {
+  min-height: 0;
+  padding: 0 6px;
+}
+
+.command-stop.idle {
+  visibility: hidden;
+}
+
+
+/* Size task groups around their commands. Extra window width enlarges the hit areas
+   within a small range, leaving short tabs clustered near their starting edge. */
+.ribbon-task .tool {
+  min-width: 36px;
+}
+
+.ribbon-task > .ribbon-group > .ribbon-commands:not(.stacked) {
+  align-items: stretch;
+}
+
+@media (min-width: 901px) {
+  .ribbon:not(.compact) .ribbon-task > .ribbon-group > .ribbon-commands:not(.stacked) > .tool {
+    min-width: clamp(56px, 5vw, 88px);
+  }
+}
+
+.ribbon-task .roomy .ribbon-commands {
+  align-content: stretch;
+  align-items: stretch;
+}
+
+@media (min-width: 901px) {
+  .ribbon:not(.compact) .ribbon-task .roomy .ribbon-commands {
+    grid-template-rows: repeat(3, minmax(19px, 1fr));
+  }
+
+  .ribbon:not(.compact) .ribbon-task .roomy .tool-label {
+    font-size: 12px;
+  }
+}
+
+@media (min-width: 1520px) {
+  .ribbon:not(.compact) .ribbon-task .roomy .ribbon-commands {
+    grid-template-rows: repeat(2, minmax(26px, 1fr));
+  }
+
+  .ribbon:not(.compact) .ribbon-task .roomy .tool {
+    padding-inline: 8px;
+  }
+}
+
+.fast-symbolic-menu {
+  position: fixed;
+  z-index: 75;
+  width: min(250px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding: 5px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  background: var(--chrome-panel, white);
+  color: var(--chrome-text, #1d2430);
+  box-shadow: 0 5px 18px #0002;
+}
+
+.fast-symbolic-menu button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 3px;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+
+.fast-symbolic-menu button:enabled:hover,
+.fast-symbolic-menu button:focus-visible { background: #dceaff; }
+.fast-symbolic-menu button:disabled { opacity: .45; }
+.fast-symbolic-menu kbd { font-size: .85em; }
+.fast-symbolic-options { display: grid; gap: 5px; padding: 5px 8px; border-bottom: 1px solid var(--chrome-border); }
+.fast-symbolic-options label { display: flex; align-items: center; gap: 6px; }

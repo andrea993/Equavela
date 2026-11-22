@@ -1,0 +1,46 @@
+# Rust
+/target/
+**/target/
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Tauri
+app/src-tauri/gen/
+
+# Julia
+kernel/**/build/
+*.so
+*.dll
+*.dylib
+# Python environments created by CondaPkg
+.CondaPkg/
+
+# the vendor reference documents: copyrighted, local use only
+docs/reference/*.pdf
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
+
+# Extracted corpus: derived from the private worksheets, 15 MB; regenerate with tools/mcdx
+tests/corpus/extracted/
+__pycache__/
+
+.julia-test-env/
+
+# Build outputs (sysimage)
+/build/
+scripts/sysimage/Manifest.toml
+
+# Real-app driver screenshots
+app/scripts/out/
+
+# GUI benchmark fixtures for the mock backend, generated locally
+app/perf-fixtures/

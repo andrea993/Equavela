@@ -1,0 +1,2 @@
+total 4 imported 4 page-breaks 0
+note solve-block-no-call 1 the solve block has no Find, Minerr, Minimize or Maximize call; its lines are imported as they are

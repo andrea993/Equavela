@@ -1,0 +1,13 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: "e^x →[series, x, 4]"
+  - id: r2
+    page: 1
+    at: [54, 109.5]
+    math: "x - y →[solve, x, y, z]"

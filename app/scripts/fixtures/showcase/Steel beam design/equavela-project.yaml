@@ -1,0 +1,10 @@
+format: equavela-project/1
+project_id: 7d3f1a2e-4b5c-4d6e-8f70-91a2b3c4d5e6
+name: Steel beam design
+worksheets:
+  - id: 1a2b3c4d-0000-4000-8000-000000000001
+    path: worksheets/beam.eqv
+  - id: 1a2b3c4d-0000-4000-8000-000000000002
+    path: worksheets/checks.eqv
+main_worksheet: 1a2b3c4d-0000-4000-8000-000000000001
+environment: julia

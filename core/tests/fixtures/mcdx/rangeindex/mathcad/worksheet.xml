@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50" xmlns:pw="clr-namespace:Ptc.Wpf;assembly=Ptc.Core" xmlns:xaml="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+<regions>
+<region region-id="0" actualWidth="150" actualHeight="30" top="0" left="0"><math><ml:define><ml:id labels="VARIABLE"><xaml:Span>T<pw:Subscript>L</pw:Subscript></xaml:Span></ml:id><ml:matrix rows="3" cols="1"><ml:id>a</ml:id><ml:id>b</ml:id><ml:id>c</ml:id></ml:matrix></ml:define></math></region>
+<region region-id="1" actualWidth="150" actualHeight="30" top="100" left="0"><math><ml:define><ml:id>w</ml:id><ml:apply><ml:matrow /><ml:id labels="VARIABLE"><xaml:Span>T<pw:Subscript>L</pw:Subscript></xaml:Span></ml:id><ml:range><ml:real>0</ml:real><ml:apply><ml:minus /><ml:apply><ml:minus /><ml:id>n</ml:id><ml:id>p</ml:id></ml:apply><ml:real>1</ml:real></ml:apply></ml:range></ml:apply></ml:define></math></region>
+<region region-id="2" actualWidth="150" actualHeight="30" top="200" left="0"><math><ml:eval><ml:apply><ml:matcol /><ml:id>M</ml:id><ml:range><ml:real>1</ml:real><ml:real>3</ml:real></ml:range></ml:apply></ml:eval></math></region>
+<region region-id="3" actualWidth="150" actualHeight="30" top="300" left="0"><math><ml:eval><ml:apply><ml:indexer /><ml:id>v</ml:id><ml:range><ml:real>2</ml:real><ml:real>5</ml:real></ml:range></ml:apply></ml:eval></math></region>
+<region region-id="4" actualWidth="150" actualHeight="30" top="400" left="0"><math><ml:eval><ml:apply><ml:matrow /><ml:id>M</ml:id><ml:range><ml:sequence><ml:real>0</ml:real><ml:real>2</ml:real></ml:sequence><ml:id>n</ml:id></ml:range></ml:apply></ml:eval></math></region>
+<region region-id="5" actualWidth="150" actualHeight="30" top="500" left="0"><math><ml:eval><ml:apply><ml:indexer /><ml:id>M</ml:id><ml:sequence><ml:range><ml:real>0</ml:real><ml:real>1</ml:real></ml:range><ml:real>2</ml:real></ml:sequence></ml:apply></ml:eval></math></region>
+<region region-id="6" actualWidth="150" actualHeight="30" top="600" left="0"><math><ml:eval><ml:apply><ml:matcol /><ml:id>M</ml:id><ml:range><ml:apply><ml:plus /><ml:id>i</ml:id><ml:real>1</ml:real></ml:apply><ml:id>j</ml:id></ml:range></ml:apply></ml:eval></math></region>
+</regions>
+</worksheet>

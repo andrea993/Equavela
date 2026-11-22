@@ -1,0 +1,148 @@
+# the reference application unit names. Single source of truth for
+# the Julia table (units.jl) and the Rust static analysis (core/src/dimensions.rs).
+#
+# @prefix <name> <power of ten> SI prefix accepted by units marked `p`
+# <name> <dimension> <p|-> <Unitful definition>
+#
+# <dimension> is the exponent of length, mass, time, current, temperature, amount and
+# luminous intensity, comma separated. `p` means the unit also exists with every prefix
+# (`km`, `kN`, `kWh`). Names are case sensitive. A plain name always wins over a prefix
+# reading (`min` is the minute, `mi` the mile). The definition is parsed by Unitful's
+# `uparse` and must have the stated dimension (tested).
+@prefix p -12
+@prefix n -9
+@prefix μ -6
+@prefix u -6
+@prefix m -3
+@prefix c -2
+@prefix d -1
+@prefix k 3
+@prefix M 6
+@prefix G 9
+@prefix T 12
+
+# length
+m          1,0,0,0,0,0,0  p  m
+meter      1,0,0,0,0,0,0  -  m
+metre      1,0,0,0,0,0,0  -  m
+angstrom   1,0,0,0,0,0,0  -  Å
+in         1,0,0,0,0,0,0  -  inch
+inch       1,0,0,0,0,0,0  -  inch
+ft         1,0,0,0,0,0,0  -  ft
+yd         1,0,0,0,0,0,0  -  yd
+mi         1,0,0,0,0,0,0  -  mi
+mile       1,0,0,0,0,0,0  -  mi
+mil        1,0,0,0,0,0,0  -  mil
+nmi        1,0,0,0,0,0,0  -  1852*m
+# mass
+g          0,1,0,0,0,0,0  p  g
+gm         0,1,0,0,0,0,0  p  g
+gram       0,1,0,0,0,0,0  -  g
+tonne      0,1,0,0,0,0,0  -  1000*kg
+lb         0,1,0,0,0,0,0  -  lb
+lbm        0,1,0,0,0,0,0  -  lb
+oz         0,1,0,0,0,0,0  -  oz
+slug       0,1,0,0,0,0,0  -  slug
+ton        0,1,0,0,0,0,0  -  2000*lb
+# time
+s          0,0,1,0,0,0,0  p  s
+sec        0,0,1,0,0,0,0  p  s
+second     0,0,1,0,0,0,0  -  s
+min        0,0,1,0,0,0,0  -  minute
+minute     0,0,1,0,0,0,0  -  minute
+hr         0,0,1,0,0,0,0  -  hr
+hour       0,0,1,0,0,0,0  -  hr
+day        0,0,1,0,0,0,0  -  d
+wk         0,0,1,0,0,0,0  -  wk
+week       0,0,1,0,0,0,0  -  wk
+yr         0,0,1,0,0,0,0  -  yr
+year       0,0,1,0,0,0,0  -  yr
+# current, temperature, amount, luminous intensity
+A          0,0,0,1,0,0,0  p  A
+ampere     0,0,0,1,0,0,0  -  A
+K          0,0,0,0,1,0,0  -  K
+# Offset temperatures: a value in °C or °F becomes kelvin with its offset at once
+# (EqRuntime `OffsetUnit`, the definition here is only the scale); Δ°C and Δ°F are differences.
+°C         0,0,0,0,1,0,0  -  K
+°F         0,0,0,0,1,0,0  -  K*5/9
+Δ°C        0,0,0,0,1,0,0  -  K
+Δ°F        0,0,0,0,1,0,0  -  K*5/9
+kelvin     0,0,0,0,1,0,0  -  K
+mol        0,0,0,0,0,1,0  p  mol
+mole       0,0,0,0,0,1,0  -  mol
+cd         0,0,0,0,0,0,1  -  cd
+candela    0,0,0,0,0,0,1  -  cd
+# angles are dimensionless
+rad        0,0,0,0,0,0,0  p  rad
+deg        0,0,0,0,0,0,0  -  °
+°          0,0,0,0,0,0,0  -  °
+sr         0,0,0,0,0,0,0  -  sr
+# frequency
+Hz         0,0,-1,0,0,0,0  p  Hz
+hertz      0,0,-1,0,0,0,0  -  Hz
+rpm        0,0,-1,0,0,0,0  -  rpm
+Bq         0,0,-1,0,0,0,0  p  Bq
+# force
+N          1,1,-2,0,0,0,0  p  N
+newton     1,1,-2,0,0,0,0  -  N
+dyne       1,1,-2,0,0,0,0  -  dyn
+lbf        1,1,-2,0,0,0,0  -  lbf
+kgf        1,1,-2,0,0,0,0  -  9.80665*N
+kip        1,1,-2,0,0,0,0  -  1000*lbf
+# pressure
+Pa         -1,1,-2,0,0,0,0  p  Pa
+pascal     -1,1,-2,0,0,0,0  -  Pa
+bar        -1,1,-2,0,0,0,0  p  bar
+atm        -1,1,-2,0,0,0,0  -  atm
+torr       -1,1,-2,0,0,0,0  -  Torr
+mmHg       -1,1,-2,0,0,0,0  -  133.322387415*Pa
+psi        -1,1,-2,0,0,0,0  -  psi
+ksi        -1,1,-2,0,0,0,0  -  1000*psi
+# energy
+J          2,1,-2,0,0,0,0  p  J
+joule      2,1,-2,0,0,0,0  -  J
+erg        2,1,-2,0,0,0,0  -  erg
+cal        2,1,-2,0,0,0,0  p  cal
+BTU        2,1,-2,0,0,0,0  -  1055.05585262*J
+Wh         2,1,-2,0,0,0,0  p  3600*J
+eV         2,1,-2,0,0,0,0  p  eV
+# power
+W          2,1,-3,0,0,0,0  p  W
+watt       2,1,-3,0,0,0,0  -  W
+hp         2,1,-3,0,0,0,0  -  745.69987158227*W
+# electricity and magnetism
+C          0,0,1,1,0,0,0  p  C
+coulomb    0,0,1,1,0,0,0  -  C
+V          2,1,-3,-1,0,0,0  p  V
+volt       2,1,-3,-1,0,0,0  -  V
+ohm        2,1,-3,-2,0,0,0  p  Ω
+Ω          2,1,-3,-2,0,0,0  p  Ω
+S          -2,-1,3,2,0,0,0  p  S
+siemens    -2,-1,3,2,0,0,0  -  S
+F          -2,-1,4,2,0,0,0  p  F
+farad      -2,-1,4,2,0,0,0  -  F
+H          2,1,-2,-2,0,0,0  p  H
+henry      2,1,-2,-2,0,0,0  -  H
+Wb         2,1,-2,-1,0,0,0  p  Wb
+T          0,1,-2,-1,0,0,0  p  T
+tesla      0,1,-2,-1,0,0,0  -  T
+gauss      0,1,-2,-1,0,0,0  -  Gauss
+# volume, area, speed
+L          3,0,0,0,0,0,0  p  L
+l          3,0,0,0,0,0,0  p  L
+liter      3,0,0,0,0,0,0  -  L
+litre      3,0,0,0,0,0,0  -  L
+gal        3,0,0,0,0,0,0  -  3.785411784*L
+qt         3,0,0,0,0,0,0  -  0.946352946*L
+pt         3,0,0,0,0,0,0  -  0.473176473*L
+floz       3,0,0,0,0,0,0  -  0.0295735295625*L
+acre       2,0,0,0,0,0,0  -  ac
+ha         2,0,0,0,0,0,0  -  ha
+hectare    2,0,0,0,0,0,0  -  ha
+knot       1,0,-1,0,0,0,0  -  1852*m/hr
+mph        1,0,-1,0,0,0,0  -  mi/hr
+# radiation, photometry
+Gy         2,0,-2,0,0,0,0  p  Gy
+Sv         2,0,-2,0,0,0,0  p  Sv
+lm         0,0,0,0,0,0,1  p  lm
+lx         -2,0,0,0,0,0,1  p  lx

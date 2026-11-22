@@ -1,0 +1,8 @@
+regions 13 of 15, page breaks 1
+issue plot-not-imported 13 the plot data is missing or unreadable
+issue picture-not-imported 14 `metafile` pictures (Windows metafiles) cannot be drawn on every platform and are not imported
+issue include-not-found 15 the included worksheet `C:\Lib\Libreria.xmcd` was not found; the include names `Libreria.eqv`
+note page-line-format-dropped header the field of the date the file was saved prints the date the page is drawn
+note page-line-field-unknown footer the field `{nn}` has no token and is left out
+note area-flattened 16 the area `Calcoli` is imported as its regions, without the area itself
+note text-style-dropped - the font family and the custom paragraph styles of text are not imported

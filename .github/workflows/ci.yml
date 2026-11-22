@@ -1,0 +1,174 @@
+name: CI
+
+# Windows and Linux are equal release targets: every job runs on both.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # The SymPy tests must run in CI, not be skipped (core/tests/symbolic.rs).
+  EQUAVELA_REQUIRE_SYMPY: '1'
+
+jobs:
+  rust:
+    name: Rust (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tauri system libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev xvfb xauth poppler-utils shared-mime-info xdg-utils desktop-file-utils
+      # tauri::generate_context! needs the built frontend (frontendDist).
+      - run: npm install -g pnpm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - run: pnpm --dir app install --frozen-lockfile
+      - run: node --test scripts/package-files.test.mjs
+      - run: node --test scripts/julia-manifests.test.mjs
+      - run: node --test scripts/package-linux-tree.test.mjs
+      - name: Check Linux worksheet MIME matching
+        if: runner.os == 'Linux'
+        run: node --test scripts/linux-mime.test.mjs
+      - run: pnpm --dir app build
+      # The cargo tests of the kernel manager, the session and the Julia regions start a real
+      # kernel, so Julia and the instantiated kernel environments are needed here too.
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v2
+        with:
+          cache-name: julia-rust-${{ matrix.os }}
+      - name: Instantiate and precompile the kernel environments
+        run: |
+          julia --project=kernel/EqRuntime -e "using Pkg; Pkg.instantiate()"
+          julia --project=kernel/EquavelaKernel -e "using Pkg; Pkg.instantiate(); Pkg.precompile()"
+      # Python environment of the symbolic engine: resolved once (network), cached, and
+      # kept under a short path (the environment has about 8000 files).
+      - name: Python environment path
+        shell: bash
+        run: echo "JULIA_CONDAPKG_ENV=$RUNNER_TEMP/equavela-py" >> "$GITHUB_ENV"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/equavela-py
+          key: sympy-env-${{ runner.os }}-${{ hashFiles('kernel/EquavelaKernel/CondaPkg.toml') }}
+      - name: Resolve the Python environment (SymPy)
+        run: julia --project=kernel/EquavelaKernel -e "using Pkg; Pkg.instantiate(); using CondaPkg; CondaPkg.resolve()"
+      # rust-toolchain.toml says `stable` with clippy and rustfmt; rustup installs it on first use.
+      - run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      # Limited test threads: every kernel test starts its own Julia process.
+      # This test can hang when the tests run in parallel; it is run locally until it is fixed.
+      - run: cargo test --workspace -- --test-threads=2 --skip compatibility_changes_are_trusted
+      - name: Linux WebKitGTK PDF checks
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a cargo test -p equavela-app webkit_prints_portrait_and_landscape_pdf -- --ignored --test-threads=1
+          cargo build -p equavela-app --features e2e-print,tauri/custom-protocol
+          node app/scripts/e2e-linux-print.mjs
+
+  julia:
+    name: Julia (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v2
+        with:
+          cache-name: julia-tests-${{ matrix.os }}
+      # Python environment of the symbolic engine: resolved once (network), cached, and
+      # kept under a short path (the environment has about 8000 files).
+      - name: Python environment path
+        shell: bash
+        run: echo "JULIA_CONDAPKG_ENV=$RUNNER_TEMP/equavela-py" >> "$GITHUB_ENV"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/equavela-py
+          key: sympy-env-${{ runner.os }}-${{ hashFiles('kernel/EquavelaKernel/CondaPkg.toml') }}
+      - name: Resolve the Python environment (SymPy)
+        run: julia --project=kernel/EquavelaKernel -e "using Pkg; Pkg.instantiate(); using CondaPkg; CondaPkg.resolve()"
+      - name: Test EqRuntime
+        run: julia --project=kernel/EqRuntime -e "using Pkg; Pkg.instantiate(); Pkg.test()"
+      - name: Test EquavelaKernel
+        run: julia --project=kernel/EquavelaKernel -e "using Pkg; Pkg.instantiate(); Pkg.test()"
+
+  frontend:
+    name: Frontend (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g pnpm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - run: pnpm --dir app install --frozen-lockfile
+      - run: pnpm --dir app typecheck
+      - run: pnpm --dir app test
+      - run: pnpm --dir app build
+
+  # Builds the kernel sysimage and checks that a kernel starts with it. Not
+  # required yet: remove `continue-on-error` after the first green run on both platforms.
+  sysimage:
+    name: Sysimage (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v2
+        with:
+          cache-name: julia-sysimage-${{ matrix.os }}
+      - name: Build the sysimage
+        run: julia scripts/build-sysimage.jl --portable
+      - name: Kernel starts with the sysimage
+        shell: bash
+        run: |
+          image=$(ls build/sysimage/equavelakernel.*)
+          EQUAVELA_SYSIMAGE="$PWD/$image" cargo test -p equavela-core --test kernel_timing -- --ignored --nocapture
+      - uses: actions/upload-artifact@v4
+        with:
+          name: equavelakernel-sysimage-${{ matrix.os }}
+          path: build/sysimage/
+          retention-days: 7

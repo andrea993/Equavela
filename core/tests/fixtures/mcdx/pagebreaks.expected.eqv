@@ -1,0 +1,29 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 36, bottom: 72, left: 36}
+page-breaks:
+  - {page: 1, y: 297}
+  - {page: 3, y: 147}
+  - {page: 4, y: 769.89}
+regions:
+  - id: r1
+    page: 1
+    at: [50.17, 86.17]
+    math: "a := 1"
+  - id: r2
+    page: 2
+    at: [50.17, 94.5]
+    math: "b := 2"
+  - id: r3
+    page: 3
+    at: [50.17, 72]
+    math: "c := 3"
+  - id: r4
+    page: 4
+    at: [50.17, 94.5]
+    math: "d := 4"
+  - id: r5
+    page: 5
+    at: [50.17, 94.5]
+    math: "e := 5"

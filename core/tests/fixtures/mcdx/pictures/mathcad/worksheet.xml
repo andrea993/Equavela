@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" width="200" height="100" top="0" left="0"><picture><png item-idref="Ra" /></picture></region>
+<region region-id="1" width="80" height="40" top="150" left="30"><picture><svg item-idref="Rb" /></picture></region>
+<region region-id="2" width="100" height="50" top="250" left="0"><picture><png item-idref="Rc" /></picture></region>
+<region region-id="3" width="100" height="50" top="350" left="0"><picture><png item-idref="Rmissing" /></picture></region>
+</regions>
+</worksheet>

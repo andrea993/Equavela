@@ -1,0 +1,21 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: "x := 3.4%"
+  - id: r2
+    page: 1
+    at: [54, 147]
+    math: "3.4% ="
+  - id: r3
+    page: 1
+    at: [54, 222]
+    math: "(a + b)% ="
+  - id: r4
+    page: 1
+    at: [54, 297]
+    math: "y := k·p%"

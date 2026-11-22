@@ -1,0 +1,15 @@
+# Python environment of the symbolic engine. Pinned for reproducibility and size:
+# Python 3.12 and OpenBLAS instead of the MKL that numpy would pull in (234 MB instead of
+# 828 MB). The environment lives outside the repository, under a short path
+# (JULIA_CONDAPKG_ENV).
+[deps]
+python = "=3.12"
+sympy = "=1.14"
+
+    [deps.libblas]
+    build = "*openblas"
+
+[pip.deps]
+xlrd = "==2.0.2"
+xlwt = "==1.3.0"
+xlutils = "==2.0.0"

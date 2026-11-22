@@ -1,0 +1,33 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 87]
+    math: "x := 1"
+  - id: r2
+    page: 1
+    at: [54, 117]
+    math: "Given"
+  - id: r3
+    page: 1
+    at: [54, 145]
+    math: "x == 2"
+  - id: r4
+    page: 1
+    at: [54, 192]
+    math: "Given"
+  - id: r5
+    page: 1
+    at: [54, 220]
+    math: "q := 5"
+  - id: r6
+    page: 1
+    at: [54, 248]
+    math: "Find(x) ="
+  - id: r7
+    page: 1
+    at: [54, 267]
+    math: "x ="

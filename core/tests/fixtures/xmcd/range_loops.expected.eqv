@@ -1,0 +1,79 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 36, bottom: 72, left: 72}
+  header: {left: "File: {file}", right: "Revisione: {date}"}
+  footer: {center: "Pagina {page} di è"}
+settings:
+  ORIGIN: 1
+regions:
+  - id: r1
+    page: 1
+    at: [102, 72]
+    math: "N := 4"
+  - id: r2
+    page: 1
+    at: [102, 92]
+    math: "k := 0..N - 1"
+  - id: r3
+    page: 1
+    at: [102, 112]
+    math: "d[1] := 1"
+  - id: r4
+    page: 1
+    at: [102, 132]
+    math: |
+      d := program
+        d ← d
+        for k ∈ 0..N - 1
+          d[k + 2] ← d[k + 1]·2
+        d
+  - id: r5
+    page: 1
+    at: [102, 152]
+    math: "d ="
+  - id: r6
+    page: 1
+    at: [102, 172]
+    math: "i := 1..3"
+  - id: r7
+    page: 1
+    at: [102, 192]
+    math: "j := 1..3"
+  - id: r8
+    page: 1
+    at: [102, 212]
+    math: |
+      L := program
+        for i ∈ 1..3
+          for j ∈ 1..3
+            L[i, j] ← (i·10 + j)·(j < i)
+        L
+  - id: r9
+    page: 1
+    at: [102, 232]
+    math: "L ="
+  - id: r10
+    page: 1
+    at: [102, 252]
+    math: "o := 1"
+  - id: r11
+    page: 1
+    at: [102, 272]
+    math: "v[i] := i·2"
+  - id: r12
+    page: 1
+    at: [102, 292]
+    math: "v ="
+  - id: r13
+    page: 1
+    at: [102, 312]
+    math: |
+      X := program
+        for i ∈ 1..3
+          X⟨i + o⟩ ← v·i
+        X
+  - id: r14
+    page: 1
+    at: [102, 332]
+    math: "X ="

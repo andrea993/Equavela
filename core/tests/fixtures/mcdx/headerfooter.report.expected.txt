@@ -1,0 +1,5 @@
+total 1 imported 1 page-breaks 0
+issue page-line-not-imported header:656 a `math` region in the header is not imported: a page line holds text only
+note page-line-style-dropped - the font family, size, colour and emphasis of header and footer text are not imported: a page line uses the bundled text font at 10 pt
+note page-line-field-unknown footer:659 the field `revision` is not in the model; the text it displays, `C`, is written as saved
+note page-line-format-dropped footer:660 the format `dd_mm_yy` of the `dateSaved` field is not kept: the model writes `{date}`, the date the page is drawn as YYYY-MM-DD

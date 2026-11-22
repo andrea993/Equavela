@@ -1,0 +1,49 @@
+[package]
+name = "equavela-app"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Desktop shell (Tauri 2) of the reference application alternative."
+
+[features]
+e2e-print = []
+# GUI latency benchmark driver; never in packaged builds.
+e2e-perf = []
+# Real-app project UI driver (app/scripts/e2e-project-linux.mjs); never in packaged builds.
+e2e-project = []
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+dirs = "7"
+tauri-plugin-single-instance = "2"
+equavela-core = { path = "../../core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rfd = "0.17"
+lopdf = { version = "0.46", default-features = false }
+tempfile = "3"
+# Delete in the project explorer moves files to the system trash.
+trash = "5.3"
+# Downloads a LibreOffice dictionary the user asked for; rustls, no system TLS library.
+ureq = "3"
+
+[dev-dependencies]
+zip = { version = "9.2.2", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+[target.'cfg(any(target_os = "linux", windows))'.dependencies]
+minidumper-child = "0.7"
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_Foundation"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
+webkit2gtk = "2"
+
+[lib]
+name = "equavela_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]

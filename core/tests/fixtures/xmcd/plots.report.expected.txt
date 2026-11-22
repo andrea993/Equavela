@@ -1,0 +1,2 @@
+regions 18 of 18, page breaks 0
+note plot-style-dropped - number formats, tick and grid counts, grid and marker colours, equal scales, hidden arguments, the title position, symbol weights and symbol frequencies of plots are not imported

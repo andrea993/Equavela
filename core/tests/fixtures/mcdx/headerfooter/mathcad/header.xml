@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<header xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="652" actualWidth="120" actualHeight="17.70" top="18.90" left="0"><text item-idref="Rheader1"><FlowDocument xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" /></text></region>
+<region region-id="653" actualWidth="60" actualHeight="17.70" top="18.90" left="140"><text item-idref="Rheader2"><FlowDocument xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" /></text></region>
+<region region-id="654" actualWidth="100" actualHeight="17.70" top="18.90" left="300"><fieldText><text><FlowDocument xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><Paragraph>Frame Rev B.mcdx</Paragraph></FlowDocument></text><fileName /></fieldText></region>
+<region region-id="655" actualWidth="80" actualHeight="17.70" top="18.90" left="600"><text item-idref="Rheader3"><FlowDocument xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" /></text></region>
+<region region-id="656" actualWidth="90" actualHeight="25.6" top="18.90" left="200"><math resultRef="0"><ml:eval><ml:apply><ml:mult /><ml:real>3</ml:real><ml:real>3</ml:real></ml:apply></ml:eval></math></region>
+</regions>
+</header>

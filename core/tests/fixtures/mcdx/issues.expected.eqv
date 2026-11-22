@@ -1,0 +1,38 @@
+format: equavela-worksheet/3
+page:
+  size: Letter
+  orientation: landscape
+  margins: {top: 35.43, right: 35.43, bottom: 35.43, left: 35.43}
+regions:
+  - id: r1
+    page: 1
+    at: [35.43, 35.43]
+    text:
+      width: 300
+      text: "Only one slot   and another  \n\n• first item\n\n• second item"
+  - id: r2
+    page: 1
+    at: [35.43, 140.43]
+    area:
+      title: Area
+      height: 24
+  - id: r3
+    page: 1
+    at: [36.18, 162.18]
+    math: "z"
+  - id: r4
+    page: 1
+    at: [35.43, 290.43]
+    math: |
+      S := program
+        s ← 0
+  - id: r5
+    page: 1
+    at: [35.43, 440.43]
+    math: "ok"
+  - id: r6
+    page: 1
+    at: [35.43, 500.43]
+    text:
+      width: 225
+      text: "Value $a$ and"

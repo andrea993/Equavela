@@ -1,0 +1,20 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    plot:
+      version: 1
+      type: xy
+      size: [300, 195]
+      traces:
+        - {id: trace-1, x: "w", y: "A", presentation: markers, type: stems, line: {width: 1, color: "#00008B"}, marker: {color: "#00008B"}, show_in_legend: false}
+        - {id: trace-2, x: "w", y: "B", presentation: line+markers, type: stems, line: {width: 1, color: "#31ADC2"}, marker: {color: "#31ADC2"}, show_in_legend: false}
+        - {id: trace-3, x: "w", y: "C", type: bars, line: {width: 1, color: "#C8461C"}, show_in_legend: false}
+        - {id: trace-4, x: "w", y: "D", type: bars, line: {width: 1, color: "#2A8A3A"}, show_in_legend: false}
+        - {id: trace-5, x: "w", y: "E", type: steps, line: {width: 1, color: "#7A3FB0"}, show_in_legend: false}
+        - {id: trace-6, x: "w", y: "F", type: steps, line: {width: 1, color: "#00778A"}, show_in_legend: false}
+        - {id: trace-7, x: "w", y: "G", line: {width: 1, color: "#9A7400"}, show_in_legend: false}

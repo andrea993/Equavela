@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<worksheet version="3.0.3" xmlns="http://schemas.mathsoft.com/worksheet30" xmlns:ws="http://schemas.mathsoft.com/worksheet30" xmlns:ml="http://schemas.mathsoft.com/math30">
+	<settings>
+		<presentation>
+			<textRendering>
+				<textStyles>
+					<textStyle name="Normal"><blockAttr text-align="left"/><inlineAttr font-family="Arial" font-size="10" font-weight="normal" font-style="normal" underline="false" vertical-align="baseline"/></textStyle>
+					<textStyle name="Heading 1"><blockAttr text-align="left"/><inlineAttr font-family="Arial" font-size="14" font-weight="bold"/></textStyle>
+					<textStyle name="Note" base-style="Normal"><blockAttr text-align="center"/><inlineAttr font-style="italic"/></textStyle>
+				</textStyles>
+			</textRendering>
+		</presentation>
+		<calculation><builtInVariables array-origin="1" convergence-tolerance="0.001" constraint-tolerance="0.001" random-seed="1" prn-precision="4" prn-col-width="8"/><calculationBehavior exact-boolean="true"/><units><currentUnitSystem name="si" customized="false"/></units></calculation>
+		<pageModel paper-code="9" orientation="portrait" page-width="595.5" page-height="841.5"><margins left="72" right="36" top="72" bottom="72"/><header><left>{\rtf1\ansi{\fonttbl{\f0\fswiss Arial;}}\pard\plain\f0\fs18 File: \{f\}\par }</left><right>{\rtf1\ansi\pard\qr\plain Revisione: \{fd\}\par }</right></header><footer><center>{\rtf1\ansi\pard\plain Pagina \{n\} di \{nn\} \'e8\par }</center></footer></pageModel>
+	</settings>
+	<regions>
+		<region region-id="1" left="30" top="0" width="200" height="16"><text use-page-width="false"><p style="Heading 1">Titolo</p></text></region>
+		<region region-id="2" left="30" top="30" width="300" height="30"><text use-page-width="false"><p style="Normal">Testo <b>grassetto</b>,<sp count="2"/><f family="Courier New" size="12"><inlineAttr font-style="italic">corsivo</inlineAttr></f> e <c val="#f00">rosso</c> con <region region-id="20" left="0" top="0"><math><ml:define><ml:id xml:space="preserve" subscript="0">x</ml:id><ml:real>2</ml:real></ml:define></math></region> in linea.</p><p style="Note">Nota centrata</p></text></region>
+		<region region-id="3" left="30" top="80" width="100" height="14"><math><ml:define><ml:id xml:space="preserve">L</ml:id><ml:apply><ml:mult/><ml:real>3</ml:real><ml:id xml:space="preserve">m</ml:id></ml:apply></ml:define></math></region>
+		<region region-id="4" left="200" top="80" width="100" height="14"><math><resultFormat numeric-only="true"/><ml:eval><ml:id xml:space="preserve">L</ml:id><ml:unitOverride><ml:id xml:space="preserve">mm</ml:id></ml:unitOverride><result xmlns="http://schemas.mathsoft.com/math30"><ml:real>3000</ml:real></result></ml:eval></math></region>
+		<region region-id="5" left="30" top="110" width="200" height="60"><math><ml:define><ml:function><ml:id xml:space="preserve">f</ml:id><ml:boundVars><ml:id xml:space="preserve">s</ml:id></ml:boundVars></ml:function><ml:program><ml:ifThen><ml:apply><ml:lessThan/><ml:id xml:space="preserve">s</ml:id><ml:real>0</ml:real></ml:apply><ml:apply><ml:neg/><ml:id xml:space="preserve">s</ml:id></ml:apply></ml:ifThen><ml:otherwise><ml:apply><ml:sqrt/><ml:id xml:space="preserve">s</ml:id></ml:apply></ml:otherwise></ml:program></ml:define></math></region>
+		<region region-id="6" left="30" top="180" width="200" height="30"><math><ml:provenance expr-id="1"><ml:originRef href="C:\x.xmcd"><ml:hash/></ml:originRef><ml:comment/><ml:contentHash>0</ml:contentHash><ml:globalDefine><ml:id xml:space="preserve">g0</ml:id><ml:apply><ml:integral auto-algorithm="true"/><ml:lambda><ml:boundVars><ml:id xml:space="preserve">t</ml:id></ml:boundVars><ml:apply><ml:pow/><ml:id xml:space="preserve">t</ml:id><ml:real>2</ml:real></ml:apply></ml:lambda><ml:bounds><ml:real>0</ml:real><ml:real>1</ml:real></ml:bounds></ml:apply></ml:globalDefine></ml:provenance></math></region>
+		<region region-id="7" left="30" top="220" width="200" height="14"><math><ml:eval><ml:apply><ml:plus/><ml:apply><ml:vectorSum/><ml:matrix rows="2" cols="1"><ml:real>1</ml:real><ml:real>2</ml:real></ml:matrix></ml:apply><ml:real>...</ml:real></ml:apply></ml:eval></math></region>
+		<region region-id="8" left="30" top="240" width="60" height="14"><math><ml:id xml:space="preserve">Given</ml:id></math></region>
+		<region region-id="9" left="30" top="260" width="200" height="14"><math><ml:eval><ml:apply><ml:Find auto-method="true"/><ml:id xml:space="preserve">L</ml:id></ml:apply></ml:eval></math></region>
+		<region region-id="10" left="30" top="280" width="10" height="10"><pageBreak/></region>
+		<region region-id="11" left="30" top="300" width="20" height="20"><picture><png item-idref="1" display-width="20" display-height="20"/></picture></region>
+		<region region-id="12" left="60" top="300" width="20" height="20"><png item-idref="2" display-width="10" display-height="10"/></region>
+		<region region-id="13" left="30" top="330" width="200" height="100"><plot disable-calc="false" item-idref="3"/></region>
+		<region region-id="14" left="30" top="440" width="20" height="20"><picture><metafile item-idref="4"/></picture></region>
+		<region region-id="15" left="30" top="470" width="200" height="14"><reference><originRef href="C:\Lib\Libreria.xmcd"/></reference></region>
+		<region region-id="16" left="30" top="490" width="300" height="60"><area name="Calcoli" is-collapsed="false"><region region-id="17" left="36" top="510" width="100" height="14"><math><ml:define><ml:id xml:space="preserve">y</ml:id><ml:apply><ml:mult/><ml:real>2</ml:real><ml:id xml:space="preserve" subscript="0">x</ml:id></ml:apply></ml:define></math></region></area></region>
+	</regions>
+	<binaryContent><item item-id="1">iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC</item><item item-id="2" content-encoding="gzip">H4sIAAAAAAAC/+sM8HPn5ZLiYmBg4PX0cAkC0owgzMEEJCeUB98DUjyeLo4hFXOSf5w/wMDAzMjIcPLfpPdAcQZPVz+XdU4JTQBRD9oCRQAAAA==</item><item item-id="3" content-encoding="gzip">AAAA</item></binaryContent>
+</worksheet>

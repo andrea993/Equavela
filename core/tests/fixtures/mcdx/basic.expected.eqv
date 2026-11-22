@@ -1,0 +1,85 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 36, bottom: 72, left: 36}
+page-breaks:
+  - {page: 1, y: 769.89}
+settings:
+  CTOL: "0.005"
+  ORIGIN: 1
+  TOL: "0.0001"
+  exact-boolean: false
+regions:
+  - id: r1
+    page: 1
+    at: [36, 86.17]
+    text:
+      width: 300
+      text: |
+        {size=11}**Simply supported** beam, *++units in SI*++{size=16} \*x\*{size}
+
+        **Second **paragraph
+  - id: r2
+    page: 1
+    at: [50.17, 142.87]
+    math: "M := 4"
+  - id: r3
+    page: 1
+    at: [135.21, 142.87]
+    math: "N@var := M + 1"
+  - id: r4
+    page: 1
+    at: [50.17, 171.21]
+    math: "x_s := (a + b)/c·2"
+  - id: r5
+    page: 1
+    at: [50.17, 213.73]
+    math: "L/2 = … m"
+  - id: r6
+    page: 1
+    at: [50.17, 256.25]
+    math: "A := [1, 2; 3, 4]"
+  - id: r7
+    page: 1
+    at: [50.17, 298.77]
+    math: "f(x) := x^2"
+  - id: r8
+    page: 1
+    at: [50.17, 341.29]
+    math: "rows(A) + A[0, 1] ="
+  - id: r9
+    page: 1
+    at: [50.17, 383.81]
+    math: "k := 2.5·10^-3"
+  - id: r10
+    page: 1
+    at: [50.17, 426.33]
+    math: "S := ∑[i ∈ 0..50] T^i/i!"
+  - id: r11
+    page: 1
+    at: [50.17, 468.85]
+    math: "x + x →[simplify]"
+  - id: r12
+    page: 1
+    at: [50.17, 511.37]
+    text:
+      width: 375
+      text: "Let $n$ be the number of bars and $m := n + 1$ the next one."
+  - id: r13
+    page: 1
+    at: [50.17, 553.89]
+    math: "-(a + b) - √(a + 1) ="
+  - id: r14
+    page: 2
+    at: [64.35, 100.35]
+    text:
+      width: 225
+      text: One note.
+  - id: r15
+    page: 3
+    at: [50.17, 72]
+    math: "M ="
+  - id: r16
+    page: 3
+    at: [50.17, 113.25]
+    math: "d := 3.5·m@unit"

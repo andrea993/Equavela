@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="150" actualHeight="30" top="0" left="0"><math><ml:define><ml:id>r</ml:id><ml:apply><ml:matrow /><ml:id>M</ml:id><ml:real>1</ml:real></ml:apply></ml:define></math></region>
+<region region-id="1" actualWidth="150" actualHeight="30" top="100" left="0"><math><ml:eval><ml:apply><ml:transpose /><ml:apply><ml:matrow /><ml:apply><ml:plus /><ml:id>A</ml:id><ml:id>B</ml:id></ml:apply><ml:real>0</ml:real></ml:apply></ml:apply></ml:eval></math></region>
+<region region-id="2" actualWidth="150" actualHeight="30" top="200" left="0"><math><ml:define><ml:id>c</ml:id><ml:apply><ml:convolution /><ml:id>u</ml:id><ml:apply><ml:id>h</ml:id><ml:id>t</ml:id></ml:apply></ml:apply></ml:define></math></region>
+<region region-id="3" actualWidth="150" actualHeight="30" top="300" left="0"><math><ml:eval><ml:apply><ml:partDerivative /><ml:lambda><ml:boundVars><ml:id>x</ml:id></ml:boundVars><ml:apply><ml:id>f</ml:id><ml:id>x</ml:id><ml:id>y</ml:id></ml:apply></ml:lambda><ml:degree><ml:placeholder /></ml:degree></ml:apply></ml:eval></math></region>
+<region region-id="4" actualWidth="150" actualHeight="30" top="400" left="0"><math><ml:eval><ml:apply><ml:partDerivative /><ml:lambda><ml:boundVars><ml:id>y</ml:id></ml:boundVars><ml:apply><ml:mult /><ml:id>x</ml:id><ml:apply><ml:pow /><ml:id>y</ml:id><ml:real>3</ml:real></ml:apply></ml:apply></ml:lambda><ml:degree><ml:real>2</ml:real></ml:degree></ml:apply></ml:eval></math></region>
+<region region-id="5" actualWidth="150" actualHeight="30" top="500" left="0"><math><ml:eval><ml:apply><ml:elementOf /><ml:real>2</ml:real><ml:id>v</ml:id></ml:apply></ml:eval></math></region>
+</regions>
+</worksheet>

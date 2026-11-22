@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="47.7" actualHeight="25" top="20" left="0"><math><ml:define><ml:id>x</ml:id><ml:real>1</ml:real></ml:define></math></region>
+<region region-id="1" actualWidth="47.7" actualHeight="25" top="60" left="0"><math><ml:define><ml:id>y</ml:id><ml:real>1</ml:real></ml:define></math></region>
+<region region-id="2" height="150" top="100" left="0"><solveblock><regions>
+<region region-id="20" actualWidth="40" actualHeight="20" top="0" left="0"><math><ml:id>Given</ml:id></math></region>
+<region region-id="22" actualWidth="80" actualHeight="20" top="50" left="0"><math><ml:apply><ml:equal /><ml:id>y</ml:id><ml:id>x</ml:id></ml:apply></math></region>
+<region region-id="21" actualWidth="120" actualHeight="20" top="25" left="0"><math><ml:apply><ml:equal /><ml:apply><ml:plus /><ml:apply><ml:pow /><ml:id>x</ml:id><ml:real>2</ml:real></ml:apply><ml:apply><ml:pow /><ml:id>y</ml:id><ml:real>2</ml:real></ml:apply></ml:apply><ml:real>25</ml:real></ml:apply></math></region>
+<region region-id="23" actualWidth="80" actualHeight="20" top="75" left="0"><math><ml:apply><ml:greaterThan /><ml:id>x</ml:id><ml:real>0</ml:real></ml:apply></math></region>
+<region region-id="24" actualWidth="100" actualHeight="20" top="100" left="0"><math><ml:define><ml:id>s</ml:id><ml:apply><ml:id>Find</ml:id><ml:id>x</ml:id><ml:id>y</ml:id></ml:apply></ml:define></math></region>
+</regions></solveblock></region>
+<region region-id="3" actualWidth="47.7" actualHeight="25" top="280" left="0"><math><ml:eval><ml:id>s</ml:id></ml:eval></math></region>
+</regions>
+</worksheet>

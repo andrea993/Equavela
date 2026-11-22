@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" width="400" height="260" top="0" left="0"><plot><xyPlot><title /><legend /><traces><trace><traceStyle color="#FFFF0000" symbol="none" line-weight="1" line-style="Solid">lines</traceStyle></trace></traces><axes><xAxis><plotEquations><plotEquation><math><ml:id>t</ml:id></math><math><ml:placeholder /></math></plotEquation></plotEquations><xyDomain scale-type="linear" auto-scale="true"><startValue resultRef="1"><ml:apply><ml:neg /><ml:apply><ml:div /><ml:id>L</ml:id><ml:real>2</ml:real></ml:apply></ml:apply></startValue><endValue resultRef="2"><ml:apply><ml:div /><ml:id>L</ml:id><ml:real>2</ml:real></ml:apply></endValue></xyDomain></xAxis><yAxis><plotEquations><plotEquation><math><ml:id>A</ml:id></math><math><ml:placeholder /></math></plotEquation></plotEquations><xyDomain scale-type="linear" auto-scale="true"><startValue resultRef="3"><ml:id>undefinedname</ml:id></startValue><endValue><ml:real>5</ml:real></endValue></xyDomain></yAxis></axes></xyPlot></plot></region>
+</regions>
+</worksheet>

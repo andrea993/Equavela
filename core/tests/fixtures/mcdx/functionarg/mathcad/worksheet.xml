@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+  <regions>
+    <region region-id="0" actualWidth="150" actualHeight="30" top="0" left="0">
+      <math>
+        <ml:eval>
+          <ml:apply>
+            <ml:id>matrix</ml:id>
+            <ml:sequence>
+              <ml:real>2</ml:real>
+              <ml:real>2</ml:real>
+              <ml:localDefine>
+                <ml:function><ml:id>g</ml:id><ml:boundVars><ml:id>i</ml:id><ml:id>j</ml:id></ml:boundVars></ml:function>
+                <ml:apply><ml:plus/><ml:id>i</ml:id><ml:id>j</ml:id></ml:apply>
+              </ml:localDefine>
+            </ml:sequence>
+          </ml:apply>
+        </ml:eval>
+      </math>
+    </region>
+  </regions>
+</worksheet>

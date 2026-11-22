@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="150" actualHeight="30" top="0" left="0"><math><ml:define><ml:id>x</ml:id><ml:apply><ml:percent /><ml:real>3.4</ml:real></ml:apply></ml:define></math></region>
+<region region-id="1" actualWidth="150" actualHeight="30" top="100" left="0"><math><ml:eval><ml:apply><ml:percent /><ml:real>3.4</ml:real></ml:apply><ml:unitOverride><ml:placeholder /></ml:unitOverride></ml:eval></math></region>
+<region region-id="2" actualWidth="150" actualHeight="30" top="200" left="0"><math><ml:eval><ml:apply><ml:percent /><ml:apply><ml:plus /><ml:id>a</ml:id><ml:id>b</ml:id></ml:apply></ml:apply></ml:eval></math></region>
+<region region-id="3" actualWidth="150" actualHeight="30" top="300" left="0"><math><ml:define><ml:id>y</ml:id><ml:apply><ml:mult /><ml:id>k</ml:id><ml:apply><ml:percent /><ml:id>p</ml:id></ml:apply></ml:apply></ml:define></math></region>
+<region region-id="4" actualWidth="150" actualHeight="30" top="400" left="0"><math><ml:eval><ml:apply><ml:percent /><ml:real>3.4</ml:real><ml:real>5</ml:real></ml:apply></ml:eval></math></region>
+</regions>
+</worksheet>

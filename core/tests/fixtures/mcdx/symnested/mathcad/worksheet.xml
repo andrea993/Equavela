@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+  <regions>
+    <region region-id="0" actualWidth="150" actualHeight="30" top="0" left="0">
+      <math>
+        <ml:symEval>
+          <ml:apply><ml:pow/><ml:id>e</ml:id><ml:id>x</ml:id></ml:apply>
+          <ml:command><ml:sequence><ml:sequence><ml:id>series</ml:id><ml:id>x</ml:id></ml:sequence><ml:real>4</ml:real></ml:sequence></ml:command>
+          <ml:symResult><ml:placeholder/></ml:symResult>
+        </ml:symEval>
+      </math>
+    </region>
+    <region region-id="1" actualWidth="150" actualHeight="30" top="50" left="0">
+      <math>
+        <ml:symEval>
+          <ml:apply><ml:minus/><ml:id>x</ml:id><ml:id>y</ml:id></ml:apply>
+          <ml:command><ml:sequence><ml:sequence><ml:sequence><ml:id>solve</ml:id><ml:id>x</ml:id></ml:sequence><ml:id>y</ml:id></ml:sequence><ml:id>z</ml:id></ml:sequence></ml:command>
+        </ml:symEval>
+      </math>
+    </region>
+  </regions>
+</worksheet>

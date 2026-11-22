@@ -1,0 +1,1026 @@
+[
+ {
+  "id": "af_ZA",
+  "locales": [
+   "af_ZA",
+   "af_NA"
+  ],
+  "folder": "af_ZA",
+  "aff": "af_ZA.aff",
+  "dic": "af_ZA.dic",
+  "license": "README_af_ZA.txt"
+ },
+ {
+  "id": "an",
+  "locales": [
+   "an",
+   "an_ES"
+  ],
+  "folder": "an_ES",
+  "aff": "an_ES.aff",
+  "dic": "an_ES.dic",
+  "license": "README_an_ES.txt"
+ },
+ {
+  "id": "ar_SA",
+  "locales": [
+   "ar_SA",
+   "ar_DZ",
+   "ar_BH",
+   "ar_EG",
+   "ar_IQ",
+   "ar_JO",
+   "ar_KW",
+   "ar_LB",
+   "ar_LY",
+   "ar_MA",
+   "ar_OM",
+   "ar_QA",
+   "ar_SD",
+   "ar_SY",
+   "ar_TN",
+   "ar_AE",
+   "ar_YE"
+  ],
+  "folder": "ar",
+  "aff": "ar.aff",
+  "dic": "ar.dic",
+  "license": "README_ar.txt"
+ },
+ {
+  "id": "as_IN",
+  "locales": [
+   "as_IN"
+  ],
+  "folder": "as_IN",
+  "aff": "as_IN.aff",
+  "dic": "as_IN.dic",
+  "license": "README_as_IN.txt"
+ },
+ {
+  "id": "be_BY",
+  "locales": [
+   "be_BY"
+  ],
+  "folder": "be_BY",
+  "aff": "be-official.aff",
+  "dic": "be-official.dic",
+  "license": "README_be_BY.txt"
+ },
+ {
+  "id": "bg_BG",
+  "locales": [
+   "bg_BG"
+  ],
+  "folder": "bg_BG",
+  "aff": "bg_BG.aff",
+  "dic": "bg_BG.dic",
+  "license": "COPYING"
+ },
+ {
+  "id": "bn_BD",
+  "locales": [
+   "bn_BD",
+   "bn_IN"
+  ],
+  "folder": "bn_BD",
+  "aff": "bn_BD.aff",
+  "dic": "bn_BD.dic",
+  "license": "COPYING"
+ },
+ {
+  "id": "bo_CN",
+  "locales": [
+   "bo_CN",
+   "bo_IN",
+   "bo"
+  ],
+  "folder": "bo",
+  "aff": "bo.aff",
+  "dic": "bo.dic",
+  "license": "README.md"
+ },
+ {
+  "id": "br_FR",
+  "locales": [
+   "br_FR"
+  ],
+  "folder": "br_FR",
+  "aff": "br_FR.aff",
+  "dic": "br_FR.dic",
+  "license": "LICENSES-en.txt"
+ },
+ {
+  "id": "bs",
+  "locales": [
+   "bs",
+   "bs_BA"
+  ],
+  "folder": "bs_BA",
+  "aff": "bs_BA.aff",
+  "dic": "bs_BA.dic",
+  "license": "README.txt"
+ },
+ {
+  "id": "ca_ES",
+  "locales": [
+   "ca_ES",
+   "ca_AD",
+   "ca_FR",
+   "ca_IT"
+  ],
+  "folder": "ca",
+  "aff": "ca.aff",
+  "dic": "ca.dic",
+  "license": "README_ca.txt"
+ },
+ {
+  "id": "ca_ES_valencia",
+  "locales": [
+   "ca_ES_valencia"
+  ],
+  "folder": "ca",
+  "aff": "ca-valencia.aff",
+  "dic": "ca-valencia.dic",
+  "license": "README_ca.txt"
+ },
+ {
+  "id": "ckb_IR",
+  "locales": [
+   "ckb_IR",
+   "ckb_IQ"
+  ],
+  "folder": "ckb",
+  "aff": "ckb.aff",
+  "dic": "ckb.dic",
+  "license": "LICENSES-en.txt"
+ },
+ {
+  "id": "cs_CZ",
+  "locales": [
+   "cs_CZ"
+  ],
+  "folder": "cs_CZ",
+  "aff": "cs_CZ.aff",
+  "dic": "cs_CZ.dic",
+  "license": "README_cs.txt"
+ },
+ {
+  "id": "da_DK",
+  "locales": [
+   "da_DK"
+  ],
+  "folder": "da_DK",
+  "aff": "da_DK.aff",
+  "dic": "da_DK.dic",
+  "license": "README_da_DK.txt"
+ },
+ {
+  "id": "de_AT",
+  "locales": [
+   "de_AT"
+  ],
+  "folder": "de",
+  "aff": "de_AT_frami.aff",
+  "dic": "de_AT_frami.dic",
+  "license": "README_de_DE_frami.txt"
+ },
+ {
+  "id": "de_CH",
+  "locales": [
+   "de_CH"
+  ],
+  "folder": "de",
+  "aff": "de_CH_frami.aff",
+  "dic": "de_CH_frami.dic",
+  "license": "README_de_DE_frami.txt"
+ },
+ {
+  "id": "de_DE",
+  "locales": [
+   "de_DE"
+  ],
+  "folder": "de",
+  "aff": "de_DE_frami.aff",
+  "dic": "de_DE_frami.dic",
+  "license": "README_de_DE_frami.txt"
+ },
+ {
+  "id": "el_GR",
+  "locales": [
+   "el_GR"
+  ],
+  "folder": "el_GR",
+  "aff": "el_GR.aff",
+  "dic": "el_GR.dic",
+  "license": "README_el_GR.txt"
+ },
+ {
+  "id": "en_GB",
+  "locales": [
+   "en_GB",
+   "en_BS",
+   "en_BZ",
+   "en_GH",
+   "en_IE",
+   "en_IN",
+   "en_JM",
+   "en_NZ",
+   "en_TT"
+  ],
+  "folder": "en",
+  "aff": "en_GB.aff",
+  "dic": "en_GB.dic",
+  "license": "README_en_GB.txt"
+ },
+ {
+  "id": "en_ZA",
+  "locales": [
+   "en_ZA",
+   "en_MW",
+   "en_NA",
+   "en_ZW"
+  ],
+  "folder": "en",
+  "aff": "en_ZA.aff",
+  "dic": "en_ZA.dic",
+  "license": "README_en_ZA.txt"
+ },
+ {
+  "id": "en_US",
+  "locales": [
+   "en_US",
+   "en_IL",
+   "en_PH"
+  ],
+  "folder": "en",
+  "aff": "en_US.aff",
+  "dic": "en_US.dic",
+  "license": "README_en_US.txt"
+ },
+ {
+  "id": "en_AU",
+  "locales": [
+   "en_AU"
+  ],
+  "folder": "en",
+  "aff": "en_AU.aff",
+  "dic": "en_AU.dic",
+  "license": "README_en_AU.txt"
+ },
+ {
+  "id": "en_CA",
+  "locales": [
+   "en_CA"
+  ],
+  "folder": "en",
+  "aff": "en_CA.aff",
+  "dic": "en_CA.dic",
+  "license": "README_en_CA.txt"
+ },
+ {
+  "id": "eo",
+  "locales": [
+   "eo"
+  ],
+  "folder": "eo",
+  "aff": "eo.aff",
+  "dic": "eo.dic",
+  "license": "license-en.txt"
+ },
+ {
+  "id": "es_AR",
+  "locales": [
+   "es_AR"
+  ],
+  "folder": "es",
+  "aff": "es_AR.aff",
+  "dic": "es_AR.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_BO",
+  "locales": [
+   "es_BO"
+  ],
+  "folder": "es",
+  "aff": "es_BO.aff",
+  "dic": "es_BO.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_CL",
+  "locales": [
+   "es_CL"
+  ],
+  "folder": "es",
+  "aff": "es_CL.aff",
+  "dic": "es_CL.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_CO",
+  "locales": [
+   "es_CO"
+  ],
+  "folder": "es",
+  "aff": "es_CO.aff",
+  "dic": "es_CO.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_CR",
+  "locales": [
+   "es_CR"
+  ],
+  "folder": "es",
+  "aff": "es_CR.aff",
+  "dic": "es_CR.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_CU",
+  "locales": [
+   "es_CU"
+  ],
+  "folder": "es",
+  "aff": "es_CU.aff",
+  "dic": "es_CU.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_DO",
+  "locales": [
+   "es_DO"
+  ],
+  "folder": "es",
+  "aff": "es_DO.aff",
+  "dic": "es_DO.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_EC",
+  "locales": [
+   "es_EC"
+  ],
+  "folder": "es",
+  "aff": "es_EC.aff",
+  "dic": "es_EC.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_ES",
+  "locales": [
+   "es_ES"
+  ],
+  "folder": "es",
+  "aff": "es_ES.aff",
+  "dic": "es_ES.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_GQ",
+  "locales": [
+   "es_GQ"
+  ],
+  "folder": "es",
+  "aff": "es_GQ.aff",
+  "dic": "es_GQ.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_GT",
+  "locales": [
+   "es_GT"
+  ],
+  "folder": "es",
+  "aff": "es_GT.aff",
+  "dic": "es_GT.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_HN",
+  "locales": [
+   "es_HN"
+  ],
+  "folder": "es",
+  "aff": "es_HN.aff",
+  "dic": "es_HN.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_MX",
+  "locales": [
+   "es_MX"
+  ],
+  "folder": "es",
+  "aff": "es_MX.aff",
+  "dic": "es_MX.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_NI",
+  "locales": [
+   "es_NI"
+  ],
+  "folder": "es",
+  "aff": "es_NI.aff",
+  "dic": "es_NI.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_PA",
+  "locales": [
+   "es_PA"
+  ],
+  "folder": "es",
+  "aff": "es_PA.aff",
+  "dic": "es_PA.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_PE",
+  "locales": [
+   "es_PE"
+  ],
+  "folder": "es",
+  "aff": "es_PE.aff",
+  "dic": "es_PE.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_PH",
+  "locales": [
+   "es_PH"
+  ],
+  "folder": "es",
+  "aff": "es_PH.aff",
+  "dic": "es_PH.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_PR",
+  "locales": [
+   "es_PR"
+  ],
+  "folder": "es",
+  "aff": "es_PR.aff",
+  "dic": "es_PR.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_PY",
+  "locales": [
+   "es_PY"
+  ],
+  "folder": "es",
+  "aff": "es_PY.aff",
+  "dic": "es_PY.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_SV",
+  "locales": [
+   "es_SV"
+  ],
+  "folder": "es",
+  "aff": "es_SV.aff",
+  "dic": "es_SV.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_US",
+  "locales": [
+   "es_US"
+  ],
+  "folder": "es",
+  "aff": "es_US.aff",
+  "dic": "es_US.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_UY",
+  "locales": [
+   "es_UY"
+  ],
+  "folder": "es",
+  "aff": "es_UY.aff",
+  "dic": "es_UY.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "es_VE",
+  "locales": [
+   "es_VE"
+  ],
+  "folder": "es",
+  "aff": "es_VE.aff",
+  "dic": "es_VE.dic",
+  "license": "README_hunspell_es.txt"
+ },
+ {
+  "id": "et_EE",
+  "locales": [
+   "et_EE"
+  ],
+  "folder": "et_EE",
+  "aff": "et_EE.aff",
+  "dic": "et_EE.dic",
+  "license": "README_et_EE.txt"
+ },
+ {
+  "id": "fa_IR",
+  "locales": [
+   "fa_IR"
+  ],
+  "folder": "fa_IR",
+  "aff": "fa-IR.aff",
+  "dic": "fa-IR.dic",
+  "license": "README_fa_IR.txt"
+ },
+ {
+  "id": "fr_FR",
+  "locales": [
+   "fr_FR",
+   "fr_BE",
+   "fr_CA",
+   "fr_CH",
+   "fr_LU",
+   "fr_MC",
+   "fr_BF",
+   "fr_CI",
+   "fr_SN",
+   "fr_ML",
+   "fr_NE",
+   "fr_TG",
+   "fr_BJ"
+  ],
+  "folder": "fr_FR",
+  "aff": "fr.aff",
+  "dic": "fr.dic",
+  "license": null
+ },
+ {
+  "id": "gd_GB",
+  "locales": [
+   "gd_GB"
+  ],
+  "folder": "gd_GB",
+  "aff": "gd_GB.aff",
+  "dic": "gd_GB.dic",
+  "license": "README_gd_GB.txt"
+ },
+ {
+  "id": "gl",
+  "locales": [
+   "gl",
+   "gl_ES"
+  ],
+  "folder": "gl",
+  "aff": "gl_ES.aff",
+  "dic": "gl_ES.dic",
+  "license": "README"
+ },
+ {
+  "id": "gu_IN",
+  "locales": [
+   "gu_IN"
+  ],
+  "folder": "gu_IN",
+  "aff": "gu_IN.aff",
+  "dic": "gu_IN.dic",
+  "license": "README_gu_IN.txt"
+ },
+ {
+  "id": "gug_PY",
+  "locales": [
+   "gug_PY"
+  ],
+  "folder": "gug",
+  "aff": "gug.aff",
+  "dic": "gug.dic",
+  "license": "README_th_gug_PY.txt"
+ },
+ {
+  "id": "he_IL",
+  "locales": [
+   "he_IL"
+  ],
+  "folder": "he_IL",
+  "aff": "he_IL.aff",
+  "dic": "he_IL.dic",
+  "license": "README_he_IL.txt"
+ },
+ {
+  "id": "hi_IN",
+  "locales": [
+   "hi_IN"
+  ],
+  "folder": "hi_IN",
+  "aff": "hi_IN.aff",
+  "dic": "hi_IN.dic",
+  "license": "README_hi_IN.txt"
+ },
+ {
+  "id": "hr_HR",
+  "locales": [
+   "hr_HR"
+  ],
+  "folder": "hr_HR",
+  "aff": "hr_HR.aff",
+  "dic": "hr_HR.dic",
+  "license": "README_hr_HR.txt"
+ },
+ {
+  "id": "hu_HU",
+  "locales": [
+   "hu_HU"
+  ],
+  "folder": "hu_HU",
+  "aff": "hu_HU.aff",
+  "dic": "hu_HU.dic",
+  "license": "README_hu_HU.txt"
+ },
+ {
+  "id": "id_ID",
+  "locales": [
+   "id_ID"
+  ],
+  "folder": "id",
+  "aff": "id_ID.aff",
+  "dic": "id_ID.dic",
+  "license": "README-dict.adoc"
+ },
+ {
+  "id": "is",
+  "locales": [
+   "is",
+   "is_IS"
+  ],
+  "folder": "is",
+  "aff": "is.aff",
+  "dic": "is.dic",
+  "license": "license.txt"
+ },
+ {
+  "id": "it_IT",
+  "locales": [
+   "it_IT",
+   "it_CH"
+  ],
+  "folder": "it_IT",
+  "aff": "it_IT.aff",
+  "dic": "it_IT.dic",
+  "license": "README_it_IT.txt"
+ },
+ {
+  "id": "kmr_Latn_TR",
+  "locales": [
+   "kmr_Latn_TR",
+   "kmr_Latn_SY"
+  ],
+  "folder": "kmr_Latn",
+  "aff": "kmr_Latn.aff",
+  "dic": "kmr_Latn.dic",
+  "license": "README_kmr_Latn.txt"
+ },
+ {
+  "id": "kn_IN",
+  "locales": [
+   "kn_IN"
+  ],
+  "folder": "kn_IN",
+  "aff": "kn_IN.aff",
+  "dic": "kn_IN.dic",
+  "license": "README-kn_IN.txt"
+ },
+ {
+  "id": "ko_KR",
+  "locales": [
+   "ko_KR"
+  ],
+  "folder": "ko_KR",
+  "aff": "ko_KR.aff",
+  "dic": "ko_KR.dic",
+  "license": "README_ko_KR.txt"
+ },
+ {
+  "id": "lij",
+  "locales": [
+   "lij",
+   "lij_IT"
+  ],
+  "folder": "lij_IT",
+  "aff": "lij_IT.aff",
+  "dic": "lij_IT.dic",
+  "license": "README_lij_IT.txt"
+ },
+ {
+  "id": "lo_LA",
+  "locales": [
+   "lo_LA"
+  ],
+  "folder": "lo_LA",
+  "aff": "lo_LA.aff",
+  "dic": "lo_LA.dic",
+  "license": "README_lo_LA.txt"
+ },
+ {
+  "id": "lt_LT",
+  "locales": [
+   "lt_LT"
+  ],
+  "folder": "lt_LT",
+  "aff": "lt.aff",
+  "dic": "lt.dic",
+  "license": "COPYING"
+ },
+ {
+  "id": "lv_LV",
+  "locales": [
+   "lv_LV"
+  ],
+  "folder": "lv_LV",
+  "aff": "lv_LV.aff",
+  "dic": "lv_LV.dic",
+  "license": "README_lv_LV.txt"
+ },
+ {
+  "id": "mn_Cyrl_MN",
+  "locales": [
+   "mn_Cyrl_MN"
+  ],
+  "folder": "mn_MN",
+  "aff": "mn_MN.aff",
+  "dic": "mn_MN.dic",
+  "license": "README_mn_MN.txt"
+ },
+ {
+  "id": "mr_IN",
+  "locales": [
+   "mr_IN"
+  ],
+  "folder": "mr_IN",
+  "aff": "mr_IN.aff",
+  "dic": "mr_IN.dic",
+  "license": "COPYING"
+ },
+ {
+  "id": "ne_NP",
+  "locales": [
+   "ne_NP"
+  ],
+  "folder": "ne_NP",
+  "aff": "ne_NP.aff",
+  "dic": "ne_NP.dic",
+  "license": "README_ne_NP.txt"
+ },
+ {
+  "id": "nl_AW",
+  "locales": [
+   "nl_AW",
+   "nl_BE",
+   "nl_NL",
+   "nl_SR"
+  ],
+  "folder": "nl_NL",
+  "aff": "nl_NL.aff",
+  "dic": "nl_NL.dic",
+  "license": "README.md"
+ },
+ {
+  "id": "nb_NO",
+  "locales": [
+   "nb_NO"
+  ],
+  "folder": "no",
+  "aff": "nb_NO.aff",
+  "dic": "nb_NO.dic",
+  "license": "COPYING"
+ },
+ {
+  "id": "nn_NO",
+  "locales": [
+   "nn_NO"
+  ],
+  "folder": "no",
+  "aff": "nn_NO.aff",
+  "dic": "nn_NO.dic",
+  "license": "COPYING"
+ },
+ {
+  "id": "oc_FR_lengadoc",
+  "locales": [
+   "oc_FR_lengadoc",
+   "oc_FR"
+  ],
+  "folder": "oc_FR",
+  "aff": "oc_FR.aff",
+  "dic": "oc_FR.dic",
+  "license": "README_oc_FR.txt"
+ },
+ {
+  "id": "or_IN",
+  "locales": [
+   "or_IN"
+  ],
+  "folder": "or_IN",
+  "aff": "or_IN.aff",
+  "dic": "or_IN.dic",
+  "license": null
+ },
+ {
+  "id": "pt_BR",
+  "locales": [
+   "pt_BR"
+  ],
+  "folder": "pt_BR",
+  "aff": "pt_BR.aff",
+  "dic": "pt_BR.dic",
+  "license": "README_pt_BR.txt"
+ },
+ {
+  "id": "pt_PT",
+  "locales": [
+   "pt_PT"
+  ],
+  "folder": "pt_PT",
+  "aff": "pt_PT.aff",
+  "dic": "pt_PT.dic",
+  "license": "README_pt_PT.txt"
+ },
+ {
+  "id": "ro_RO",
+  "locales": [
+   "ro_RO"
+  ],
+  "folder": "ro",
+  "aff": "ro_RO.aff",
+  "dic": "ro_RO.dic",
+  "license": "README_EN.txt"
+ },
+ {
+  "id": "ru_RU",
+  "locales": [
+   "ru_RU"
+  ],
+  "folder": "ru_RU",
+  "aff": "ru_RU.aff",
+  "dic": "ru_RU.dic",
+  "license": "README_ru_RU.txt"
+ },
+ {
+  "id": "si_LK",
+  "locales": [
+   "si_LK"
+  ],
+  "folder": "si_LK",
+  "aff": "si_LK.aff",
+  "dic": "si_LK.dic",
+  "license": "LICENSES-en.txt"
+ },
+ {
+  "id": "sk_SK",
+  "locales": [
+   "sk_SK"
+  ],
+  "folder": "sk_SK",
+  "aff": "sk_SK.aff",
+  "dic": "sk_SK.dic",
+  "license": "README_en.txt"
+ },
+ {
+  "id": "sl_SI",
+  "locales": [
+   "sl_SI"
+  ],
+  "folder": "sl_SI",
+  "aff": "sl_SI.aff",
+  "dic": "sl_SI.dic",
+  "license": "README_sl_SI.txt"
+ },
+ {
+  "id": "sq_AL",
+  "locales": [
+   "sq_AL"
+  ],
+  "folder": "sq_AL",
+  "aff": "sq_AL.aff",
+  "dic": "sq_AL.dic",
+  "license": "README.txt"
+ },
+ {
+  "id": "sr_RS",
+  "locales": [
+   "sr_RS",
+   "sr_CS"
+  ],
+  "folder": "sr",
+  "aff": "sr.aff",
+  "dic": "sr.dic",
+  "license": "README.txt"
+ },
+ {
+  "id": "sr_Latn_RS",
+  "locales": [
+   "sr_Latn_RS",
+   "sr_Latn_CS"
+  ],
+  "folder": "sr",
+  "aff": "sr-Latn.aff",
+  "dic": "sr-Latn.dic",
+  "license": "README.txt"
+ },
+ {
+  "id": "sv",
+  "locales": [
+   "sv",
+   "sv_SE"
+  ],
+  "folder": "sv_SE",
+  "aff": "sv_SE.aff",
+  "dic": "sv_SE.dic",
+  "license": "LICENSE_en_US.txt"
+ },
+ {
+  "id": "sv_FI",
+  "locales": [
+   "sv_FI"
+  ],
+  "folder": "sv_SE",
+  "aff": "sv_FI.aff",
+  "dic": "sv_FI.dic",
+  "license": "LICENSE_en_US.txt"
+ },
+ {
+  "id": "sw_TZ",
+  "locales": [
+   "sw_TZ"
+  ],
+  "folder": "sw_TZ",
+  "aff": "sw_TZ.aff",
+  "dic": "sw_TZ.dic",
+  "license": "README_sw_TZ.txt"
+ },
+ {
+  "id": "ta_IN",
+  "locales": [
+   "ta_IN"
+  ],
+  "folder": "ta_IN",
+  "aff": "ta_IN.aff",
+  "dic": "ta_IN.dic",
+  "license": "COPYING"
+ },
+ {
+  "id": "te",
+  "locales": [
+   "te",
+   "te_IN"
+  ],
+  "folder": "te_IN",
+  "aff": "te_IN.aff",
+  "dic": "te_IN.dic",
+  "license": "README_te_IN.txt"
+ },
+ {
+  "id": "th_TH",
+  "locales": [
+   "th_TH"
+  ],
+  "folder": "th_TH",
+  "aff": "th_TH.aff",
+  "dic": "th_TH.dic",
+  "license": "README_th_TH.txt"
+ },
+ {
+  "id": "tr_TRtr",
+  "locales": [
+   "tr_TRtr"
+  ],
+  "folder": "tr_TR",
+  "aff": "tr_TR.aff",
+  "dic": "tr_TR.dic",
+  "license": "README.txt"
+ },
+ {
+  "id": "uk_UA",
+  "locales": [
+   "uk_UA"
+  ],
+  "folder": "uk_UA",
+  "aff": "uk_UA.aff",
+  "dic": "uk_UA.dic",
+  "license": "README_uk_UA.txt"
+ },
+ {
+  "id": "vi_VN",
+  "locales": [
+   "vi_VN"
+  ],
+  "folder": "vi",
+  "aff": "vi_VN.aff",
+  "dic": "vi_VN.dic",
+  "license": "LICENSES-en.txt"
+ }
+]

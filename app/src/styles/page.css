@@ -1,0 +1,993 @@
+/* The worksheet area and the page. Geometry is in CSS px derived from points
+   in JS (1 pt = 4/3 px); the zoom is a transform on `.sheet` (R8).
+   Screen-only decorations carry the class `no-print` and are hidden when printing (R1). */
+
+.worksheet-area {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding-bottom: 24px;
+  background: var(--area-bg);
+  outline: none;
+}
+
+/* While a rubber band is drawn, or regions are dragged to move them, nothing on the sheet is selectable
+   as text. The page view prevents `selectstart` for the
+   gesture instead of a `.sheet.banding *` rule: a class with a universal descendant selector restyled
+   every element of the sheet at the press and the release (a large matrix made it slow). */
+
+.sheet-box {
+  position: relative;
+}
+
+.sheet {
+  position: relative;
+  transform-origin: 0 0;
+}
+
+.page {
+  position: absolute;
+  background: #ffffff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  color: #000000;
+}
+
+.draft .page {
+  box-shadow: none;
+}
+
+.worksheet-area.draft {
+  background: #fff;
+}
+
+.margin-guides,
+.draft-margin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  color: #b8c0cc;
+}
+
+.margin-guides {
+  overflow: visible;
+}
+
+/* Draft shows the paper edges and, inside them, the printable area. */
+.worksheet-area.draft .margin-guides {
+  color: #d2d8e0;
+}
+
+.draft-margin {
+  color: #8290a3;
+}
+
+.draft-break {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0;
+  border-top: 1px dotted #8290a3;
+}
+
+/* A manual page break: a thick dashed line, drawn at the bottom of the page
+   the break ends exactly as the reference application marks it, and on the paper boundary of the same page in the
+   draft view. Screen only: the printed page ends there anyway, so the mark is no document content. */
+.page-break-mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  border-top: 3px dashed #3c4657;
+  pointer-events: none;
+}
+
+.draft-break.manual {
+  border-top: 3px dashed #3c4657;
+}
+
+.header-placeholder,
+.footer-placeholder,
+.header-line,
+.footer-line {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The hint an empty header or footer draws: screen only. */
+.header-placeholder,
+.footer-placeholder {
+  color: #aab2bf;
+  font-size: 11px;
+}
+
+/* A header or a footer with content is document content: the bundled text
+   font at 10 pt, one line, clipped inside its band, so the screen and the PDF draw the same. */
+.header-line,
+.footer-line {
+  /* Clipped inside the band both ways: a margin of 0 pt has no room, so nothing of the line shows, on screen and in the PDF alike. */
+  overflow: hidden;
+  gap: 8px;
+  color: #000000;
+  font-family: "Noto Sans";
+  font-size: 10pt;
+  line-height: 14pt;
+  white-space: nowrap;
+}
+
+/* The three slots: the left one at the left edge, the centre one on the printable middle and the
+   right one at the right edge, each clipped inside its own third. */
+.header-line > span,
+.footer-line > span {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.header-line > .page-line-left,
+.footer-line > .page-line-left {
+  text-align: left;
+}
+
+.header-line > .page-line-center,
+.footer-line > .page-line-center {
+  text-align: center;
+}
+
+.header-line > .page-line-right,
+.footer-line > .page-line-right {
+  text-align: right;
+}
+
+.empty-hint {
+  position: absolute;
+  color: #8a93a1;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* The measuring layer of the page view: regions drawn only to be measured. */
+.measure-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.crosshair {
+  position: absolute;
+  color: var(--accent);
+  pointer-events: none;
+}
+
+.band {
+  position: absolute;
+  border: 1px solid var(--accent);
+  background: rgba(31, 111, 235, 0.12);
+  pointer-events: none;
+}
+
+/* ---- regions -------------------------------------------------------------------------- */
+
+/* Above the table and clear of the 6 px move border, so the grip and the action buttons stay
+   clickable while the region is selected. */
+/* Cells and buttons keep their own cursor even while the region is selected for moving; the move
+   surfaces (the selection border and the grip) show `move`. */
+
+.region {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+}
+
+/* No `cursor: move` here: the cursor is inherited, so changing it restyled every element of the
+   region; the move strips of the frame
+   show the move cursor. */
+.region.selected {
+  outline: 1px dashed var(--accent);
+  outline-offset: 3px;
+}
+
+.region-drag-border {
+  position: absolute;
+  inset: -6px;
+  z-index: 2;
+  pointer-events: none;
+}
+/* A plot shows this border too, so its corner resize handle must stay above the
+   strips, or the bottom-right corner of a selected plot cannot be grabbed any more. */
+.resize-handle { z-index: 3; }
+.region-drag-border i { position: absolute; pointer-events: auto; cursor: move; }
+.region-drag-border i:nth-child(1) { top: 0; left: 0; right: 0; height: 6px; }
+.region-drag-border i:nth-child(2) { bottom: 0; left: 0; right: 0; height: 6px; }
+.region-drag-border i:nth-child(3) { left: 0; top: 6px; bottom: 6px; width: 6px; }
+.region-drag-border i:nth-child(4) { right: 0; top: 6px; bottom: 6px; width: 6px; }
+/* A text region shows its border faintly under the pointer, so the strip that moves it can be found
+   ; a press on its text selects instead. */
+.region.kind-text:not(.editing):not(.selected):hover > .region-drag-border {
+  outline: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: -6px;
+}
+
+/* Resize handle of a selected text region (screen only). */
+.resize-handle {
+  position: absolute;
+  box-sizing: border-box;
+  background: var(--page-bg, #fff);
+  border: 1px solid var(--accent);
+  touch-action: none;
+}
+
+.resize-handle.east {
+  right: -9px;
+  top: 50%;
+  width: 7px;
+  height: 17px;
+  margin-top: -8px;
+  cursor: ew-resize;
+}
+
+.region.dragging {
+  opacity: 0.85;
+  z-index: 5;
+}
+
+.region.disabled {
+  opacity: 0.45;
+}
+
+.region.crosses-break.selected,
+.region.crosses-break:hover {
+  outline: 1px dashed var(--warn);
+  outline-offset: 3px;
+}
+
+.region-note {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 6px;
+  min-width: 220px;
+  max-width: 420px;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #fffbe6;
+  border: 1px solid #e6d58b;
+  border-radius: 3px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  font-family: "Noto Sans";
+  font-size: 12px;
+  line-height: 16px;
+  white-space: normal;
+  z-index: 10;
+  cursor: default;
+}
+
+.error-text {
+  color: var(--error);
+}
+
+/* An error of an earlier calculation, kept while the region is edited until the new result arrives. */
+.error-text.old {
+  opacity: 0.55;
+}
+
+.warning-text {
+  color: var(--warn);
+}
+
+.include-region {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 260px;
+  padding: 6px 10px;
+  color: #5b6573;
+  font-family: "Noto Sans";
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.include-region .frame {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+
+.include-region .label {
+  font-weight: 700;
+}
+
+.include-region.missing {
+  color: var(--warn);
+}
+
+.include-region .warning-mark {
+  margin-left: auto;
+  font-weight: 700;
+}
+
+/* Screen-only controls: they sit at the right end of the frame and never take part in the print. */
+.include-region .include-tools {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.include-region .warning-mark + .include-tools {
+  margin-left: 4px;
+}
+
+.include-region .include-tools button {
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  line-height: 16px;
+  padding: 0 4px;
+  opacity: 0.55;
+}
+
+.include-region .include-tools button:hover,
+.include-region .include-tools button:focus-visible {
+  opacity: 1;
+  border-color: currentColor;
+}
+
+.include-region .include-path-input {
+  flex: 1;
+  min-width: 120px;
+  font: inherit;
+  padding: 0 4px;
+}
+
+/* never shorter than the header and one line of code (6 + 18 + 4 + 18 + 6 = 52 px), an empty
+   block included, so a block whose code is empty or hidden cannot collapse to nothing. */
+.julia-region {
+  min-width: 300px;
+  min-height: 40px;
+  padding: 6px 10px;
+  background: #f4f6f9;
+  color: #1d2430;
+  font-family: "Noto Sans Mono";
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* a block that stores the size of its box. The box is exactly that size, the code
+   scrolls inside it on screen and the print clips it, so the
+   page and the PDF draw the same box. The minimum width of the growing box does not apply: the
+   stored size wins. */
+
+.julia-region.sized {
+  min-width: 0;
+  min-height: 52px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.julia-region.sized .julia-head {
+  flex: 0 0 auto;
+}
+.julia-region.sized .julia-code-box,
+.julia-region.sized .julia-empty {
+  min-height: 0;
+  overflow: auto;
+}
+/* The code area fills the box below the header, so its scroll bars run along the box's bottom
+   and right edges, as a page's do in a window, however short the code is
+   . */
+.julia-region.sized .julia-code-box {
+  flex: 1 1 auto;
+}
+/* While the code is edited the box keeps its stored size and the code scrolls inside it: the
+   drawn code and the transparent field sit in one inner box, as wide and as tall as the code, that
+   scrolls as a whole, so the field stays on the drawn letters. */
+@media print {
+  .julia-region.sized {
+    overflow: hidden;
+  }
+  .julia-region.sized .julia-code-box,
+  .julia-region.sized .julia-empty {
+    overflow: hidden;
+  }
+}
+
+.julia-head {
+  display: flex;
+  gap: 12px;
+  font-family: "Noto Sans";
+  font-size: 12px;
+  line-height: 18px;
+  color: #5b6573;
+}
+
+.julia-head .label {
+  font-weight: 700;
+  color: #7a3db8;
+}
+
+.julia-code {
+  margin: 4px 0 0;
+  font: inherit;
+  white-space: pre;
+  /* empty code is still one line, so the editor laid over it has a line to
+     click and a caret to show. 18px is JULIA_LINE_PX of JuliaView.tsx. */
+  min-height: 18px;
+}
+
+/* Editing and playing a block. The code box holds the coloured
+   code and, while editing, a transparent text field laid exactly over it: same font, size, line
+   height and wrapping, so the caret sits on the drawn letters. */
+.julia-code-box {
+  position: relative;
+  cursor: text;
+}
+.julia-code-inner {
+  position: relative;
+  display: inline-block;
+  min-width: 100%;
+  vertical-align: top;
+}
+.julia-editor {
+  position: absolute;
+  inset: 4px 0 0 0;
+  width: 100%;
+  height: calc(100% - 4px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: transparent;
+  caret-color: #1d2430;
+  font: inherit;
+  white-space: pre;
+}
+.julia-editor::selection {
+  background: rgba(122, 61, 184, 0.22);
+}
+.julia-empty {
+  margin-top: 4px;
+  color: #8a93a1;
+  font-family: "Noto Sans";
+  font-size: 12px;
+}
+.julia-region.stopped .julia-code {
+  color: #6b7380;
+}
+/* the play/stop button shows while the pointer is over the block, or while it is selected
+   or edited; screen only. */
+/* the output box floats below the cell, over the page: it moves no region and is never
+   printed. */
+.julia-region { position: relative; }
+/* A stored box clips its code; while the output box is open it may extend below it. The
+   code keeps scrolling inside its own box. */
+.julia-region.sized.output-open { overflow: visible; }
+.julia-output-toggle {
+  margin-left: 4px;
+  padding: 0 5px;
+  height: 18px;
+  border: 1px solid #c9ced6;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #3b4250;
+  font-family: "Noto Sans";
+  font-size: 11px;
+  cursor: pointer;
+}
+.julia-output {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 30;
+  min-width: 100%;
+  max-width: 640px;
+  max-height: 260px;
+  overflow: auto;
+  margin-top: 2px;
+  padding: 6px 8px;
+  border: 1px solid #c9ced6;
+  border-radius: 4px;
+  background: #fbfcfe;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+}
+.julia-output pre {
+  margin: 0;
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: pre-wrap;
+}
+.julia-output-trace summary {
+  margin-top: 4px;
+  color: #b3261e;
+  font-family: "Noto Sans";
+  font-size: 12px;
+  cursor: pointer;
+}
+/* the state of the block in words, screen only. */
+.julia-state {
+  margin-left: auto;
+  color: #8a93a1;
+  font-family: "Noto Sans";
+  font-size: 11px;
+}
+.julia-state.state-error {
+  color: #b3261e;
+}
+.julia-state.state-stale,
+.julia-state.state-pending {
+  color: #b35900;
+}
+.julia-play {
+  margin-left: 4px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #c9ced6;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #7a3db8;
+  font-size: 10px;
+  line-height: 16px;
+  cursor: pointer;
+  visibility: hidden;
+}
+.julia-region:hover .julia-play,
+.julia-region.active .julia-play,
+.julia-region.stopped .julia-play {
+  visibility: visible;
+}
+/* syntax colours; colour only. */
+.jl-keyword {
+  color: #7a3db8;
+}
+.jl-string {
+  color: #2e7d32;
+}
+.jl-comment {
+  color: #8a93a1;
+}
+.jl-number {
+  color: #b35900;
+}
+
+/* while a plot is captured for the clipboard, what only the screen draws is hidden, as in
+   print: the cursor coordinates and other screen-only marks, the library's hover labels and zoom
+   tools, and the crosshair. Visibility only, so nothing moves. */
+html.region-capture [data-region-id] .no-print,
+html.region-capture [data-region-id] .hoverlayer,
+html.region-capture [data-region-id] .modebar-container,
+html.region-capture .crosshair {
+  visibility: hidden !important;
+}
+
+@media print {
+  /* R1: print only hides chrome and decorations and drops the zoom; geometry is untouched. */
+  .chrome,
+  .no-print {
+    display: none !important;
+  }
+
+  html,
+  body,
+  #root,
+  .app,
+  .workspace {
+    display: block;
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff;
+  }
+
+  .worksheet-area {
+    position: static;
+    overflow: visible;
+    padding: 0;
+    background: #ffffff;
+  }
+
+  .sheet-box {
+    margin: 0 !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  .sheet {
+    transform: none !important;
+  }
+
+  .page {
+    box-shadow: none;
+  }
+
+  .region.selected {
+    outline: none;
+  }
+}
+
+/* The math editor's editing lines. */
+/*
+ * Screen-only stacking of an editing region (GitHub ). The suggestion menu of the math
+ * editor is anchored at the bottom edge of the expression, exactly where the region note (the error
+ * text, `top: 100%`) sits: the menu paints above the note so every suggestion stays readable and
+ * clickable while typing. The region being edited is lifted above its neighbours so a region below
+ * it cannot cover the menu either; a region being dragged (z-index 5) stays on top of both.
+ * Guarded by `app/src/styles/stacking.test.ts`.
+ */
+.region.editing {
+  z-index: 3;
+  outline: 1px solid #c8d6ee;
+  outline-offset: 2px;
+}
+.editing-lines,
+.result-selection-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+.editing-lines line {
+  stroke: #2563eb;
+  stroke-width: 1.5;
+}
+.editing-lines .selection,
+.result-selection-box .selection {
+  fill: #2563eb;
+  fill-opacity: 0.12;
+}
+.editing-lines .matrix-selection,
+.result-selection-box .matrix-selection {
+  stroke: #2563eb;
+  stroke-width: 1;
+}
+.math-autocomplete {
+  position: absolute;
+  /* Above the region note of its own region (10); the editing region is lifted to 3 for it. */
+  z-index: 12;
+  min-width: 230px;
+  max-height: 190px;
+  overflow: auto;
+  padding: 3px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 4px;
+  background: var(--chrome-panel);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.24);
+  color: var(--chrome-text);
+  font-family: "Noto Sans";
+  font-size: 11px;
+}
+.math-autocomplete [role="option"] {
+  display: grid;
+  grid-template-columns: minmax(70px, auto) 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 3px 6px;
+  border-radius: 2px;
+}
+.math-autocomplete [role="option"].active {
+  background: var(--accent-soft);
+}
+.completion-name {
+  font-family: "STIX Two Text";
+  font-size: 13px;
+  font-style: italic;
+}
+.completion-detail,
+.completion-accept {
+  color: var(--chrome-muted);
+  white-space: nowrap;
+}
+@media print {
+  .region.editing {
+    outline: none;
+  }
+}
+
+/* ---- plot regions ---- */
+/* A plot region draws no frame around itself: the
+   plot's axes, grid and zero lines are its only lines. The selection outline is the
+   only box, and it is screen-only. */
+.plot-region {
+  position: relative;
+  background: #fff;
+  border: 0;
+  box-sizing: border-box;
+}
+.plot-region.stale .plot-canvas, .plot-region.stale .plot-legend { opacity: 0.45; }
+.plot-type-control { position: absolute; z-index: 3; top: 2px; right: 4px; display: flex; gap: 4px; align-items: center; font-size: 10px; color: #4a5160; }
+.plot-type-control select { max-width: 76px; font-size: 10px; }
+.plot-canvas { position: absolute; inset: 0; }
+.plot-coordinate-readout {
+  position: absolute;
+  z-index: 3;
+  max-width: calc(100% - var(--plot-left-margin, 104px) - 12px);
+  padding: 3px 6px;
+  border: 1px solid #d8dce5;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 92%);
+  color: #303746;
+  font-size: 11px;
+  line-height: 1.3;
+  pointer-events: none;
+  white-space: nowrap;
+}
+/* The area of the region around the plot area moves the plot when it is dragged
+   : the margins where the tick labels sit and the space around the expression
+   slots. It draws nothing — the page and the PDF show the same plot — and exists to take the press
+   and to show the move cursor. The placeholders (.plot-slots, z-index 1) and the zoom tools stay
+   above it, so a press on a box still edits it and a mode bar button still works. */
+.plot-move-area { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.plot-move-area i { position: absolute; pointer-events: auto; cursor: move; }
+.plot-move-area i.top { left: 0; right: 0; top: 0; }
+.plot-move-area i.bottom { left: 0; right: 0; bottom: 0; }
+.plot-move-area i.left { left: 0; }
+.plot-move-area i.right { right: 0; }
+/* The zoom tools of the plot sit in the top margin that area covers: they must stay above
+   it, or a plot could no longer switch between zoom and pan. */
+.plot-region .modebar-container { z-index: 2; }
+/* A press inside the plot belongs to the plot,
+   so nothing inside it may inherit the `move` cursor of the selected region: Plotly's own drag layer
+   sets the zoom/pan cursor; the outer area above and the selection border around the region (a
+   sibling, not a child of `.plot-region`) show `move` and are how the plot is moved. */
+.region.selected .plot-region { cursor: default; }
+/* A placeholder opens the math editor on a press (it never starts a move either). */
+.plot-region .plot-slot { cursor: text; }
+.plot-canvas .plot-unavailable { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: #8a2f2f; }
+/* The legend is drawn by the app as typeset math, in the plot area the drawing
+   library leaves between its margins (the inline offsets in `PlotLegend.tsx`), in trace order. It is
+   part of the plot, so it stays visible while the plot is not selected and prints with it; it holds
+   no control. Only the entries take the pointer: a drag elsewhere still zooms the plot. */
+.plot-legend {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  pointer-events: none;
+}
+.plot-legend-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 0 2px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.85);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.plot-legend-swatch {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 3px;
+  border-radius: 1px;
+}
+/* A literal label and a fallback id share the size and line box of the math labels. */
+.plot-legend-text {
+  font-size: 16px;
+  line-height: 20px;
+  color: #000000;
+  white-space: nowrap;
+}
+.plot-legend-label {
+  color: #000000;
+}
+/* The plot title and the axis titles and units are drawn by the app, in
+   bands at the outer edge of the plot margins. A band exists only while its fields hold text, so it
+   never takes room from the plot area of a plot without labels; it is part of the plot, so it stays
+   visible while the region is not selected and prints with it. Only a title or a unit
+   takes the pointer: a drag on the empty part of a band moves the region. A title stays on
+   one line and is clipped, never wrapped. */
+.plot-labels {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+  /* An axis title and unit use the plot text size; only the plot title is larger. */
+  font-size: 11px;
+  line-height: 18px;
+  color: #000000;
+}
+.plot-labels.title { top: 0; font-size: 16px; }
+/* The x title is lifted 8 px off the bottom edge, half way between where the library used to draw it
+   and the edge of the band. Its box is one text line tall, so it never
+   takes a press from the x placeholder row above it. */
+.plot-labels.x { bottom: 8px; }
+.plot-labels.x .plot-label { line-height: 12px; }
+/* A y title reads bottom to top on the left and top to bottom on the right, as an axis label does:
+   the band is one line wide and a title of any length fits it. */
+.plot-labels.y { left: 0; writing-mode: vertical-rl; transform: rotate(180deg); }
+.plot-labels.y2 { right: 0; writing-mode: vertical-rl; }
+.plot-label { pointer-events: auto; cursor: text; max-width: 100%; overflow: hidden; }
+.plot-labels .plot-slot { pointer-events: auto; font-size: inherit; max-width: none; overflow: visible; }
+.plot-labels .plot-slot .tx-inline { min-height: 0; }
+/* The title being typed is never printed and looks like the text it replaces. */
+.plot-label-input {
+  pointer-events: auto;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: rgba(31, 78, 180, 0.06);
+  font: inherit;
+  color: inherit;
+  text-align: center;
+}
+.plot-label-input:focus { outline: none; }
+/* The plot region holds only the plot and its math placeholders; they sit in the
+   margins and shrink or clip instead of overlapping. Controls live in the Plot tab. */
+.plot-slots { position: absolute; display: flex; z-index: 1; pointer-events: none; font-size: 11px; min-width: 0; min-height: 0; overflow: hidden; }
+.plot-slots.y { left: 6px; flex-direction: column; justify-content: space-between; align-items: flex-start; }
+.plot-slots.y2 { right: 4px; flex-direction: column; justify-content: space-between; align-items: flex-end; }
+.plot-slots.x { bottom: 2px; justify-content: space-between; align-items: center; gap: 6px; }
+.plot-slots .expressions { display: flex; gap: 6px; justify-content: center; align-items: center; min-width: 0; min-height: 0; overflow: hidden; }
+.plot-slots.y .expressions { flex-direction: column; flex: 1 1 0; align-self: stretch; align-items: flex-start; gap: 2px; }
+.plot-slots.x .expressions { flex: 1 1 0; flex-wrap: nowrap; }
+/* The hidden mirror that measures the placeholders, so the plot area shifts by the width the widest
+   y expression needs. It typesets the stored expressions exactly as the placeholder
+   slots do — same math nodes, same font — and draws nothing: `visibility` keeps it out of the paint
+   and the PDF while `offsetWidth` still reports its layout width. */
+.plot-measure { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: hidden; visibility: hidden; pointer-events: none; white-space: nowrap; }
+.plot-measure-item { display: inline-block; }
+/* Only the boxes take the pointer: a container is as wide as its whole margin, and the space between
+   two boxes belongs to the outer area that moves the plot. */
+.plot-slot { display: inline-block; flex: 0 1 auto; pointer-events: auto; min-width: 0; min-height: 0; max-width: 90px; overflow: hidden; }
+.plot-slots.y .plot-slot, .plot-slots.y2 .plot-slot { max-width: 100%; }
+.plot-slots.y .expressions .plot-slot { flex: 0 0 auto; }
+.plot-slots .plot-slot.limit { flex: 0 1 auto; min-width: 24px; max-width: 56px; }
+/* the trace's line sample under its y expression, as wide as the expression; always drawn and printed. */
+.plot-trace-sample { display: block; width: 100%; height: 3px; pointer-events: none; }
+.plot-slot.empty { outline: 1px dashed #b4bccb; }
+.plot-region:not(.editing) .plot-slot.empty { outline: none; visibility: hidden; }
+.plot-slot.limit { color: #4a5160; }
+.plot-slot.limit, .plot-slot.unused { visibility: hidden; }
+.plot-region.editing .plot-slot.limit, .plot-region.editing .plot-slot.unused { visibility: visible; }
+.plot-slot.selected { outline: 1.5px solid #1f5fbf; outline-offset: 1px; background: rgba(31, 95, 191, 0.08); }
+/* a placeholder being edited is never clipped. The y columns grow with it (PlotView); an x
+   expression or a limit, whose room is fixed, is drawn over the plot on an opaque background. */
+.plot-slots:has(.plot-slot.editing) { overflow: visible; z-index: 4; }
+.plot-slots:has(.plot-slot.editing) .expressions { overflow: visible; }
+.plot-slots .plot-slot.editing, .plot-slot.editing { position: relative; z-index: 1; max-width: none; overflow: visible; flex-shrink: 0; background: #fff; box-shadow: 0 0 0 1px #b4bccb; }
+/* in edit mode a filled limit is drawn whole from the start, over the plot on an
+   opaque background, as the one being edited is; outside edit mode and in print it keeps its box. */
+.plot-region.editing .plot-slots:has(.plot-slot.limit:not(.empty)) { overflow: visible; z-index: 4; }
+.plot-region.editing .plot-slots .plot-slot.limit:not(.empty) { position: relative; z-index: 1; max-width: none; overflow: visible; flex-shrink: 0; background: #fff; }
+.plot-region:not(.editing) .modebar-container { display: none; }
+/* The zoom tools sit in the top margin, right of the y column and below a plot title band; both
+   offsets come from the plot's own measured margins (adapter.ts plotMargin), set inline. */
+.plot-region .modebar { left: var(--plot-left-margin, 104px) !important; right: auto !important; top: calc(var(--plot-title-band, 0px) - 3px) !important; }
+/* The slot is the exact hit target of its placeholder: the math fills it, so a press anywhere in the box
+   lands in that box. `position: relative` anchors the editing lines (caret, underline) and the
+   suggestion menu, which are absolutely positioned, to this box; without it they were drawn at the
+   corner of the margin container, over the first limit box ( and the box-selection report). */
+.plot-slot { min-width: 24px; box-sizing: border-box; }
+.plot-slot .tx-inline { display: block; position: relative; box-sizing: border-box; min-width: 100%; min-height: 20px; cursor: text; }
+.plot-slot .tx-inline:focus { outline: none; }
+.plot-slot .tx-inline.editing { background: rgba(31, 78, 180, 0.06); }
+.plot-note { position: absolute; left: 8px; right: 8px; top: 2px; background: rgba(255, 255, 255, 0.92); padding: 1px 4px; z-index: 2; font-size: 11px; }
+.plot-badge { position: absolute; left: 8px; top: 1px; font-size: 10px; color: #6b7384; z-index: 2; }
+.resize-handle.corner { right: -9px; bottom: -9px; width: 9px; height: 9px; cursor: nwse-resize; }
+@media print { .plot-slot.empty { outline: none; } .plot-slot.selected { outline: none; background: transparent; } }
+
+/* ---- printing ---- */
+/* The page size comes from the print settings, not from CSS (R2); the margins are part of the layout. */
+@page {
+  size: auto;
+  margin: 0;
+}
+
+/* In the print view each page is a block of exactly the page size (width and height inline, in pt),
+   followed by a forced break (inline `break-after`), clipped so nothing bleeds onto the next page. */
+.page.print-page {
+  position: relative;
+  box-shadow: none;
+  overflow: clip;
+  break-inside: avoid;
+}
+
+@media print {
+  html,
+  body,
+  .page,
+  .region {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* ---- images ---- */
+.image-view { position: relative; display: block; line-height: 0; }
+.image-view img { display: block; width: 100%; height: 100%; object-fit: fill; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+.image-view.failed { outline: 1px dashed #8a2f2f; }
+.image-view .image-note { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #8a2f2f; font-size: 11px; line-height: normal; }
+
+/* ---- areas ---- */
+/* An area is a section, not a box: the sheet shows through, two thin rules mark its extent and the
+   title sits in the middle of the start line. Screen and print draw the same rules. */
+/* Regions sit above the band of an area: members are drawn over it whatever the document order. */
+.region { z-index: 1; }
+.region.kind-area { z-index: 0; }
+.region.dragging { z-index: 5; }
+.area-band { position: relative; box-sizing: border-box; background: transparent; color: #3c4658; font-size: 13px; }
+/* The start line runs through the middle of the header, so the whole title stays inside the band. */
+.area-header { position: relative; display: flex; align-items: center; justify-content: center; padding: 0 6px; overflow: hidden; white-space: nowrap; cursor: move; }
+.area-header::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid #8a93a1; }
+.area-header:hover::before { border-top-color: #5b6b8c; }
+/* The end line: a collapsed area is only its start line, so it draws none, and a band that crosses a
+   page break draws it on the page it ends on, not on the part that ends at the bottom margin. */
+.area-band.end:not(.collapsed)::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px solid #8a93a1; }
+.area-indicator { position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 1; display: flex; align-items: center; margin: 0; padding: 0 5px; border: 0; background: #fff; color: #3c4658; cursor: pointer; }
+.area-indicator:hover { color: var(--accent); }
+.area-indicator:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+/* The title (and the field that edits it) masks the start line behind it. */
+.area-title { position: relative; z-index: 1; max-width: 100%; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; background: #fff; color: #1d2a44; }
+/* An untitled area is one unbroken rule. */
+.area-title:empty { padding: 0; background: none; }
+.area-title-input { position: relative; z-index: 1; font: inherit; min-width: 160px; padding: 0 2px; border: 1px solid var(--accent); background: #fff; }
+.resize-handle.south { left: 50%; bottom: -9px; width: 17px; height: 7px; margin-left: -8px; cursor: ns-resize; }
+
+.dialog-help {
+  max-width: 360px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+@media print {
+}
+
+/* A disabled inline equation of a text region: dimmed as a disabled region is. */
+.tx-disabled {
+  opacity: 0.45;
+}
+
+/* The wait symbol of a region that has been calculating for a second. Screen
+   only (`no-print`), takes no pointer events, a grey ring that spins and is still under
+   reduced motion. */
+.region-busy {
+  position: absolute;
+  top: -2px;
+  right: -18px;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 2px solid #c2c7d0;
+  border-top-color: #7a828f;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: region-busy-spin 0.9s linear infinite;
+}
+@keyframes region-busy-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .region-busy { animation: none; }
+}

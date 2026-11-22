@@ -1,0 +1,4 @@
+total 19 imported 18 page-breaks 0
+issue math-unparsable 17 `(j == 1)..n` is not valid worksheet math: line 1, column 9: a range is allowed only as the right side of a worksheet-level definition, in a `for` header, in a ∑/∏/∫ binder, as the index of a ⟨…⟩, ⟪…⟫ or [ ] operator or as a function argument
+note statement-outside-program 9 a program statement outside a program is kept as a displayed expression (never evaluated)
+note statement-outside-program 10 a program statement outside a program is kept as a displayed expression (never evaluated)

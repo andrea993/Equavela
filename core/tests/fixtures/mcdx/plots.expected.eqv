@@ -1,0 +1,42 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    plot:
+      version: 1
+      type: xy
+      size: [300, 195]
+      axes:
+        x: {scale: log10, min: 0.1, max: 100}
+      traces:
+        - {id: trace-1, x: "w", y: "A", line: {width: 2, color: "#FF0000"}, show_in_legend: false}
+        - {id: trace-2, x: "w", y: "B", presentation: markers, line: {width: 1, color: "#00FF00"}, marker: {color: "#00FF00"}, show_in_legend: false}
+        - {id: trace-3, x: "w", y: "C", presentation: line+markers, line: {style: dash, width: 1, color: "#FF0000"}, marker: {shape: x, color: "#FF0000"}, show_in_legend: false}
+        - {id: trace-4, x: "w", y: "D", presentation: line+markers, line: {style: dashdot, width: 3, color: "#0000FF"}, marker: {shape: diamond, color: "#0000FF"}, show_in_legend: false}
+        - {id: trace-5, x: "w", y: "E", presentation: line+markers, line: {color: "#123456"}, marker: {color: "#123456"}, show_in_legend: false}
+        - {id: trace-6, x: "w", y: "F", line: {width: 1, color: "#ABCDEF"}, show_in_legend: false}
+  - id: r2
+    page: 2
+    at: [54, 297]
+    plot:
+      version: 1
+      type: xy
+      size: [300, 195]
+      axes:
+        x: {scale: log10}
+      traces:
+        - {id: trace-1, x: "w", y: "A", line: {width: 1, color: "#FF0000"}, show_in_legend: false}
+  - id: r3
+    page: 2
+    at: [54, 522]
+    plot:
+      version: 1
+      type: xy
+      size: [300, 195]
+      traces:
+        - {id: trace-1, x: "t", y: "A", line: {style: dot, width: 1, color: "#FF0000"}, show_in_legend: false}
+        - {id: trace-2, x: "t", y: "B", line: {style: dot, width: 1, color: "#FF0000"}, show_in_legend: false}
