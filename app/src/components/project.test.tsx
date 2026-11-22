@@ -534,7 +534,8 @@ it("opens text files and images of the tree in their own tabs", async () => {
   expect(settings.textContent).toContain("/work/beam");
   fireEvent.click(within(settings).getByRole("button", { name: S.project.manageEnvironment }));
   const manager = await screen.findByRole("dialog", { name: S.environment.title });
-  expect(manager.textContent).toContain(S.environment.kinds.project);
+  // The dialog opens before the environment it describes has been read.
+  await waitFor(() => expect(manager.textContent).toContain(S.environment.kinds.project));
   fireEvent.click(within(manager).getByRole("button", { name: S.environment.close }));
   await command("Close project");
   await waitFor(() => expect(screen.queryByRole("navigation", { name: S.project.explorer })).toBeNull());
