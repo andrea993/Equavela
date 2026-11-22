@@ -17,6 +17,8 @@ import {
   PALETTE,
   TITLE_BAND,
   Y2_COLUMN,
+  X_ROW,
+  type PlotTextWidths,
   Y_COLUMN,
   BASE_MARGIN,
   NO_RIGHT_AXIS_MARGIN,
@@ -262,7 +264,7 @@ describe("the margins of a plot with titles", () => {
 });
 
 describe("the measured placeholder columns", () => {
-  const margin = (plot: PlotSpec, widths?: { y: number; y2: number }, printing = false) =>
+  const margin = (plot: PlotSpec, widths?: PlotTextWidths, printing = false) =>
     (
       buildFigure(plot, frame(), { width: 480, height: 293 }, printing, null, {}, widths).layout as {
         margin: Record<string, number>;
@@ -271,32 +273,32 @@ describe("the measured placeholder columns", () => {
 
   it("keeps the base columns and margins while nothing is measured", () => {
     expect(plotMargin(spec())).toEqual(BASE_MARGIN);
-    expect(plotMargin(spec(), { y: 0, y2: 0 })).toEqual(BASE_MARGIN);
+    expect(plotMargin(spec(), { y: 0, y2: 0, x: 0 })).toEqual(BASE_MARGIN);
     expect(margin(spec())).toEqual(BASE_MARGIN);
   });
 
   it("shifts the plot area right by the widest y expression, keeping the tick-label gap", () => {
-    const widths = { y: 240, y2: 0 };
+    const widths = { y: 240, y2: 0, x: 0 };
     // The column starts 6 px into the margin, keeps 34 px for the tick labels, and the plot area
     // follows it: the expression is not clipped, the plot is narrower and starts further right.
     expect(plotMargin(spec(), widths).l).toBe(Y_COLUMN.left + widths.y + Y_COLUMN.gap);
     expect(margin(spec(), widths).l).toBe(plotMargin(spec(), widths).l);
     // A short expression never narrows the base column.
-    expect(plotMargin(spec(), { y: 12, y2: 0 })).toEqual(BASE_MARGIN);
+    expect(plotMargin(spec(), { y: 12, y2: 0, x: 0 })).toEqual(BASE_MARGIN);
   });
 
   it("shifts the plot area left by a wide right y limit", () => {
     const right = spec();
     right.traces[0].y_axis = "right";
-    const widths = { y: 0, y2: 120 };
+    const widths = { y: 0, y2: 120, x: 0 };
     expect(plotMargin(right, widths).r).toBe(Y2_COLUMN.right + widths.y2 + Y2_COLUMN.gap);
     expect(margin(right, widths).r).toBe(plotMargin(right, widths).r);
-    expect(plotMargin(right, { y: 0, y2: 10 })).toEqual(MARGIN);
+    expect(plotMargin(right, { y: 0, y2: 10, x: 0 })).toEqual(MARGIN);
   });
 
   it("keeps no right margin for an unused right axis, only room for the last tick label", () => {
     expect(plotMargin(spec()).r).toBe(NO_RIGHT_AXIS_MARGIN);
-    expect(plotMargin(spec(), { y: 0, y2: 120 }).r).toBe(NO_RIGHT_AXIS_MARGIN);
+    expect(plotMargin(spec(), { y: 0, y2: 120, x: 0 }).r).toBe(NO_RIGHT_AXIS_MARGIN);
     expect(margin(spec()).r).toBe(NO_RIGHT_AXIS_MARGIN);
     const right = spec();
     right.traces[0].y_axis = "right";
@@ -306,33 +308,45 @@ describe("the measured placeholder columns", () => {
   it("keeps a title band outside the measured column", () => {
     const plot = spec();
     plot.axes.y = { ...axis, title: "Speed" };
-    const widths = { y: 240, y2: 0 };
+    const widths = { y: 240, y2: 0, x: 0 };
     expect(plotMargin(plot, widths)).toEqual({
       ...plotMargin(spec(), widths),
       l: plotMargin(spec(), widths).l + TITLE_BAND,
     });
   });
 
+  it("lowers the x title band by what a tall x expression needs beyond one line", () => {
+    const plot = spec();
+    plot.axes.x = { ...axis, title: "Frequency" };
+    const oneLine = plotMargin(plot, { y: 0, y2: 0, x: X_ROW.height });
+    // A fraction under the axis is two lines high: the bottom margin grows by the difference.
+    expect(plotMargin(plot, { y: 0, y2: 0, x: 40 }).b).toBe(oneLine.b + 40 - X_ROW.height);
+    // A one-line expression keeps the base margin, and the measured height is kept within a cap.
+    expect(plotMargin(plot, { y: 0, y2: 0, x: 12 }).b).toBe(oneLine.b);
+    expect(fitTextWidths(plot, 480, { y: 0, y2: 0, x: 500 }).x).toBe(X_ROW.max);
+  });
+
   it("limits a column so the plot area keeps its minimum size (a too narrow region clips)", () => {
     const plot = spec();
     plot.traces[0].y_axis = "right";
-    expect(fitTextWidths(plot, 480, { y: 1000, y2: 1000 })).toEqual({
+    expect(fitTextWidths(plot, 480, { y: 1000, y2: 1000, x: 0 })).toEqual({
       // 480 - the base left and right margins - the minimum plot area is all the room the columns get.
       y: 480 - MARGIN.l - MARGIN.r - 48 + Y_COLUMN.width,
       y2: 70 - 14,
+      x: X_ROW.height,
     });
     // An unused right axis takes only its small margin, and the left column gets the rest.
-    expect(fitTextWidths(spec(), 480, { y: 1000, y2: 1000 }).y).toBe(480 - MARGIN.l - NO_RIGHT_AXIS_MARGIN - 48 + Y_COLUMN.width);
+    expect(fitTextWidths(spec(), 480, { y: 1000, y2: 1000, x: 0 }).y).toBe(480 - MARGIN.l - NO_RIGHT_AXIS_MARGIN - 48 + Y_COLUMN.width);
     // A roomy region fits both columns in full.
-    expect(fitTextWidths(plot, 1000, { y: 240, y2: 120 })).toEqual({ y: 240, y2: 120 });
+    expect(fitTextWidths(plot, 1000, { y: 240, y2: 120, x: 0 })).toEqual({ y: 240, y2: 120, x: X_ROW.height });
     // The left column is served first.
-    const tight = fitTextWidths(plot, 300, { y: 400, y2: 400 });
+    const tight = fitTextWidths(plot, 300, { y: 400, y2: 400, x: 0 });
     expect(tight.y).toBeGreaterThan(Y_COLUMN.width);
     expect(tight.y2).toBe(Y2_COLUMN.width);
   });
 
   it("lays the same plot area out on screen and in print with the measured widths (WYSIWYG)", () => {
-    expect(margin(spec(), { y: 240, y2: 120 }, true)).toEqual(margin(spec(), { y: 240, y2: 120 }));
+    expect(margin(spec(), { y: 240, y2: 120, x: 0 }, true)).toEqual(margin(spec(), { y: 240, y2: 120, x: 0 }));
   });
 });
 

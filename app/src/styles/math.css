@@ -109,13 +109,16 @@
 .op.range {
   padding: 0 2px;
 }
+/* Sized in em, so the bars follow the text they sit in (a keyword line above a symbolic arrow too). */
 .op.booleq {
   display: inline-block;
-  padding: 0 3px;
-  vertical-align: -1px;
+  padding: 0 0.2em;
+  vertical-align: -0.07em;
 }
 .op.booleq svg {
   display: block;
+  width: 0.75em;
+  height: 0.82em;
 }
 .comma {
   padding-right: 3px;
@@ -153,29 +156,49 @@ br.eq-break {
   vertical-align: middle;
 }
 
-/* symbolic arrow with its keywords above */
+/* Symbolic arrow with its keywords above. An inline block takes the baseline of its last line, the
+   arrow's, so the arrow stays where a bare arrow is and the keywords rise above it; the arrow body is as
+   wide as the block, that is as the widest keyword line. */
 .op.symbolic.keyed {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  vertical-align: middle;
+  display: inline-block;
+  vertical-align: baseline;
   padding: 0 4px;
 }
 /* One keyword line per group, stacked above the arrow, applied top to bottom. */
 .keywords {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
+  display: block;
+  text-align: center;
   font-family: "STIX Two Text";
   font-size: calc(var(--fs) * 0.6875);
   line-height: calc(var(--fs) * 0.8125);
 }
 .keyword-line {
+  display: block;
   white-space: nowrap;
 }
 .op.symbolic.keyed .arrow {
+  display: block;
   font-family: "MC Math";
   line-height: calc(var(--fs) * 0.875);
+}
+.op.symbolic.keyed .arrow-body {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-width: 1em;
+  height: 0.5em;
+  vertical-align: middle;
+}
+.op.symbolic.keyed .arrow .shaft {
+  flex: 1;
+  height: 0.075em;
+  margin-right: -0.32em;
+  background: currentColor;
+}
+.op.symbolic.keyed .arrow .head {
+  width: 0.36em;
+  height: 0.48em;
+  flex: none;
 }
 
 /* sub and superscripts */

@@ -1,6 +1,7 @@
 // The measuring mirror of a plot's placeholders. The y expressions and the
 // axis limits are typeset a second time, hidden, exactly as the placeholders draw them, and the width
-// of the widest committed one tells the left and right margins how much room the column needs. The
+// of the widest committed one tells the left and right margins how much room the column needs; the
+// height of the tallest x expression or x limit tells the bottom margin how tall the x row is. The
 // mirror reads the stored specification only, never an edit in progress, so it never changes the plot
 // while a placeholder is being edited and the screen and the PDF measure the same text.
 // The same typeset nodes draw both the mirror and the placeholders, from the worksheet's
@@ -15,7 +16,7 @@ import { limitText, usesRightAxis } from "./edit";
 import { PlotContext } from "./PlotContext";
 
 /** One placeholder the mirror measures, before it is parsed. */
-export type MeasureItem = { key: string; column: "y" | "y2"; text: string };
+export type MeasureItem = { key: string; column: "y" | "y2" | "x"; text: string };
 
 type ParsedItem = MeasureItem & { tree: Node };
 
@@ -39,6 +40,12 @@ export function measurementTexts(spec: PlotSpec): MeasureItem[] {
     add("y", limitText(spec.axes.y.min));
   }
   for (const trace of spec.traces) add("y", spec.type === "contour" ? trace.z ?? "" : trace.y);
+  // The x row: the x expressions and the x limits, measured for their height.
+  if (spec.type !== "polar") {
+    add("x", limitText(spec.axes.x.min));
+    add("x", limitText(spec.axes.x.max));
+    for (const trace of spec.traces) add("x", trace.x);
+  }
   // The right column exists only while a trace uses the right axis.
   if (spec.type === "xy" && usesRightAxis(spec)) {
     add("y2", limitText(spec.axes.y2?.max ?? null));
@@ -121,14 +128,14 @@ export function PlotMeasure({
 
   useLayoutEffect(() => {
     if (!measured.parsed || measured.key !== key) return;
-    const widths: PlotTextWidths = { y: 0, y2: 0 };
+    const widths: PlotTextWidths = { y: 0, y2: 0, x: 0 };
     for (const item of measured.items) {
       const element = refs.current.get(item.key);
       if (!element) continue;
-      // `offsetWidth` is a layout value, independent of the sheet zoom; one pixel keeps
-      // a fractional glyph edge from being clipped.
-      const width = element.offsetWidth + 1;
-      if (width > widths[item.column]) widths[item.column] = width;
+      // `offsetWidth` and `offsetHeight` are layout values, independent of the sheet zoom; one pixel
+      // keeps a fractional glyph edge from being clipped. The x row is measured for its height.
+      const size = (item.column === "x" ? element.offsetHeight : element.offsetWidth) + 1;
+      if (size > widths[item.column]) widths[item.column] = size;
     }
     report.current(widths, true);
   }, [measured, key, fontEpoch]);

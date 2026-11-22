@@ -231,7 +231,7 @@ export function PlotCanvas({
     return () => {
       current = false;
     };
-  }, [near, measured, spec, frame, width, height, printing, selectedTraceId, textWidths.y, textWidths.y2]);
+  }, [near, measured, spec, frame, width, height, printing, selectedTraceId, textWidths.y, textWidths.y2, textWidths.x]);
 
   // A click on a rendered SVG trace selects it; the legend is the app's own overlay and handles its
   // own clicks. The plot is a static image, so the native SVG element is the

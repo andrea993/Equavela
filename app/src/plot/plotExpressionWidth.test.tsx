@@ -148,8 +148,9 @@ describe("a long y expression shifts the plot area right", () => {
     });
     const { container } = renderPlot(plot);
     await waitFor(() => expect(lastMargin().l).toBeGreaterThan(MARGIN.l));
-    // The mirror typesets the shared text once, not once per trace.
-    expect(container.querySelectorAll(".plot-measure-item")).toHaveLength(1);
+    // The mirror typesets each shared text once, not once per trace: the y expression for the
+    // left column and the x expression for the height of the x row.
+    expect(container.querySelectorAll(".plot-measure-item")).toHaveLength(2);
   });
 });
 
@@ -197,5 +198,38 @@ describe("a wide right y limit shifts the plot area left", () => {
     const measured = widthOf(limit);
     expect(container.querySelector<HTMLElement>(".plot-slots.y2")!.style.width).toBe(`${measured}px`);
     expect(lastMargin().r).toBe(Y2_COLUMN.right + measured + Y2_COLUMN.gap);
+  });
+});
+
+describe("a tall x expression keeps the x title below it", () => {
+  it("grows the x row and the bottom margin to the measured height", async () => {
+    const height = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+    // A fraction under the axis is two lines high in the mirror; every other text is one line.
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      get() {
+        const element = this as HTMLElement;
+        if (!element.classList?.contains("plot-measure-item")) return 0;
+        return element.textContent === "f(k)/Hz" ? 39 : 17;
+      },
+    });
+    try {
+      const plot = spec({
+        axes: { x: axis({ title: "Frequency" }), y: axis() },
+        traces: [{ id: "trace-1", x: "f(k)/Hz", y: "G(k)", presentation: "line" }],
+      });
+      const { container } = renderPlot(plot);
+      const row = plotOf(container).querySelector<HTMLElement>(".plot-slots.x")!;
+      await waitFor(() => expect(row.style.height).toBe("40px"));
+      const oneLine = renderPlot(spec({ axes: { x: axis({ title: "Frequency" }), y: axis() } }));
+      await waitFor(() => expect(lastMargin().b).toBeGreaterThan(0));
+      const base = lastMargin().b;
+      oneLine.unmount();
+      renderPlot(plot);
+      // The title band moves down by what the row needs beyond one line.
+      await waitFor(() => expect(lastMargin().b).toBe(base + 40 - 22));
+    } finally {
+      if (height) Object.defineProperty(HTMLElement.prototype, "offsetHeight", height);
+    }
   });
 });

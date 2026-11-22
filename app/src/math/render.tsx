@@ -201,7 +201,7 @@ function VRule({ className }: { className: string }) {
   );
 }
 
-type FenceKind = "paren" | "bracket" | "bar" | "dbar" | "angle";
+export type FenceKind = "paren" | "bracket" | "bar" | "dbar" | "angle";
 
 const FENCE_PATHS: Record<FenceKind, { left: string; right: string }> = {
   paren: { left: "M5.5,1 C1.5,25 1.5,75 5.5,99", right: "M0.5,1 C4.5,25 4.5,75 0.5,99" },
@@ -269,7 +269,7 @@ function FenceSide({ kind, side }: { kind: FenceKind; side: "left" | "right" }) 
 }
 
 /** Content between two stretching fences; keeps the baseline of its content. */
-function Fenced({ kind, children, className = "" }: { kind: FenceKind; children: ReactNode; className?: string }) {
+export function Fenced({ kind, children, className = "" }: { kind: FenceKind; children: ReactNode; className?: string }) {
   return (
     <span className={`fenced ${kind} ${className}`}>
       <FenceSide kind={kind} side="left" />
@@ -283,7 +283,7 @@ function Fenced({ kind, children, className = "" }: { kind: FenceKind; children:
 export function BooleanEquals() {
   return (
     <span className="op booleq" role="img" aria-label="boolean equals" data-glyph="==">
-      <svg width={11} height={12} viewBox="0 0 11 12" aria-hidden="true">
+      <svg viewBox="0 0 11 12" aria-hidden="true">
         <line x1="0.5" y1="4" x2="10.5" y2="4" stroke="currentColor" strokeWidth={2.4} />
         <line x1="0.5" y1="8.5" x2="10.5" y2="8.5" stroke="currentColor" strokeWidth={2.4} />
       </svg>
@@ -1228,7 +1228,17 @@ function SymbolicArrow({ keywords, path, first }: { keywords: Node[]; path: Path
           );
         })}
       </span>
-      <span className="arrow">{GLYPH.symbolic}</span>
+      {/* The arrow is as long as the keywords above it: a shaft that stretches and a fixed head. */}
+      <span className="arrow" role="img" aria-label={GLYPH.symbolic}>
+        {/* The glyph as text: the region's text and a copy read an arrow, the drawing shows it. */}
+        <span hidden>{GLYPH.symbolic}</span>
+        <span className="arrow-body">
+          <span className="shaft" />
+          <svg className="head" viewBox="0 0 6 8" aria-hidden="true">
+            <path d="M0.6 0.6 L5.2 4 L0.6 7.4" fill="none" stroke="currentColor" strokeWidth={1.1} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </span>
     </span>
   );
 }

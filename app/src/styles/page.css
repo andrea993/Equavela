@@ -830,6 +830,9 @@ html.region-capture .crosshair {
 .plot-label { pointer-events: auto; cursor: text; max-width: 100%; overflow: hidden; }
 .plot-labels .plot-slot { pointer-events: auto; font-size: inherit; max-width: none; overflow: visible; }
 .plot-labels .plot-slot .tx-inline { min-height: 0; }
+/* The unit of an axis, between drawn parentheses: math at the size of the axis title, so the
+   parentheses are as tall as the title line and stay inside the band. */
+.plot-labels .unit-fence { --fs: 11px; padding: 0 5px; margin-inline-start: 3px; line-height: 12px; }
 /* The title being typed is never printed and looks like the text it replaces. */
 .plot-label-input {
   pointer-events: auto;

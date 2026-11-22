@@ -89,6 +89,8 @@
   // Showcase: open a ready project, show its tree and worksheets, and ask the driver for
   // screenshots (`/shot`) instead of running the checks.
   if (options.showcase) {
+    // Marks that only matter while editing (for example the crosshair), hidden from the pictures.
+    if (options.showcase.hide) document.head.append(Object.assign(document.createElement('style'), { textContent: `${options.showcase.hide} { visibility: hidden !important; }` }));
     try {
       await until('the app', () => window.__equavela && document.querySelector('.ribbon-search'), 300000);
       await window.__equavela.openProjectAt(options.showcase.root);
@@ -97,7 +99,6 @@
         if (shot.open) (await reveal(shot.open)).click();
         // A button to press first, by its accessible name (for example the compact ribbon toggle).
         if (shot.press) (await until(shot.press, () => document.querySelector(`button[aria-label="${shot.press}"]`))).click();
-        if (shot.scroll) (await until(shot.scroll, () => document.querySelector(shot.scroll), 60000)).scrollIntoView({ block: 'center' });
         if (shot.problems) {
           document.querySelector('[data-testid="panel-toggle"]')?.click();
           (await until('problems tab', () => document.querySelector('[data-testid="panel-tab-problems"]'))).click();
@@ -105,6 +106,8 @@
         if (shot.log) await post('/progress', [...document.querySelectorAll(shot.log)].map((e) => e.textContent).join(' | '));
         // A result that never comes still gets its picture, which then shows why.
         if (shot.wait) await until(shot.wait, () => document.querySelector(shot.wait) && /\d/.test(document.querySelector(shot.wait).textContent), 90000).catch(() => {});
+        // After the results, which change the page's height.
+        if (shot.scroll) (await until(shot.scroll, () => document.querySelector(shot.scroll), 60000)).scrollIntoView({ block: shot.block ?? 'center' });
         await wait(shot.settle ?? 1500);
         await post('/shot', { name: shot.name });
       }
