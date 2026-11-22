@@ -142,15 +142,13 @@ jobs:
       - run: pnpm --dir app test
       - run: pnpm --dir app build
 
-  # Builds the kernel sysimage and checks that a kernel starts with it. Not
-  # required yet: remove `continue-on-error` after the first green run on both platforms.
-  # The longest job, needed for releases: it runs on version tags and on request.
+  # Builds the kernel sysimage and checks that a kernel starts with it. The longest
+  # job, needed for releases: it runs on version tags and on request.
   sysimage:
     name: Sysimage (${{ matrix.os }})
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
