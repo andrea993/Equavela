@@ -270,10 +270,13 @@ fn a_saved_worksheet_hands_its_directory_to_the_kernel() {
     // landed.
     let missing = failure(&s, &root, "r5");
     assert_eq!(missing.kind, FailureKind::Evaluation);
+    // Separators differ by platform (Julia joins with `\\` on Windows): compared with `/`.
+    let expected = sandbox.dir.join("nowhere.ods").display().to_string();
     assert!(
         missing
             .message
-            .contains(&sandbox.dir.join("nowhere.ods").display().to_string()),
+            .replace('\\', "/")
+            .contains(&expected.replace('\\', "/")),
         "{}",
         missing.message
     );

@@ -354,21 +354,18 @@ mod tests {
         let (next, _) = wait_for(&manager, seq, "pkg>");
         seq = next;
         manager.terminal_write(b"status\r").unwrap();
-        let (next, status) = wait_for(&manager, seq, temporary.path().to_str().unwrap());
-        assert!(
-            status.contains(temporary.path().to_str().unwrap()),
-            "{status:?}"
-        );
+        // Julia prints the environment by its long path; on Windows the temporary folder may be
+        // spelled with an 8.3 short name, so the canonical path is expected (without `\\?\`).
+        let canonical = temporary.path().canonicalize().unwrap();
+        let canonical = canonical.to_string_lossy();
+        let environment = canonical.strip_prefix(r"\\?\").unwrap_or(&canonical);
+        let (next, status) = wait_for(&manager, seq, environment);
+        assert!(status.contains(environment), "{status:?}");
         assert!(
             !status.contains("EquavelaKernel/Project.toml"),
             "{status:?}"
         );
-        seq = if status
-            .split(temporary.path().to_str().unwrap())
-            .last()
-            .unwrap()
-            .contains("pkg>")
-        {
+        seq = if status.split(environment).last().unwrap().contains("pkg>") {
             next
         } else {
             wait_for(&manager, next, "pkg>").0
