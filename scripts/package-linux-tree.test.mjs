@@ -203,7 +203,7 @@ test("a failed AppImage plugin leaves the image Tauri built untouched", { skip: 
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("the pkgimages are built with the runtime mounted at the install path and the portable targets", () => {
+test("the pkgimages are built with the runtime mounted at the install path and the portable targets", { skip: process.platform === "win32" }, () => {
   const [command, args] = precompileCommand({ runtimeRoot: "/work/usr/lib/Equavela", installRoot: "/usr/lib/Equavela", uid: 1000, gid: 1000 });
   assert.equal(command, "docker");
   assert.ok(args.includes("/work/usr/lib/Equavela:/usr/lib/Equavela"));
@@ -215,7 +215,7 @@ test("the pkgimages are built with the runtime mounted at the install path and t
   assert.equal(args.at(-1), "using EquavelaKernel");
 });
 
-test("only the compiled directory is added to the depot", () => {
+test("only the compiled directory is added to the depot", { skip: process.platform === "win32" }, () => {
   const dir = temp("precompile");
   const runtime = join(dir, "usr", "lib", "Equavela");
   mkdirSync(join(runtime, "depot", "packages"), { recursive: true });

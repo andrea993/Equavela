@@ -11,7 +11,9 @@ test("Linux worksheet MIME magic distinguishes worksheets from Objective-C++ and
   const data = join(dir, "data"), mime = join(data, "mime");
   mkdirSync(join(mime, "packages"), { recursive: true });
   copyFileSync(resolve("packaging/linux/equavela-worksheet.xml"), join(mime, "packages", "equavela-worksheet.xml"));
-  const env = { ...process.env, XDG_DATA_HOME: data, XDG_CONFIG_HOME: join(dir, "config"), XDG_DATA_DIRS: "/usr/local/share:/usr/share" };
+  // `xdg-mime` asks GLib (`gio info`) under GNOME; without a desktop session it falls back to
+  // `file`, which knows nothing of the installed database.
+  const env = { ...process.env, XDG_CURRENT_DESKTOP: "GNOME", XDG_DATA_HOME: data, XDG_CONFIG_HOME: join(dir, "config"), XDG_DATA_DIRS: "/usr/local/share:/usr/share" };
   execFileSync("update-mime-database", [mime], { env });
   const query = (name, contents) => {
     const path = join(dir, name);

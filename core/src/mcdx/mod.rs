@@ -483,7 +483,7 @@ fn page_region_text<R: Read + std::io::Seek>(
                         id,
                         format!(
                             "the field `{other}` is imported as a date, like `dateSaved`; that its \
-                             name is a date field is unchecked (UNVERIFIED-REFERENCE)"
+                             name is a date field is unchecked"
                         ),
                     );
                     Some("{date}")

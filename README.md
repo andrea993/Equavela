@@ -1,6 +1,8 @@
 # Equavela
 
-Equavela is an open-source scientific computing workspace and engineering worksheet for Windows and Linux.
+Equavela is an open-source scientific worksheet for Windows and Linux.
+
+Website: [equavela.org](https://equavela.org)
 
 It brings live mathematics, explanatory text, physical units, matrices, and visualizations together on clean, paginated worksheets. Results recalculate automatically as you edit, and print/PDF output matches the screen exactly.
 
@@ -11,7 +13,7 @@ It brings live mathematics, explanatory text, physical units, matrices, and visu
 - **Vectors, Matrices & Algorithms:** Full linear algebra support, user-defined functions, and structured algorithmic constructs (loops, conditionals).
 - **Interactive Visualizations:** 2D Cartesian plots (Plotly.js) embedded directly in the worksheet alongside your calculations.
 - **Readable Open Format:** Worksheets are stored as human-readable YAML documents (`.eqv`) with mathematical expressions in linear notation.
-- **Legacy Interoperability:** Import capability for legacy engineering worksheet formats.
+- **Legacy Interoperability:** Import capability for legacy scientific worksheet formats.
 - **WYSIWYG Layout:** Precision paginated layout ensuring what you see on screen is identical to the printed or exported PDF document.
 
 ## Architecture
