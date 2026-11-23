@@ -14,6 +14,7 @@ import type { PlotSpec } from "../equavelaApi";
 import { axisOf, type PlotAxisName } from "./edit";
 import { TITLE_BAND, type PlotMargin } from "./adapter";
 import { Slot } from "./PlotSlot";
+import { Fenced } from "../math/render";
 
 /** The accessibility label of one band. */
 export function bandLabel(kind: "plot" | "x" | "y" | "y2", field: "title" | "unit"): string {
@@ -89,7 +90,7 @@ function TitleField({
   );
 }
 
-/** One axis band: the title text, then the unit in parentheses as typeset math. */
+/** One axis band: the title text, then the unit in drawn parentheses as typeset math. */
 function AxisBand({
   spec,
   axis,
@@ -118,16 +119,17 @@ function AxisBand({
       )}
       {unit !== "" && (
         <span className="plot-label unit">
-          <span aria-hidden="true">(</span>
-          <Slot
-            className="plot-unit"
-            text={unit}
-            label={bandLabel(axis, "unit")}
-            onActivate={onActivate}
-            onCommit={onUnit}
-            unitContext
-          />
-          <span aria-hidden="true">)</span>
+          {/* Between the drawn parentheses of a math expression, not text parentheses. */}
+          <Fenced kind="paren" className="unit-fence">
+            <Slot
+              className="plot-unit"
+              text={unit}
+              label={bandLabel(axis, "unit")}
+              onActivate={onActivate}
+              onCommit={onUnit}
+              unitContext
+            />
+          </Fenced>
         </span>
       )}
     </>

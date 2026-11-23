@@ -180,6 +180,7 @@ export function PlotView({
   const textWidths = fitTextWidths(spec, width, {
     y: Math.max(measured.widths.y, live.y),
     y2: Math.max(measured.widths.y2, live.y2),
+    x: measured.widths.x,
   });
   const margin = plotMargin(spec, textWidths);
   const bands = plotBands(spec);
@@ -331,7 +332,7 @@ export function PlotView({
           <Slot onLiveWidth={liveWidth("y2")} className="limit" text={limitText(spec.axes.y2?.min ?? null)} label={S.plot.y2Min} onActivate={activate} onCommit={(text) => setY2Limit("min", text)} />
         </div>
       )}
-      <div className="plot-slots x" style={{ left: margin.l, right: margin.r, bottom: 2 + bands.x, height: 22 }}>
+      <div className="plot-slots x" style={{ left: margin.l, right: margin.r, bottom: 2 + bands.x, height: textWidths.x }}>
         {spec.type !== "polar" && (
           <Slot
             className="limit"

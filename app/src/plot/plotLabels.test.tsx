@@ -152,7 +152,7 @@ describe("the bands of a plot title and of the axis titles", () => {
     expect(y.style.bottom).toBe(`${MARGIN.b + TITLE_BAND}px`);
   });
 
-  it("draws a unit in parentheses as typeset math after its axis title", async () => {
+  it("draws a unit in drawn parentheses as typeset math after its axis title", async () => {
     const calls: Calls = { saved: [], selectRegion: [] };
     const plot = spec({ axes: { x: axis(), y: axis({ title: "Speed", unit: "m/s" }) } });
     const { container } = renderPlot(plot, env(calls));
@@ -160,7 +160,9 @@ describe("the bands of a plot title and of the axis titles", () => {
     // The unit goes through the math renderer, like every placeholder of the plot; the title is
     // literal text in front of it.
     await waitFor(() => expect(band.querySelector(".plot-slot .math")).not.toBeNull());
-    expect(band.textContent?.replace(/\s/g, "")).toBe("Speed(m/s)");
+    expect(band.textContent?.replace(/\s/g, "")).toBe("Speedm/s");
+    // The unit sits between the drawn parentheses of math, not between text parentheses.
+    expect(band.querySelectorAll(".unit-fence.paren > .fence-side")).toHaveLength(2);
     // Its title, the literal text, is not math.
     expect(band.querySelector(".axis-title")?.querySelector(".math")).toBeNull();
   });
@@ -181,7 +183,8 @@ describe("the bands of a plot title and of the axis titles", () => {
     const { container } = renderPlot(spec({ axes: { x: axis({ unit: "s" }), y: axis() } }), env(calls));
     const band = container.querySelector<HTMLElement>(".plot-labels.x")!;
     await waitFor(() => expect(band.querySelector(".plot-slot .math")).not.toBeNull());
-    expect(band.textContent?.replace(/\s/g, "")).toBe("(s)");
+    expect(band.textContent?.replace(/\s/g, "")).toBe("s");
+    expect(band.querySelectorAll(".unit-fence.paren > .fence-side")).toHaveLength(2);
   });
 
   it("draws the same labels on screen and in print (WYSIWYG)", async () => {

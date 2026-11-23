@@ -1,0 +1,129 @@
+name: Release
+
+# Builds the installers (Windows NSIS, Linux deb and AppImage) with the shipped runtime and, for a
+# version tag, publishes them as a GitHub release. Started by hand without a tag, it only builds
+# and keeps the installers as workflow artifacts.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release (empty: build only)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  # linuxdeploy and its plugins are AppImages; hosted runners have no FUSE.
+  APPIMAGE_EXTRACT_AND_RUN: '1'
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Tauri system libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf file desktop-file-utils
+      # Compiling the system image can exceed the memory of a hosted Linux runner.
+      - name: Swap space (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo swapoff -a || true
+          sudo fallocate -l 8G /swapfile-ci
+          sudo chmod 600 /swapfile-ci
+          sudo mkswap /swapfile-ci
+          sudo swapon /swapfile-ci
+      - run: npm install -g pnpm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - run: pnpm --dir app install --frozen-lockfile
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v2
+        with:
+          cache-name: julia-release-${{ matrix.os }}
+      - name: Python environment path
+        shell: bash
+        run: echo "JULIA_CONDAPKG_ENV=$RUNNER_TEMP/equavela-py" >> "$GITHUB_ENV"
+      - name: Instantiate the kernel environments and the Python environment (SymPy)
+        run: |
+          julia --project=kernel/EqRuntime -e "using Pkg; Pkg.instantiate()"
+          julia --project=kernel/EquavelaKernel -e "using Pkg; Pkg.instantiate(); Pkg.precompile(); using CondaPkg; CondaPkg.resolve()"
+      - run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@v2
+      - name: Build the portable sysimage
+        run: julia scripts/build-sysimage.jl --portable
+      - name: Stage the runtime
+        shell: bash
+        run: |
+          image=$(ls build/sysimage/equavelakernel.*)
+          node scripts/package-runtime.mjs --python-env "$JULIA_CONDAPKG_ENV" --sysimage "$PWD/$image"
+      - name: Build the Windows installer
+        if: runner.os == 'Windows'
+        run: pnpm --dir app package:bundle --bundles nsis
+      - name: Build the Linux packages
+        if: runner.os == 'Linux'
+        run: node scripts/package-linux.mjs
+      - name: Collect the installers
+        shell: bash
+        run: |
+          mkdir -p dist
+          find target/release/bundle \( -path '*/nsis/*.exe' -o -path '*/deb/*.deb' -o -path '*/appimage/*.AppImage' \) -type f -exec cp {} dist/ \;
+          ls -la dist
+          test -n "$(ls dist)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: dist/
+          retention-days: 14
+          compression-level: 0
+
+  release:
+    name: GitHub release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          ls -la dist
+          prerelease=""
+          case "$TAG" in *-*) prerelease="--prerelease" ;; esac
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --title "Equavela ${TAG#v}" --generate-notes $prerelease
+          fi

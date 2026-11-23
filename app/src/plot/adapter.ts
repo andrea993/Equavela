@@ -46,6 +46,9 @@ export const BASE_MARGIN = { ...MARGIN, r: NO_RIGHT_AXIS_MARGIN } as const;
 /** The plot area a plot keeps when its expressions would take all its room, CSS px. */
 export const MIN_PLOT_AREA = 48;
 
+/** The row of the x expressions and limits: one line high, taller only for a taller expression. */
+export const X_ROW = { height: 22, max: 66 } as const;
+
 /**
  * Room one title band takes, CSS px: one line of the label font at the fixed plot text size
  * . A band exists only while its fields hold text, so a plot without titles and
@@ -68,10 +71,11 @@ export type PlotBands = { plot: number; x: number; y: number; y2: number };
  *. The width is of the widest committed placeholder of the column: a y expression or y limit
  * on the left, a right y limit on the right.
  */
-export type PlotTextWidths = { y: number; y2: number };
+/** The measured room of the placeholders: the widths of the y columns and the height of the x row. */
+export type PlotTextWidths = { y: number; y2: number; x: number };
 
 /** No measured placeholder: every column keeps its base width. */
-export const NO_TEXT_WIDTHS: PlotTextWidths = { y: 0, y2: 0 };
+export const NO_TEXT_WIDTHS: PlotTextWidths = { y: 0, y2: 0, x: 0 };
 
 /** The title bands of one plot: only the fields that hold text take room. */
 export function plotBands(spec: PlotSpec): PlotBands {
@@ -99,7 +103,9 @@ export function plotMargin(spec: PlotSpec, widths: PlotTextWidths = NO_TEXT_WIDT
     l: bands.y + Y_COLUMN.left + y + Y_COLUMN.gap,
     r: usesRightAxis(spec) ? bands.y2 + Y2_COLUMN.right + y2 + Y2_COLUMN.gap : NO_RIGHT_AXIS_MARGIN,
     t: MARGIN.t + bands.plot,
-    b: MARGIN.b + bands.x,
+    // A two-line x expression (a fraction, a unit under a subscript) lowers the title band instead
+    // of running over it: the margin grows by what the row needs beyond one line.
+    b: MARGIN.b + bands.x + Math.max(0, widths.x - X_ROW.height),
   };
 }
 
@@ -122,7 +128,8 @@ export function fitTextWidths(
     return base + extra;
   };
   const y = fit(widths.y, Y_COLUMN.width);
-  return { y, y2: right ? fit(widths.y2, Y2_COLUMN.width) : Y2_COLUMN.width };
+  const x = Math.min(Math.max(widths.x, X_ROW.height), X_ROW.max);
+  return { y, y2: right ? fit(widths.y2, Y2_COLUMN.width) : Y2_COLUMN.width, x };
 }
 
 export type RenderMode = "svg" | "gl";
