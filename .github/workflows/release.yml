@@ -1,6 +1,6 @@
 name: Release
 
-# Builds the installers (Windows NSIS, Linux deb and AppImage) with the shipped runtime and, for a
+# Builds the installers (Windows NSIS, Linux deb) with the shipped runtime and, for a
 # version tag, publishes them as a GitHub release. Started by hand without a tag, it only builds
 # and keeps the installers as workflow artifacts.
 
@@ -95,9 +95,10 @@ jobs:
       - name: Build the Windows installer
         if: runner.os == 'Windows'
         run: pnpm --dir app package:bundle --bundles nsis
-      - name: Build the Linux packages
+      # The AppImage stops in linuxdeploy with the JLL libraries the runtime ships: the deb only, for now.
+      - name: Build the Linux package
         if: runner.os == 'Linux'
-        run: node scripts/package-linux.mjs --verbose
+        run: node scripts/package-linux.mjs --bundles deb
       - name: Collect the installers
         shell: bash
         run: |
