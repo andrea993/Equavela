@@ -176,22 +176,24 @@ for (const name of ["EquavelaKernel", "EqRuntime"]) {
       "-e",
       "using EquavelaKernel; for m in Base.loaded_modules_array(); name = String(nameof(m)); " +
         "(endswith(name, \"_jll\") && isdefined(m, :artifact_dir) && !(name in (\"pixi_jll\", \"micromamba_jll\"))) || continue; " +
-        "dir = getfield(m, :artifact_dir); startswith(dir, dirname(Sys.BINDIR)) || println(dir); end",
+        "dir = getfield(m, :artifact_dir); startswith(dir, dirname(Sys.BINDIR)) || println(\"ARTIFACT \", dir); end",
     ],
     {
       encoding: "utf8",
       env: { ...process.env, JULIA_PYTHONCALL_EXE: pythonExe, JULIA_CONDAPKG_BACKEND: "Null" },
     },
   )
+    // Package initialisers may print to stdout too: only the marked lines are directories.
     .split(/\r?\n/)
-    .filter(Boolean);
+    .filter((line) => line.startsWith("ARTIFACT "))
+    .map((line) => line.slice("ARTIFACT ".length));
   const shipped = new Set();
   for (const dir of libraries) {
     const hash = dir.split(/[\\/]/).pop();
     copyTree(dir, join(scratch, "artifacts", hash), () => false);
     shipped.add(hash);
   }
-  console.log(`depot   ${shipped.size} JLL artifacts shipped with their libraries`);
+  console.log(`depot   ${shipped.size} JLL artifacts shipped with their libraries, ${megabytes(join(scratch, "artifacts"))} MB: ${libraries.join(", ")}`);
   execFileSync(
     julia,
     ["--startup-file=no", `--sysimage=${sysimage}`, `--project=${join(out, "kernel", "EquavelaKernel")}`, "-e", "using EquavelaKernel"],
