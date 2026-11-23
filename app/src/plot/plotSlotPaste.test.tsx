@@ -40,7 +40,7 @@ it("keeps a pasted expression and commits it when the slot is left", async () =>
   const onCommit = vi.fn();
   const { container, rerender } = render(
     <PlotContext.Provider value={env}>
-      <TextEnvContext.Provider value={{ layout: "en-US", mathTarget: null, clipboard }}>
+      <TextEnvContext.Provider value={{ mathTarget: null, clipboard }}>
         <Slot text="f(x)" label="y" onCommit={onCommit} />
       </TextEnvContext.Provider>
     </PlotContext.Provider>,
@@ -87,7 +87,7 @@ it("keeps a pasted expression and commits it when the slot is left", async () =>
   // The stored text comes back as the slot's text; it shows the pasted expression.
   rerender(
     <PlotContext.Provider value={env}>
-      <TextEnvContext.Provider value={{ layout: "en-US", mathTarget: null, clipboard }}>
+      <TextEnvContext.Provider value={{ mathTarget: null, clipboard }}>
         <Slot text="g(x) + 1" label="y" onCommit={onCommit} />
       </TextEnvContext.Provider>
     </PlotContext.Provider>,

@@ -20,7 +20,7 @@ import { TOKENS } from "../layout/pageText";
 import { S, windowTitle } from "../strings";
 import type { EnvironmentSummary, ImportIssue, ImportReport, KernelStatus, PageLine, PageSetup } from "../equavelaApi";
 import { recentFileFolder, recentFileName } from "../recentFiles";
-import { LAYOUT_IDS, type LayoutId } from "../keymap/keymap";
+
 import { SHEET_CONTEXTS, shortcutSheet } from "../keymap/shortcutSheet";
 import type { BackendMode } from "../backend";
 import type { CalcMode, DocState, FileTab, Prompt, ViewMode } from "../workbench/useWorkbench";
@@ -538,13 +538,9 @@ export type StatusBarProps = {
   /** The Find and Replace with fields, so the command palette can put the keyboard in them. */
   findRef?: RefObject<HTMLInputElement | null>;
   replaceRef?: RefObject<HTMLInputElement | null>;
-  /**
-   * Math mode: the toggle, and the two math boxes drawn in place of the text fields. The
-   * layout resolves Ctrl+M, the mode switch, from the layout's own table.
-   */
+  /** Math mode: the toggle, and the two math boxes drawn in place of the text fields. */
   findMode?: {
     math: boolean;
-    layout: LayoutId;
     onToggle: () => void;
     findBox: ReactNode;
     replaceBox: ReactNode;
@@ -577,7 +573,7 @@ export function StatusBar(props: StatusBarProps) {
   }, [doc?.id]);
   /** Ctrl+M in a text field of Find and Replace switches to math mode. */
   const switchesMode = (event: KeyboardEvent<HTMLInputElement>): boolean => {
-    if (!findMode || !isFindModeSwitch(event, findMode.layout)) return false;
+    if (!findMode || !isFindModeSwitch(event)) return false;
     event.preventDefault();
     event.stopPropagation();
     findMode.onToggle();
@@ -941,7 +937,8 @@ export function ResultFormatDialog({
             "format.zero-threshold": String(clamp(format.zeroThreshold, 1, 307)),
             "format.complex-threshold": String(clamp(format.complexThreshold, 1, 307)),
             "format.complex-form": format.complexForm,
-            "format.expand-nested": String(format.expandNested),
+            // Empty: no choice, the automatic rule (`expandsNested`).
+            "format.expand-nested": format.expandNestedSet ? String(format.expandNested) : "",
           });
         }}
         onKeyDown={(e) => e.key === "Escape" && onCancel()}
@@ -1030,14 +1027,23 @@ export function ResultFormatDialog({
             ))}
           </select>
         </label>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={format.expandNested}
-            onChange={(e) => set("expandNested", e.target.checked)}
-            data-testid="rf-expand-nested"
-          />{" "}
+        <label>
           {R.expandNested}
+          <select
+            value={format.expandNestedSet ? (format.expandNested ? "expanded" : "collapsed") : "auto"}
+            onChange={(e) =>
+              setFormat((current) => ({
+                ...current,
+                expandNested: e.target.value === "expanded",
+                expandNestedSet: e.target.value !== "auto",
+              }))
+            }
+            data-testid="rf-expand-nested"
+          >
+            {Object.entries(R.nestedChoices).map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
         </label>
         <div className="dialog-buttons">
           <button type="button" onClick={onCancel}>{R.cancel}</button>
@@ -1433,10 +1439,9 @@ export function OptionsDialog({
 }
 
 /** Help > Keyboard Shortcuts: the sheet of one layout, generated from the keymap tables. */
-export function ShortcutSheetDialog({ initialLayout, onClose }: { initialLayout: LayoutId; onClose: () => void }) {
+export function ShortcutSheetDialog({ onClose }: { onClose: () => void }) {
   const K = S.shortcutSheet;
-  const [layout, setLayout] = useState<LayoutId>(initialLayout);
-  const rows = shortcutSheet(layout);
+  const rows = shortcutSheet();
   const contexts = SHEET_CONTEXTS.filter((context) => rows.some((row) => row.context === context));
   // While the sheet prints, the print stylesheet hides the window and the dialog chrome.
   const print = () => {
@@ -1455,19 +1460,8 @@ export function ShortcutSheetDialog({ initialLayout, onClose }: { initialLayout:
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === "Escape" && onClose()}
       >
-        <h2>
-          {K.title} – {K.layouts[layout]}
-        </h2>
-        <label className="sheet-layout">
-          {K.layout}
-          <select value={layout} onChange={(e) => setLayout(e.target.value as LayoutId)}>
-            {LAYOUT_IDS.map((id) => (
-              <option key={id} value={id}>
-                {K.layouts[id]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <h2>{K.title}</h2>
+        <p className="hint">{K.anyLayout}</p>
         {contexts.map((context) => (
           <section key={context} aria-label={K.contexts[context]}>
             <h3>{K.contexts[context]}</h3>

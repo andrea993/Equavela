@@ -12,6 +12,7 @@ import type { AppSettings } from "./settings";
 import { applyEditDelta, stateFromOpened, stateFromSnapshot, type WorksheetState } from "./editDelta";
 import {
   onKernelStatus,
+  onRealCtrl,
   onOpenRequest,
   onFileDrop,
   onWorksheetEvent,
@@ -324,6 +325,8 @@ export interface Backend {
   undo(worksheet: string): Promise<EditResult>;
   redo(worksheet: string): Promise<EditResult>;
   onKernelStatus(handler: (status: KernelStatusEvent) => void): Promise<UnlistenFn>;
+  /** The physical Ctrl key, where the system reports it (Windows). */
+  onRealCtrl?(handler: (down: boolean) => void): Promise<UnlistenFn>;
   onWorksheetEvent(handler: (event: WorksheetEvent) => void): Promise<UnlistenFn>;
 }
 
@@ -626,6 +629,7 @@ export function createTauriBackend(): Backend {
     undo: (worksheet) => edit(worksheet, equavelaApi.undo(worksheet)),
     redo: (worksheet) => edit(worksheet, equavelaApi.redo(worksheet)),
     onKernelStatus,
+    onRealCtrl,
     onWorksheetEvent,
   };
 }

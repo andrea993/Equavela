@@ -2,7 +2,10 @@
 // Italian layouts (key = produced character, code = physical key, AltGr = Ctrl+Alt with
 // `altGraph` left false on purpose, the worst case the keymap must handle).
 
-import type { KeyInput, LayoutId } from "./keymap";
+import type { KeyInput } from "./keymap";
+
+/** The keyboard layouts the tests type on. */
+export type LayoutId = "en-US" | "it-IT";
 
 type Phys = [code: string, shift?: boolean, altGr?: boolean];
 

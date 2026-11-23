@@ -1352,3 +1352,26 @@ fn every_elseif_branch_of_an_if_is_imported() {
     assert!(positions.windows(2).all(|w| w[0] < w[1]), "{text}");
     assert_eq!(imported.report.counts().get("math-unparsable"), None);
 }
+
+/// An imported `svd(A)` gives `[s; U; Vᴴ]` and Equavela's gives Julia's `[U; S; V]`: every call
+/// becomes the algorithm that computes it once and returns it in the imported order.
+#[test]
+fn an_imported_svd_keeps_its_order() {
+    let imported = import("svd");
+    check_golden("svd", &imported);
+    assert!(
+        imported.report.issues.is_empty(),
+        "{:?}",
+        imported.report.issues
+    );
+    assert!(!imported.text.contains("svd(A)\""), "{}", imported.text);
+    assert!(
+        imported.text.contains("[U; S; V] ← svd(A)"),
+        "{}",
+        imported.text
+    );
+    assert!(imported.text.contains("[S; U; Vᵀ]"), "{}", imported.text);
+    let id = equavela_core::project::DocumentId::new("Untitled-1.eqv").unwrap();
+    equavela_core::worksheet_file::load_project_text(id, &imported.text)
+        .expect("the worksheet reader accepts the imported algorithm");
+}

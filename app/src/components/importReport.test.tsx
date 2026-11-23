@@ -44,15 +44,12 @@ describe("the import report", () => {
 });
 
 describe("Help > Keyboard Shortcuts", () => {
-  it("shows the sheet of the active layout grouped by context, and switches layout", async () => {
+  it("shows one sheet with the US keys, grouped by context", async () => {
     const { ShortcutSheetDialog } = await import("./Chrome");
-    render(<ShortcutSheetDialog initialLayout="it-IT" onClose={vi.fn()} />);
+    render(<ShortcutSheetDialog onClose={vi.fn()} />);
     const dialog = screen.getByRole("dialog", { name: S.shortcutSheet.title });
-    expect(within(dialog).getByRole("heading", { level: 2 }).textContent).toContain(S.shortcutSheet.layouts["it-IT"]);
     expect(within(dialog).getByRole("region", { name: S.shortcutSheet.contexts.global })).toBeTruthy();
-    expect(within(dialog).getAllByText("Ctrl+Shift+ò").length).toBeGreaterThan(0);
-    fireEvent.change(within(dialog).getByRole("combobox"), { target: { value: "en-US" } });
-    expect(within(dialog).getByRole("heading", { level: 2 }).textContent).toContain(S.shortcutSheet.layouts["en-US"]);
-    expect(within(dialog).queryByText("Ctrl+Shift+ò")).toBeNull();
+    expect(within(dialog).getAllByText("Ctrl+Shift+~").length).toBeGreaterThan(0);
+    expect(within(dialog).queryByRole("combobox")).toBeNull();
   });
 });

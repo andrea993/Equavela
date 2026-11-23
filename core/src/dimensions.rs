@@ -1389,6 +1389,8 @@ fn target_facts(target: &Target, fact: &DimensionFact) -> Vec<(Name, DimensionFa
     match &target.kind {
         TargetKind::Ident { name } => vec![(name.clone(), fact.clone())],
         TargetKind::Paren { target } => target_facts(target, fact),
+        // The transpose of the value: its shape is not followed.
+        TargetKind::Transpose { target } => target_facts(target, &DimensionFact::Unknown),
         TargetKind::Destructure { cells, .. } => {
             let dimensions = match fact {
                 DimensionFact::Matrix { cells, .. } => cells.clone(),

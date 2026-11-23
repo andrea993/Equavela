@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50">
+<regions>
+<region region-id="0" actualWidth="200" actualHeight="30" top="0" left="0"><math><ml:define><ml:id>A</ml:id><ml:matrix rows="3" cols="2"><ml:real>1</ml:real><ml:real>3</ml:real><ml:real>5</ml:real><ml:real>2</ml:real><ml:real>4</ml:real><ml:real>6</ml:real></ml:matrix></ml:define></math></region>
+<region region-id="1" actualWidth="200" actualHeight="30" top="40" left="0"><math><ml:define><ml:matrix rows="3" cols="1"><ml:id>s</ml:id><ml:id>U</ml:id><ml:id>V</ml:id></ml:matrix><ml:apply><ml:id>svd</ml:id><ml:id>A</ml:id></ml:apply></ml:define></math></region>
+<region region-id="2" actualWidth="200" actualHeight="30" top="80" left="0"><math><ml:define><ml:function><ml:id>F</ml:id><ml:boundVars><ml:id>M</ml:id></ml:boundVars></ml:function><ml:program><ml:localDefine><ml:matrix rows="3" cols="1"><ml:id>a</ml:id><ml:id>b</ml:id><ml:id>c</ml:id></ml:matrix><ml:apply><ml:id>svd</ml:id><ml:id>M</ml:id></ml:apply></ml:localDefine><ml:id>c</ml:id></ml:program></ml:define></math></region>
+</regions>
+</worksheet>

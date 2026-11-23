@@ -428,6 +428,7 @@ fn defined_names(kind: &StatementKind, names: &mut BTreeSet<String>) {
                 names.insert(segments_key(&name.name.segments));
             }
             TargetKind::Paren { target: inner }
+            | TargetKind::Transpose { target: inner }
             | TargetKind::Index { base: inner, .. }
             | TargetKind::Column { base: inner, .. }
             | TargetKind::Row { base: inner, .. } => target(&inner.kind, names),

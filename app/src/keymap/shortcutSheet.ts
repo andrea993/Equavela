@@ -1,9 +1,8 @@
-// The printable keyboard shortcut sheet, generated from the per-layout tables, so
-// it can never disagree with what the keys do: every Ctrl chord, named key and math character of a
-// layout is a row.
+// The printable keyboard shortcut sheet, generated from the keymap, so it can never disagree with
+// what the keys do: every Ctrl chord, named key and math character is a row.
 
 import { commandTitle } from "../catalog/commands";
-import { LAYOUTS, namedShortcutLabel, type KeyContext, type LayoutId } from "./keymap";
+import { KEYMAP, namedShortcutLabel, type KeyContext } from "./keymap";
 
 export type ShortcutRow = { keys: string; context: KeyContext; cmd: string; label: string };
 
@@ -16,13 +15,13 @@ function spelled(cmd: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** Every shortcut of `layout`, grouped by context and in table order within a context. */
-export function shortcutSheet(layout: LayoutId): ShortcutRow[] {
-  const table = LAYOUTS[layout];
+/** Every shortcut, grouped by context and in table order within a context. */
+export function shortcutSheet(): ShortcutRow[] {
+  const table = KEYMAP;
   const rows: ShortcutRow[] = [];
   const add = (keys: string, context: KeyContext, cmd: string) =>
     rows.push({ keys, context, cmd, label: commandTitle(cmd) ?? spelled(cmd) });
-  for (const chord of table.ctrl) add(chord.pdf, chord.ctx, chord.cmd);
+  for (const chord of table.ctrl) add(chord.label, chord.ctx, chord.cmd);
   for (const key of table.keys) {
     add(namedShortcutLabel(key), key.ctx, key.cmd);
   }

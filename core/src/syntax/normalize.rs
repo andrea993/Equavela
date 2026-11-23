@@ -126,7 +126,7 @@ pub fn normalize_target(t: &mut Target) {
             normalize_target(base);
             normalize_expr(index);
         }
-        TargetKind::Paren { target } => normalize_target(target),
+        TargetKind::Paren { target } | TargetKind::Transpose { target } => normalize_target(target),
         TargetKind::Destructure { cells, .. } => {
             for c in cells {
                 normalize_target(c);

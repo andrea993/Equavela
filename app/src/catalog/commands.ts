@@ -4,7 +4,7 @@
 // ribbon and the keymap, and show the shortcut of the active layout.
 
 import type { Command } from "../editor/model";
-import { shortcutLabel, type LayoutId } from "../keymap/keymap";
+import { shortcutLabel } from "../keymap/keymap";
 import { BUILTIN_ENTRIES } from "./builtins";
 import { DEGREE_ENTRY, GREEK_LOWER, GREEK_UPPER, PALETTE_KINDS, paletteSections, type PaletteAction, type PaletteKind } from "./palettes";
 import { UNIT_ENTRIES, UNIT_PREFIXES } from "./units";
@@ -241,17 +241,17 @@ function unitItems(): CommandItem[] {
   return items;
 }
 
-export function buildCommandItems(layout: LayoutId): CommandItem[] {
+export function buildCommandItems(): CommandItem[] {
   const items: CommandItem[] = [];
   for (const [cmd, title, keywords] of WINDOW_COMMANDS) {
     items.push({
-      id: `cmd:${cmd}`, group: "Command", label: title, title: "", shortcut: shortcutLabel(layout, cmd),
+      id: `cmd:${cmd}`, group: "Command", label: title, title: "", shortcut: shortcutLabel(cmd),
       keywords, run: { kind: cmd === "functionCatalogue" ? "catalogue" : "window", cmd } as CommandRun,
     });
   }
   for (const [command, title, keywords] of MATRIX_COMMANDS) {
     items.push({
-      id: `matrix:${command}`, group: "Command", label: title, title: "", shortcut: shortcutLabel(layout, command),
+      id: `matrix:${command}`, group: "Command", label: title, title: "", shortcut: shortcutLabel(command),
       keywords, run: { kind: "action", action: { kind: "command", command } },
     });
   }
@@ -273,7 +273,7 @@ export function buildCommandItems(layout: LayoutId): CommandItem[] {
           group: palette === "symbolics" && section.id === "operators" ? "Operator" : group,
           label: entry.glyph ?? entry.label,
           title: `${entry.title} (${section.title})`,
-          shortcut: entry.action.kind === "command" ? shortcutLabel(layout, entry.action.command) : null,
+          shortcut: entry.action.kind === "command" ? shortcutLabel(entry.action.command) : null,
           keywords: entry.keywords ?? "",
           run: { kind: "action", action: entry.action },
         });

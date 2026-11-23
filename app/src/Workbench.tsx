@@ -65,6 +65,9 @@ import {
   matrixSizeSettings,
   RESULT_TABLE_SIZE_KEY,
   SHOW_INDICES_KEY,
+  EXPAND_NESTED_KEY,
+  expandsNested,
+  hasNestedMatrix,
   tableSizeValue,
 } from "./results/format";
 import { PaletteLayer } from "./components/Palettes";
@@ -79,6 +82,7 @@ import { TerminalPanel, REPL_MAX, REPL_MIN } from "./components/TerminalPanel";
 import { ProjectImageUsageDialog } from "./components/ProjectImageUsageDialog";
 import { ProjectTextRecoveryDialog } from "./components/ProjectTextRecoveryDialog";
 import { projectDropFolder } from "./workbench/projectDrop";
+import { replProjectOf } from "./workbench/replTarget";
 import { unavailableImageCount } from "./workbench/projectResources";
 import { FileTabView, runCodeCommand, SheetFrame, type CodeCommand, type CodeHistory } from "./components/FileTabView";
 import { EnvironmentManager } from "./components/EnvironmentManager";
@@ -98,8 +102,7 @@ import {
   type Command,
   type EditorState,
 } from "./editor/model";
-import { fromDom, LAYOUTS, resolve, shortcutLabel } from "./keymap/keymap";
-import { useKeyboardLayout } from "./keymap/useLayout";
+import { fromDom, resolve, shortcutLabel } from "./keymap/keymap";
 import { DRAFT_ID } from "./page/regionEdit";
 import {
   acceptCompletion,
@@ -466,7 +469,6 @@ export default function Workbench({ backend }: { backend: Backend }) {
   //; otherwise it moves to the next placeholder (found driving the real app: `i`, Tab in a
   // sum accepted `identity`).
   const completionPicked = useRef(false);
-  const keyboard = useKeyboardLayout();
   // An unpinned palette is a drop-down: it owns the keyboard (search box) until it closes.
   const ribbonModal = palettes.palettes.some((p) => !p.pinned) || catalogue !== null || commandPalette || insertSearch !== null || fastMenu !== null || projectDialog !== null || projectSettings || imageUsage || textRecoveries || environmentManager;
   const activeId = active?.id;
@@ -592,12 +594,11 @@ export default function Workbench({ backend }: { backend: Backend }) {
     [completingSheet, backend],
   );
   const textEnv = useMemo(
-    () => ({ layout: keyboard.effective, mathTarget, clipboard: mathClipboard }),
-    [keyboard.effective, mathClipboard],
+    () => ({ mathTarget, clipboard: mathClipboard }),
+    [mathClipboard],
   );
   const textBinding = useMemo<Omit<TextEditBinding, "initial" | "point">>(
     () => ({
-      layout: keyboard.effective,
       mathTarget,
       clipboard: mathClipboard,
       onReady: actions.textReady,
@@ -612,7 +613,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
       onFormat: (format) => setTextFormat((previous) => (JSON.stringify(previous) === JSON.stringify(format) ? previous : format)),
       onInline: setInlineActive,
     }),
-    [actions, keyboard.effective, mathClipboard],
+    [actions, mathClipboard],
   );
   // The editor state the next key applies to: keys can arrive faster than React renders.
   const liveEditor = useRef<EditorState | null>(null);
@@ -650,7 +651,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.isComposing || event.repeat || !event.ctrlKey || event.key !== " ") return;
-      const action = resolve(fromDom(event), LAYOUTS[keyboard.effective], "math");
+      const action = resolve(fromDom(event), "math");
       if (action?.kind !== "command" || action.cmd !== "insertSearch") return;
       if (!openInsertSearch(event.target)) return;
       event.preventDefault();
@@ -658,7 +659,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [openInsertSearch, keyboard.effective]);
+  }, [openInsertSearch]);
 
   const fastAvailable = !!editing && editing.docId === activeId && !fastBusy;
   const closeFastMenu = useCallback((restore: boolean) => {
@@ -1152,6 +1153,8 @@ export default function Workbench({ backend }: { backend: Backend }) {
     regionId: string;
     indices: boolean;
     inherited: boolean;
+    nested: boolean | null;
+    nestedInherited: boolean;
     format: Record<string, string> | undefined;
   } | null>(() => {
     if (!active) return null;
@@ -1174,11 +1177,15 @@ export default function Workbench({ backend }: { backend: Backend }) {
     const statement = editingHere && editing ? editing.editor.root : region.statement;
     // A result the region does not draw, or one that is not a matrix, has no display to choose.
     if (!value || value.type !== "matrix" || !showsResult(statement)) return null;
+    const own = formatFromSettings({ ...active.view.settings, ...region.format });
     return {
       docId: active.id,
       regionId,
-      indices: formatFromSettings({ ...active.view.settings, ...region.format }).showIndices,
+      indices: own.showIndices,
       inherited: resultFormat.showIndices,
+      // Only a matrix with a matrix among its elements has nested arrays to expand.
+      nested: hasNestedMatrix(value) ? expandsNested(own, value) : null,
+      nestedInherited: expandsNested(resultFormat, value),
       format: region.format,
     };
   }, [active, editing, resultEntries, resultFormat, resultSelection]);
@@ -1219,6 +1226,21 @@ export default function Workbench({ backend }: { backend: Backend }) {
       if (indices === target.inherited) delete next[SHOW_INDICES_KEY];
       else next[SHOW_INDICES_KEY] = String(indices);
       if ((target.format?.[SHOW_INDICES_KEY] ?? null) === (next[SHOW_INDICES_KEY] ?? null)) return;
+      void actions.setResultFormat(target.docId, target.regionId, Object.keys(next).length > 0 ? next : null);
+    },
+    [actions, matrixDisplay],
+  );
+
+  /** Expands or collapses the nested arrays of the target matrix result: one undo step of the region override. */
+  const setMatrixNested = useCallback(
+    (expand: boolean) => {
+      const target = matrixDisplay;
+      if (!target) return;
+      const next: Record<string, string> = { ...(target.format ?? {}) };
+      // A choice equal to what the region shows without it is not stored.
+      if (expand === target.nestedInherited) delete next[EXPAND_NESTED_KEY];
+      else next[EXPAND_NESTED_KEY] = String(expand);
+      if ((target.format?.[EXPAND_NESTED_KEY] ?? null) === (next[EXPAND_NESTED_KEY] ?? null)) return;
       void actions.setResultFormat(target.docId, target.regionId, Object.keys(next).length > 0 ? next : null);
     },
     [actions, matrixDisplay],
@@ -2005,7 +2027,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
         // a field of the window's chrome (REPL, Find, side panel filter, ribbon fields) keeps the
         // editing keys, and the window commands that edit nothing still work from it.
         const inChrome = target?.closest?.(CHROME_FIELDS) != null;
-        const action = inChrome ? resolve(fromDom(event), LAYOUTS[keyboard.effective], "global") : null;
+        const action = inChrome ? resolve(fromDom(event), "global") : null;
         if (action?.kind === "command" && FIELD_COMMANDS.has(action.cmd)) {
           event.preventDefault();
           void windowCommand(action.cmd);
@@ -2048,8 +2070,6 @@ export default function Workbench({ backend }: { backend: Backend }) {
         return;
       }
       const ev = fromDom(event);
-      keyboard.learn(ev);
-      const layout = keyboard.effective;
       if (editing && editing.docId === active?.id) {
         const editor = liveEditor.current ?? editing.editor;
         const suggestions = completions(editor, completionItems);
@@ -2085,7 +2105,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
             return;
           }
         }
-        const result = handleKey(editor, ev, layout);
+        const result = handleKey(editor, ev);
         // An arrow with nothing left to do inside the region leaves it (inner movement - cells, lines,
         // exponents, the caret - has priority): the region is committed and the crosshair goes beside it.
         const arrow = ARROW_DIRECTIONS[event.key];
@@ -2112,17 +2132,17 @@ export default function Workbench({ backend }: { backend: Backend }) {
         }
         return;
       }
-      const action = resolve(ev, LAYOUTS[layout], "sheet");
+      const action = resolve(ev, "sheet");
       if (!action) {
         // A math chord on the empty crosshair (Ctrl+Shift+D, Ctrl+Shift+4, Ctrl+M, ...) starts a region
         // and applies there, as in the reference application (found driving the real app: the chord was ignored).
         if (event.ctrlKey && !event.altKey && !event.metaKey) {
-          const math = resolve(ev, LAYOUTS[layout], "math");
+          const math = resolve(ev, "math");
           if (math && math.kind === "command" && math.cmd !== "insertSearch") {
             event.preventDefault();
             void actions.beginNew().then((editor) => {
               if (!editor) return;
-              const next = handleKey(editor, ev, layout).state;
+              const next = handleKey(editor, ev).state;
               liveEditor.current = next;
               actions.updateEditor(next);
             });
@@ -2148,7 +2168,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
       if (action.kind === "char") {
         void actions.beginNew().then((editor) => {
           if (!editor) return;
-          const next = handleKey(editor, ev, layout).state;
+          const next = handleKey(editor, ev).state;
           liveEditor.current = next;
           actions.updateEditor(next);
         });
@@ -2158,7 +2178,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [actions, active, calculationSettingsDialog, completionIndex, completionItems, editing, keyboard, matrixDialog, optionsDialog, pageSetupDialog, formatDialog, labelStylesDialog, mathFontDialog, ribbonModal, state.prompt, windowCommand]);
+  }, [actions, active, calculationSettingsDialog, completionIndex, completionItems, editing, matrixDialog, optionsDialog, pageSetupDialog, formatDialog, labelStylesDialog, mathFontDialog, ribbonModal, state.prompt, windowCommand]);
 
   // Ctrl+Z straight after a Space made a text box of a word brings the math back. Capture
   // phase, so it comes before the text editor's own undo; any other Ctrl+Z is left to it.
@@ -2243,7 +2263,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
     [updateFromRibbon],
   );
 
-  const commandItems = useMemo(() => buildCommandItems(keyboard.effective), [keyboard.effective]);
+  const commandItems = useMemo(() => buildCommandItems(), []);
   const insertionItems = useMemo(
     () => equationInsertionItems(commandItems, insertSearch?.newDraft ?? false),
     [commandItems, insertSearch?.newDraft],
@@ -2434,10 +2454,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
   useEffect(() => {
     try { window.localStorage.setItem("equavela.repl", JSON.stringify({ height: repl.height })); } catch { /* per-user convenience only */ }
   }, [repl]);
-  /** the worksheet whose kernel the REPL uses: the one in front, or a project worksheet. */
-  // the REPL of the open project's environment, else of the generic environment;
-  // it does not follow the worksheet in front.
-  const replProject = project?.root ?? null;
+  const replProject = replProjectOf(project?.root ?? null, active);
   // the module names of the open worksheets, asked again when the documents, the project
   // or a calculation change (a save renames, a new file can number another one).
   const [moduleNames, setModuleNames] = useState<Record<string, string>>({});
@@ -2541,7 +2558,6 @@ export default function Workbench({ backend }: { backend: Backend }) {
         running={running}
         calcMode={state.calcMode}
         viewMode={state.viewMode}
-        keyboardLayout={keyboard.effective}
         context={ribbonContext({
           textEditing: textEditing !== null && textEditing.docId === active?.id,
           mathEditing: editing !== null && editing.docId === active?.id,
@@ -2553,7 +2569,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
         })}
         matrixControls={editing ? matrixControls(editing.editor) : null}
         matrixShape={matrixShape}
-        matrixDisplay={matrixDisplay ? { indices: matrixDisplay.indices } : null}
+        matrixDisplay={matrixDisplay ? { indices: matrixDisplay.indices, nested: matrixDisplay.nested } : null}
         // the size threshold is the worksheet's, so the box is there whenever one is open.
         matrixSize={active ? { rows: resultFormat.matrixRows, cols: resultFormat.matrixCols } : null}
         compact={compactRibbon}
@@ -2586,6 +2602,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
         onCommand={(cmd) => void windowCommand(cmd)}
         onEditorCommand={editorCommand}
         onMatrixDisplay={setMatrixDisplay}
+        onMatrixNested={setMatrixNested}
         onMatrixSize={setMatrixSize}
         onPlotSpec={(plot) => {
           const regionId = active?.selection.length === 1 ? active.selection[0] : null;
@@ -2627,7 +2644,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
                     kind: "item",
                     id: cmd,
                     label: contextLabel(cmd, allSelectedDisabled(active)),
-                    shortcut: shortcutLabel(keyboard.effective, cmd),
+                    shortcut: shortcutLabel(cmd),
                     disabled: contextDisabled(cmd, { selected: active?.selection.length ?? 0, canFormatMath, kind: contextMenu.target }),
                   },
             ),
@@ -2959,7 +2976,6 @@ export default function Workbench({ backend }: { backend: Backend }) {
         replaceRef={replaceInput}
         findMode={{
           math: findMath.on,
-          layout: keyboard.effective,
           onToggle: () => void toggleFindMode(),
           hasQuery: mathQuery !== null,
           onPaste: pasteIntoFind,
@@ -2968,7 +2984,6 @@ export default function Workbench({ backend }: { backend: Backend }) {
               key={`find-${findMath.key}`}
               tree={findMath.query}
               label={S.status.findMath}
-              layout={keyboard.effective}
               autoFocus={findMath.focus === "find"}
               clipboard={findClipboard}
               onTree={(query) => {
@@ -2984,7 +2999,6 @@ export default function Workbench({ backend }: { backend: Backend }) {
               key={`replace-${findMath.key}`}
               tree={findMath.replacement}
               label={S.status.replaceWithMath}
-              layout={keyboard.effective}
               autoFocus={findMath.focus === "replace"}
               clipboard={findClipboard}
               onTree={(replacement) => setFindMath((f) => ({ ...f, replacement }))}
@@ -3054,7 +3068,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
           onClose={() => setCatalogue(null)}
         />
       )}
-      <PaletteLayer controls={palettes} layout={keyboard.effective} onRun={runPaletteAction} onEscape={focusWorksheet} />
+      <PaletteLayer controls={palettes} onRun={runPaletteAction} onEscape={focusWorksheet} />
       {formatDialog && active && (() => {
         const region =
           formatDialog.regionId === null ? undefined : active.view.regions.find((r) => r.id === formatDialog.regionId);
@@ -3087,7 +3101,10 @@ export default function Workbench({ backend }: { backend: Backend }) {
               setFormatDialog(null);
               // The dialog writes its `format.*` keys into the region's display override and
               // leaves what the override carries beside them alone — the result-table box.
-              void actions.setResultFormat(formatDialog.docId, regionId, { ...own, ...format });
+              const next: Record<string, string> = { ...own, ...format };
+              // No choice of nested arrays: the region follows the worksheet.
+              if (next[EXPAND_NESTED_KEY] === "") delete next[EXPAND_NESTED_KEY];
+              void actions.setResultFormat(formatDialog.docId, regionId, next);
             }}
             onReset={() => {
               setFormatDialog(null);
@@ -3257,7 +3274,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
         />
       )}
       {shortcutSheetDialog && (
-        <ShortcutSheetDialog initialLayout={keyboard.effective} onClose={() => setShortcutSheetDialog(false)} />
+        <ShortcutSheetDialog onClose={() => setShortcutSheetDialog(false)} />
       )}
       {importReportDialog && (
         <ImportReportDialog report={actions.lastImportReport()} onClose={() => setImportReportDialog(false)} />

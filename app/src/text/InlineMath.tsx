@@ -12,16 +12,15 @@ import { handleKey } from "../editor/controller";
 import { mathHit, matrixDragHit, nearestMathHit, type Hit } from "../editor/hit";
 import { initialState, placeCaret, runCommand, selectRange, type EditorState } from "../editor/model";
 import { isEmptyStatement, type Node } from "../editor/tree";
-import { fromDom, type LayoutId } from "../keymap/keymap";
+import { fromDom } from "../keymap/keymap";
 import { mathFontOf, mathFontStyle } from "../math/font";
 import { MathStatement } from "../math/render";
 import { S } from "../strings";
 import { readClipboardFromGesture } from "../clipboard";
 import type { InlineActive, InlineResult, MathClipboard, MathTarget } from "./value";
 
-/** What the text editor gives its inline math: the keyboard layout, the palette target and its results. */
+/** What the text editor gives its inline math: the palette target and its results. */
 export type TextEnv = {
-  layout: LayoutId;
   mathTarget: MutableRefObject<MathTarget | null> | null;
   clipboard: MathClipboard | null;
   /** The result or error mark after the operator of a run, by index in the committed text. */
@@ -29,7 +28,7 @@ export type TextEnv = {
   /** The run that has the keyboard, for the equation commands of the ribbon. */
   onInline?: (active: InlineActive | null) => void;
 };
-export const TextEnvContext = createContext<TextEnv>({ layout: "en-US", mathTarget: null, clipboard: null });
+export const TextEnvContext = createContext<TextEnv>({ mathTarget: null, clipboard: null });
 
 export type Leave = "left" | "right";
 
@@ -102,8 +101,8 @@ export function InlineMath({
   const ref = useRef<HTMLSpanElement>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const live = useRef<EditorState | null>(null);
-  const props = useRef({ onTree, onLeave, onEmpty, layout: env.layout, clipboard: env.clipboard });
-  props.current = { onTree, onLeave, onEmpty, layout: env.layout, clipboard: env.clipboard };
+  const props = useRef({ onTree, onLeave, onEmpty, clipboard: env.clipboard });
+  props.current = { onTree, onLeave, onEmpty, clipboard: env.clipboard };
   // True while a paste is being read through the hidden textarea (the focus is away for a moment).
   const pasting = useRef(false);
   // The press that may become a mouse selection (anchor of the drag).
@@ -161,7 +160,7 @@ export function InlineMath({
         }
         return;
       }
-      const result = handleKey(current, fromDom(event), props.current.layout);
+      const result = handleKey(current, fromDom(event));
       // Enter leaves inline math even right after an operator: the equation break of Enter is a math
       // region's, and one-line math has no second line.
       if (result.action?.kind === "command" && result.action.cmd === "exitRegion") {

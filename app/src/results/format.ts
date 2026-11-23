@@ -19,6 +19,8 @@ export type ResultFormat = {
   complexForm: "cartesian" | "polar";
   /** Nested arrays are shown expanded; false shows `{r×c}`. */
   expandNested: boolean;
+  /** Whether the worksheet or the region chose `expandNested`; without a choice, see `expandsNested`. */
+  expandNestedSet?: boolean;
   /** Digits after the decimal point. */
   precision: number;
   /** The radix of the digits; another radix shows a whole number in its base. */
@@ -99,7 +101,8 @@ export function formatSettingEdits(format: ResultFormat): Record<string, string 
       String(format.complexThreshold),
     ),
     "format.complex-form": keep(format.complexForm !== DEFAULT_FORMAT.complexForm, format.complexForm),
-    "format.expand-nested": keep(format.expandNested !== DEFAULT_FORMAT.expandNested, String(format.expandNested)),
+    // Without a choice the automatic rule applies, so a choice is kept whatever its value.
+    "format.expand-nested": format.expandNestedSet ? String(format.expandNested) : null,
   };
 }
 
@@ -135,6 +138,7 @@ export function formatFromSettings(settings?: Record<string, string>): ResultFor
   if (kind && NUMBER_KINDS.includes(kind)) format.kind = kind;
   if (settings["format.complex-form"] === "polar") format.complexForm = "polar";
   format.expandNested = settings["format.expand-nested"] === "true";
+  if (settings["format.expand-nested"] === "true" || settings["format.expand-nested"] === "false") format.expandNestedSet = true;
   if (settings["format.imaginary"] === "j") format.imaginary = "j";
   const size = /^(\d+)\s*,\s*(\d+)$/.exec(settings["format.matrix-size"] ?? "");
   if (size) {
@@ -437,4 +441,24 @@ export function resultUnit(
 ): { text: string; divisor: number; offset: number } {
   if (displayUnit) return { text: displayUnit.text, divisor: displayUnit.divisor, offset: displayUnit.offset ?? 0 };
   return { text: siUnitText(dimension), divisor: 1, offset: 0 };
+}
+
+/** The key of the choice to expand nested arrays, in the worksheet default and a region override. */
+export const EXPAND_NESTED_KEY = "format.expand-nested";
+
+/**
+ * Whether a matrix result draws its matrix elements expanded. The worksheet's or the region's choice
+ * wins; without one, a result made only of matrices (the several results of `svd`, `eigenvecs` and
+ * the like) is expanded, and a matrix that mixes matrices with other elements shows them as `{r×c}`.
+ */
+export function expandsNested(format: ResultFormat, value: KernelValue): boolean {
+  if (format.expandNestedSet) return format.expandNested;
+  if (value.type !== "matrix") return false;
+  const elements = value.storage.values;
+  return elements.length > 0 && elements.every((element) => element.type === "matrix");
+}
+
+/** Whether a matrix result has a matrix among its elements. */
+export function hasNestedMatrix(value: KernelValue): boolean {
+  return value.type === "matrix" && value.storage.values.some((element) => element.type === "matrix");
 }

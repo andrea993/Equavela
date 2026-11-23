@@ -80,6 +80,7 @@ pub fn sx_target(t: &Target) -> String {
         }
         TargetKind::Row { base, index } => format!("(row {} {})", sx_target(base), sx_expr(index)),
         TargetKind::Paren { target } => format!("(paren {})", sx_target(target)),
+        TargetKind::Transpose { target } => format!("(transpose {})", sx_target(target)),
         TargetKind::Destructure { rows, cols, cells } => {
             let mut parts = vec!["destructure".to_string(), format!("{rows}×{cols}")];
             parts.extend(cells.iter().map(sx_target));

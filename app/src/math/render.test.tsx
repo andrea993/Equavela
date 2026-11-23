@@ -269,6 +269,18 @@ describe("statements of the demo worksheet", () => {
     expect(Object.values(ELLIPSIS_GLYPH)).not.toContain("…");
   });
 
+  it("draws a transposed target with its T", () => {
+    const name = (text: string) => ({ segments: [{ text, subscript: false }], label: null });
+    const statement = {
+      type: "Define",
+      target: { type: "Transpose", target: { type: "Ident", name: name("V") } },
+      rhs: { type: "Ident", name: name("W") },
+      tail: null,
+    };
+    const container = render(<MathStatement statement={statement as never} path={[]} />).container;
+    expect(container.textContent).toContain("VT");
+  });
+
   it("draws a nested destructuring target as a matrix inside a cell", () => {
     // The cell of the outer grid that is itself a matrix draws its own brackets and grid, so
     // screen and print show the nested array the target unpacks.

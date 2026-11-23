@@ -2,8 +2,8 @@
 // Italian layout with the key events each layout produces.
 
 import { describe, expect, it } from "vitest";
-import { type KeyInput, type LayoutId } from "../keymap/keymap";
-import { charKey, ctrl, named, typed } from "../keymap/testKeys";
+import { type KeyInput } from "../keymap/keymap";
+import { charKey, ctrl, named, typed, type LayoutId } from "../keymap/testKeys";
 import { handleKey } from "./controller";
 import { breakWires, focusAt, initialState, insertMatrixSized, loneNameText, insertSymbolicKeyword, placeCaret, runCommand, selectedNode, selectRange, typeCharacter, typeText, type EditorState } from "./model";
 import { sameCursor } from "../text/InlineMath";
@@ -11,7 +11,7 @@ import { childRefs, get, ident, isEmptyStatement, leafPaths, withDrawnParens, dr
 
 type Chords = Record<string, KeyInput>;
 
-/** The Ctrl chords used below, written per layout from the work plan table (2.3). */
+/** The Ctrl chords used below: the US characters, typed with the keys of each layout. */
 const CHORDS: Record<LayoutId, Chords> = {
   "en-US": {
     greek: ctrl("KeyG", "g"),
@@ -36,28 +36,30 @@ const CHORDS: Record<LayoutId, Chords> = {
     wordOp: ctrl("KeyJ", "j"),
     addBreak: ctrl("Equal", "+", true),
   },
+  // The US characters, typed with the Italian keys (AltGr with the real Ctrl down, as on Windows).
   "it-IT": {
     greek: ctrl("KeyG", "g"),
     unit: ctrl("KeyU", "u"),
     sub: ctrl("Slash", "-"),
     symbolic: ctrl("Period", "."),
-    boolEq: ctrl("BracketRight", "+"),
-    while: ctrl("Equal", "ì"),
-    for: ctrl("Quote", "°", true),
-    try: ctrl("Minus", "'"),
-    elseIf: ctrl("BracketLeft", "è"),
-    else: { key: "j", code: "KeyJ" }, // no chord on Italian: typed `else` + Ctrl+J
-    break: ctrl("Minus", "?", true),
+    boolEq: ctrl("Digit0", "=", true),
+    while: { key: "]", code: "BracketRight", ctrlKey: true, altKey: true, altGraph: true, realCtrl: true },
+    for: ctrl("Digit2", '"', true),
+    try: { key: "[", code: "BracketLeft", ctrlKey: true, altKey: true, altGraph: true, realCtrl: true },
+    elseIf: ctrl("Comma", ";", true),
+    else: { key: "}", code: "BracketRight", ctrlKey: true, altKey: true, shiftKey: true, altGraph: true, realCtrl: true },
+    break: { key: "{", code: "BracketLeft", ctrlKey: true, altKey: true, shiftKey: true, altGraph: true, realCtrl: true },
     return: ctrl("Backquote", "\\"),
-    global: ctrl("Semicolon", "ç", true),
-    inlineDiv: ctrl("Backslash", "ù"),
+    // No `~` on the Windows Italian layout: Linux types it with AltGr, `ctrlKey` the real Ctrl.
+    global: { key: "~", code: "Equal", ctrlKey: true, altGraph: true },
+    inlineDiv: ctrl("Digit7", "/", true),
     sum: ctrl("Digit4", "$", true),
     deriv: ctrl("KeyD", "D", true),
     transpose: ctrl("KeyT", "T", true),
     undo: ctrl("KeyZ", "z"),
     redo: ctrl("KeyY", "y"),
     wordOp: ctrl("KeyJ", "j"),
-    addBreak: ctrl("BracketRight", "*", true),
+    addBreak: ctrl("BracketRight", "+"),
   },
 };
 
@@ -82,10 +84,11 @@ function assertNoBareStatements(root: Node, where = "root"): void {
   walk(root, "");
 }
 
-function run(layout: LayoutId, keys: (KeyInput | KeyInput[])[], start: EditorState = initialState()): EditorState {
+/** `_layout` names the keyboard the keys were typed on; the keymap needs no layout. */
+function run(_layout: LayoutId, keys: (KeyInput | KeyInput[])[], start: EditorState = initialState()): EditorState {
   let s = start;
   for (const k of keys.flat()) {
-    s = handleKey(s, k, layout).state;
+    s = handleKey(s, k).state;
     assertNoBareStatements(s.root);
   }
   return s;
@@ -414,15 +417,15 @@ describe.each(["en-US", "it-IT"] as const)("editor on %s", (layout) => {
 
   it("types the degree sign as an angle unit and preserves the literal sign in strings", () => {
     const degreeKey = { key: "°", code: "Quote", shiftKey: true };
-    const result = handleKey(typeText(initialState(), "90"), degreeKey, layout);
+    const result = handleKey(typeText(initialState(), "90"), degreeKey);
     expect(ast(result.state)).toBe("(juxt 90 °@unit)");
     expect(result.state.caret?.offset).toBe(1);
     expect(ast(runCommand(result.state, "undo"))).toBe("90");
-    const name = handleKey(typeText(initialState(), "a"), degreeKey, layout);
+    const name = handleKey(typeText(initialState(), "a"), degreeKey);
     expect(ast(name.state)).toBe("(· a °@unit)");
     expect(ast(typeText(initialState(), "20°C"))).toBe("(juxt 20 °C@unit)");
     const string = runCommand(initialState(), "string");
-    expect(ast(handleKey(string, degreeKey, layout).state)).toBe('"°"');
+    expect(ast(handleKey(string, degreeKey).state)).toBe('"°"');
   });
 
   it("Backspace at the end of an evaluated expression removes the evaluation", () => {
@@ -1493,18 +1496,18 @@ describe.each(["en-US", "it-IT"] as const)("editor on %s", (layout) => {
     const leaf = (state: EditorState, name: string, nth = 0) => leafPaths(state.root).filter((path) => sexpr(get(state.root, path)) === name)[nth];
     // The caret before the condition, at the start of the `if` line: a line above the whole `if`.
     const beforeCond = placeCaret(s, leaf(s, "n", 1), "L", { seg: 0, offset: 0 });
-    const above = handleKey(beforeCond, shiftEnter, layout).state;
+    const above = handleKey(beforeCond, shiftEnter).state;
     expect(ast(above)).toBe("(:= (call f n) (program (← s 0) □ (if (if (> n 0) s))))");
     expect(above.breaks).toHaveLength(0);
     expect(get(above.root, above.focus).type).toBe("Placeholder");
     // The whole `if` block with the caret on its left: above it as well.
     const ifPath = leaf(s, "n", 1).slice(0, -3);
     expect(get(s.root, ifPath).type).toBe("If");
-    expect(ast(handleKey(placeCaret(s, ifPath, "L"), shiftEnter, layout).state)).toBe("(:= (call f n) (program (← s 0) □ (if (if (> n 0) s))))");
+    expect(ast(handleKey(placeCaret(s, ifPath, "L"), shiftEnter).state)).toBe("(:= (call f n) (program (← s 0) □ (if (if (> n 0) s))))");
     // An expression line that starts with an operand: above, not a continuation break before it.
     const sum = run(layout, [t("x:"), charKey("]", layout), t("a+b")]);
     const beforeA = placeCaret(sum, leaf(sum, "a"), "L", { seg: 0, offset: 0 });
-    const sumAbove = handleKey(beforeA, shiftEnter, layout).state;
+    const sumAbove = handleKey(beforeA, shiftEnter).state;
     expect(ast(sumAbove)).toBe("(:= x (program □ (+ a b) □))");
     expect(sumAbove.breaks).toHaveLength(0);
   });
@@ -1515,7 +1518,7 @@ describe.each(["en-US", "it-IT"] as const)("editor on %s", (layout) => {
     s = run(layout, [c.elseIf, t("b"), named("Tab"), t("2")], s);
     expect(ast(s)).toBe("(:= x (program (if (if a 1) (elseif b 2))))");
     const b = leafPaths(s.root).find((path) => sexpr(get(s.root, path)) === "b")!;
-    const above = handleKey(placeCaret(s, b, "L", { seg: 0, offset: 0 }), shiftEnter, layout).state;
+    const above = handleKey(placeCaret(s, b, "L", { seg: 0, offset: 0 }), shiftEnter).state;
     expect(ast(above)).toBe("(:= x (program (if (if a 1 □) (elseif b 2))))");
     expect(get(above.root, above.focus).type).toBe("Placeholder");
   });
@@ -1714,22 +1717,22 @@ describe.each(["en-US", "it-IT"] as const)("editor on %s", (layout) => {
     const base = run(layout, [t("f(n):"), charKey("]", layout), t("s"), charKey("{", layout), t("a+")]);
     expect(ast(base)).toBe("(:= (call f n) (program (← s (+ a □)) □))");
     // Enter right after the operator breaks the line, it does not start a program line.
-    const entered = handleKey(base, named("Enter"), layout).state;
+    const entered = handleKey(base, named("Enter")).state;
     expect(ast(entered)).toBe("(:= (call f n) (program (← s (+↵ a □)) □))");
     // Backspace at the start of the continuation joins the line again.
-    expect(ast(handleKey(entered, named("Backspace"), layout).state)).toBe("(:= (call f n) (program (← s (+ a □)) □))");
+    expect(ast(handleKey(entered, named("Backspace")).state)).toBe("(:= (call f n) (program (← s (+ a □)) □))");
     // Shift+Enter between two tokens is a new program line below, not an explicit break; the ribbon's
     // Line Break still breaks there.
     const withB = run(layout, [t("b")], base);
     const afterA = placeCaret(withB, leafPaths(withB.root).find((path) => sexpr(get(withB.root, path)) === "a")!, "R");
-    const below = handleKey(afterA, shiftEnter, layout).state;
+    const below = handleKey(afterA, shiftEnter).state;
     expect(ast(below)).toBe("(:= (call f n) (program (← s (+ a b)) □ □))");
     expect(below.breaks).toHaveLength(0);
     const broken = runCommand(afterA, "insertLineBreak");
     expect(ast(broken)).toBe("(:= (call f n) (program (← s (+ a b)) □))");
     expect(broken.breaks).toHaveLength(1);
     // At the end of the line it is still a new program line.
-    const end = handleKey(withB, shiftEnter, layout).state;
+    const end = handleKey(withB, shiftEnter).state;
     expect(ast(end)).toBe("(:= (call f n) (program (← s (+ a b)) □ □))");
     expect(end.breaks).toHaveLength(0);
   });
@@ -2021,10 +2024,10 @@ describe.each(["en-US", "it-IT"] as const)("editor on %s", (layout) => {
 
   it("Enter and Escape are window commands (leave the region)", () => {
     const s = run(layout, [t("x")]);
-    const enter = handleKey(s, ENTER, layout);
+    const enter = handleKey(s, ENTER);
     expect(enter.handled).toBe(false);
     expect(enter.action).toEqual({ kind: "command", cmd: "exitRegion" });
-    expect(handleKey(s, named("Escape"), layout).action).toEqual({ kind: "command", cmd: "leaveRegion" });
+    expect(handleKey(s, named("Escape")).action).toEqual({ kind: "command", cmd: "leaveRegion" });
   });
 
   it("Ctrl+M inserts a 1×1 matrix of one placeholder at the caret, wrapping an operand as its first cell", () => {
@@ -2050,12 +2053,12 @@ describe("Italian-specific keys", () => {
     expect(ast(s)).toBe("(index v □)");
   });
 
-  it("the same physical chord means different actions per layout", () => {
+  it("the same physical key means the action of the character it types", () => {
     const s = run("en-US", [typed("x:", "en-US")]);
-    expect(handleKey(s, ctrl("BracketRight", "]"), "en-US").action).toEqual({ kind: "command", cmd: "while" });
-    expect(handleKey(s, ctrl("BracketRight", "+"), "it-IT").action).toEqual({ kind: "command", cmd: "boolEq" });
-    expect(handleKey(s, ctrl("Minus", "-"), "en-US").action).toEqual({ kind: "command", cmd: "literalSubscript" });
-    expect(handleKey(s, ctrl("Minus", "'"), "it-IT").action).toEqual({ kind: "command", cmd: "try" });
+    expect(handleKey(s, ctrl("BracketRight", "]")).action).toEqual({ kind: "command", cmd: "while" });
+    expect(handleKey(s, ctrl("BracketRight", "+")).action).toEqual({ kind: "command", cmd: "addBreak" });
+    expect(handleKey(s, ctrl("Minus", "-")).action).toEqual({ kind: "command", cmd: "literalSubscript" });
+    expect(handleKey(s, ctrl("Minus", "'")).action).toEqual({ kind: "command", cmd: "primeDeriv" });
   });
 });
 
@@ -2335,7 +2338,7 @@ describe.each(["en-US", "it-IT"] as const)("no bare Placeholder statement on %s"
         const key = keys[Math.floor(next() * keys.length)];
         log.push(`${key.code}${key.ctrlKey ? "+ctrl" : ""}`);
         try {
-          s = handleKey(s, key, layout).state;
+          s = handleKey(s, key).state;
         } catch (error) {
           throw new Error(`key ${log.join(" ")} threw: ${String(error)}`);
         }
@@ -2354,7 +2357,7 @@ describe("Enter breaks the line after an operator", () => {
   const t = (text: string) => typed(text, layout);
   const LEFT = named("ArrowLeft");
   const BACKSPACE = named("Backspace");
-  const press = (s: EditorState, key: KeyInput) => handleKey(s, key, layout);
+  const press = (s: EditorState, key: KeyInput) => handleKey(s, key);
 
   it("right after + the operator gets its break and the editor stays open", () => {
     const s = run(layout, [t("a+")]);
@@ -2406,7 +2409,7 @@ describe("Shift+Enter inserts a presentation line break", () => {
   const layout: LayoutId = "en-US";
   const t = (text: string) => typed(text, layout);
   const SHIFT_ENTER = named("Enter", { shiftKey: true });
-  const press = (s: EditorState, key: KeyInput) => handleKey(s, key, layout);
+  const press = (s: EditorState, key: KeyInput) => handleKey(s, key);
 
   it("breaks before the next token: a + b, caret after a", () => {
     const s = run(layout, [t("a+b")]);
@@ -2557,10 +2560,10 @@ describe("a julia. name in a reopened region", () => {
     const typedOn = typeText(opened, "2");
     expect(sexpr(typedOn.root)).toBe("(+ julia.x2 1)");
     // Shift+Left and Space grow the selection from it, as from `xyz` in `xyz + 1`.
-    const grown = handleKey(opened, named("ArrowLeft", { shiftKey: true } as never), "en-US").state;
+    const grown = handleKey(opened, named("ArrowLeft", { shiftKey: true } as never)).state;
     expect(grown.explicit).toBe(true);
     const plain = focusAt(toEditing({ type: "ExprRegion", expr: { type: "Add", left: ident("xyz"), right: { type: "Num", text: "1" } } }), [0, 0], "R");
-    const plainGrown = handleKey(plain, named("ArrowLeft", { shiftKey: true } as never), "en-US").state;
+    const plainGrown = handleKey(plain, named("ArrowLeft", { shiftKey: true } as never)).state;
     expect(grown.focus).toEqual(plainGrown.focus);
   });
 });

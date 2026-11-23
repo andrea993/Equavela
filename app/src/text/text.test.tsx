@@ -365,7 +365,7 @@ describe("TextView", () => {
 describe("InlineMath", () => {
   it("draws no result for a run that the committed text did not have", () => {
     const asked = vi.fn((index: number) => <span data-testid="result">{`r${index}`}</span>);
-    const env = { layout: "en-US" as const, mathTarget: null, clipboard: null, inlineResult: asked };
+    const env = { mathTarget: null, clipboard: null, inlineResult: asked };
     const props = {
       tree: toEditing({ type: "Evaluate", expr: id("a"), unit: null }),
       autoFocus: false,
@@ -395,7 +395,7 @@ describe("InlineMath", () => {
   it("reports its own history for quick-access Undo and Redo while it is edited", async () => {
     let active: InlineActive | null = null;
     const onTree = vi.fn();
-    const env = { layout: "en-US" as const, mathTarget: null, clipboard: null, onInline: (next: InlineActive | null) => { active = next; } };
+    const env = { mathTarget: null, clipboard: null, onInline: (next: InlineActive | null) => { active = next; } };
     const { getByTestId } = render(
       <TextEnvContext.Provider value={env}>
         <InlineMath tree={toEditing({ type: "ExprRegion", expr: id("a") })} autoFocus onTree={onTree} onLeave={() => undefined} onEmpty={() => undefined} onFocused={() => undefined} />
@@ -427,7 +427,6 @@ function openEditor(initial: RichText, onChange = vi.fn(), onFormat = vi.fn(), c
       initial={initial}
       point={null}
       atStart
-      layout="en-US"
       onReady={() => undefined}
       onChange={(value) => {
         state.value = value;
@@ -496,7 +495,7 @@ describe("TextEditor", () => {
 
   it("reports edits to math at the end of a text block", async () => {
     const onChange = vi.fn();
-    const { getByTestId } = render(<TextEditor initial={[{ runs: [{ kind: "text", text: "Text " }, { kind: "math", text: "", statement: { type: "ExprRegion", expr: id("x") } }] }]} point={null} layout="en-US" onReady={() => undefined} onChange={onChange} onLeave={() => undefined} onHandle={() => undefined} onFormat={() => undefined} mathTarget={{ current: null }} clipboard={null} width={400} />);
+    const { getByTestId } = render(<TextEditor initial={[{ runs: [{ kind: "text", text: "Text " }, { kind: "math", text: "", statement: { type: "ExprRegion", expr: id("x") } }] }]} point={null} onReady={() => undefined} onChange={onChange} onLeave={() => undefined} onHandle={() => undefined} onFormat={() => undefined} mathTarget={{ current: null }} clipboard={null} width={400} />);
     const math = getByTestId("inline-math");
     act(() => { math.focus(); fireEvent.keyDown(math, { key: "y", code: "KeyY" }); });
     await waitFor(() => expect(onChange).toHaveBeenCalled());
@@ -522,7 +521,6 @@ describe("TextEditor", () => {
       <TextEditor
         initial={value}
         point={null}
-        layout="en-US"
         onReady={() => undefined}
         onChange={() => undefined}
         onLeave={() => undefined}
@@ -562,7 +560,6 @@ describe("TextEditor", () => {
       <TextEditor
         initial={VALUE}
         point={null}
-        layout="en-US"
         onReady={ready}
         onChange={() => undefined}
         onLeave={() => undefined}
@@ -763,7 +760,7 @@ describe("TextEditor", () => {
       document.elementFromPoint = () => document.querySelector("[data-testid=inline-math] .math, [data-testid=inline-math]");
       try {
         const { container } = render(
-          <TextEditor initial={value()} point={{ x: 5, y: 5 }} layout="en-US" onReady={() => undefined} onChange={() => undefined} onLeave={() => undefined} onHandle={() => undefined} onFormat={() => undefined} mathTarget={{ current: null }} clipboard={null} width={400} />,
+          <TextEditor initial={value()} point={{ x: 5, y: 5 }} onReady={() => undefined} onChange={() => undefined} onLeave={() => undefined} onHandle={() => undefined} onFormat={() => undefined} mathTarget={{ current: null }} clipboard={null} width={400} />,
         );
         const math = await waitFor(() => container.querySelector<HTMLElement>("[data-testid=inline-math]")!);
         await waitFor(() => expect(math.classList.contains("editing")).toBe(true));

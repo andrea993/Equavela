@@ -4,7 +4,7 @@
 // unpinned palette closes after one insertion.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { shortcutLabel, type LayoutId } from "../keymap/keymap";
+import { shortcutLabel } from "../keymap/keymap";
 import {
   filterSections,
   PALETTE_KINDS,
@@ -72,21 +72,19 @@ function topInList(el: HTMLElement, list: HTMLElement): number {
   return fromViewport(el) - fromViewport(list);
 }
 
-export function entryTitle(entry: PaletteEntry, layout: LayoutId): string {
+export function entryTitle(entry: PaletteEntry): string {
   if (entry.disabled) return `${entry.title} (${entry.disabled})`;
-  const shortcut = entry.action.kind === "command" ? shortcutLabel(layout, entry.action.command) : null;
+  const shortcut = entry.action.kind === "command" ? shortcutLabel(entry.action.command) : null;
   return shortcut ? `${entry.title} (${shortcut})` : entry.title;
 }
 
 function PalettePanel({
   palette,
-  layout,
   controls,
   onRun,
   onEscape,
 }: {
   palette: OpenPalette;
-  layout: LayoutId;
   controls: PaletteControls;
   onRun: (action: PaletteAction) => void;
   onEscape: () => void;
@@ -280,7 +278,7 @@ function PalettePanel({
                 <button
                   type="button"
                   key={`${entry.label}-${index}`}
-                  title={entryTitle(entry, layout)}
+                  title={entryTitle(entry)}
                   disabled={!!entry.disabled}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => run(entry)}
@@ -298,19 +296,17 @@ function PalettePanel({
 
 export function PaletteLayer({
   controls,
-  layout,
   onRun,
   onEscape,
 }: {
   controls: PaletteControls;
-  layout: LayoutId;
   onRun: (action: PaletteAction) => void;
   onEscape: () => void;
 }) {
   return (
     <>
       {controls.palettes.map((palette) => (
-        <PalettePanel key={palette.kind} palette={palette} layout={layout} controls={controls} onRun={onRun} onEscape={onEscape} />
+        <PalettePanel key={palette.kind} palette={palette} controls={controls} onRun={onRun} onEscape={onEscape} />
       ))}
     </>
   );

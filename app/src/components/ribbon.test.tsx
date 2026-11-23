@@ -176,11 +176,11 @@ function ribbonProps(overrides: Partial<RibbonProps> = {}): RibbonProps {
     hasSelection: false,
     fastSymbolicEnabled: false,
     onFastSymbolic: vi.fn(),
+    onMatrixNested: vi.fn(),
     selectionDisabled: false,
     running: false,
     calcMode: "auto",
     viewMode: "page",
-    keyboardLayout: "en-US",
     context: null,
     matrixControls: null,
     matrixDisplay: null,
@@ -401,6 +401,20 @@ describe("the ribbon component", () => {
     expect(onEditorCommand).toHaveBeenCalledTimes(commands.length);
   });
 
+  it("a matrix result with matrix elements offers Expand nested", () => {
+    const onMatrixNested = vi.fn();
+    const { rerender } = render(
+      <Ribbon {...ribbonProps({ context: { kind: "matrix" }, matrixControls: null, matrixDisplay: { indices: false, nested: true }, onMatrixNested })} />,
+    );
+    const box = screen.getByRole("checkbox", { name: S.ribbon.commands.expandNested }) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    fireEvent.click(box);
+    expect(onMatrixNested).toHaveBeenCalledWith(false);
+    // A matrix of numbers has nothing to expand: no checkbox.
+    rerender(<Ribbon {...ribbonProps({ context: { kind: "matrix" }, matrixControls: null, matrixDisplay: { indices: false, nested: null }, onMatrixNested })} />);
+    expect(screen.queryByRole("checkbox", { name: S.ribbon.commands.expandNested })).toBeNull();
+  });
+
   it("on a matrix result the Matrix tab carries the display commands only", () => {
     const onMatrixDisplay = vi.fn();
     const onEditorCommand = vi.fn();
@@ -412,7 +426,7 @@ describe("the ribbon component", () => {
         {...ribbonProps({
           context: { kind: "matrix" },
           matrixControls: null,
-          matrixDisplay: { indices: true },
+          matrixDisplay: { indices: true, nested: null },
           onMatrixDisplay,
           onEditorCommand,
         })}
@@ -432,7 +446,7 @@ describe("the ribbon component", () => {
       <Ribbon
         {...ribbonProps({
           context: { kind: "matrix" },
-          matrixDisplay: { indices: false },
+          matrixDisplay: { indices: false, nested: null },
           onMatrixDisplay,
         })}
       />,
@@ -464,7 +478,7 @@ describe("the ribbon component", () => {
       <Ribbon
         {...ribbonProps({
           context: { kind: "matrix" },
-          matrixDisplay: { indices: true },
+          matrixDisplay: { indices: true, nested: null },
           matrixSize: { rows: 20, cols: 8 },
           onMatrixSize,
           onMatrixDisplay,
@@ -559,14 +573,14 @@ describe("the ribbon component", () => {
     }
   });
 
-  it("puts the active layout's chord in tooltips", () => {
-    for (const layout of ["en-US", "it-IT"] as const) {
+  it("puts the chord in tooltips", () => {
+    {
       cleanup();
-      render(<Ribbon {...ribbonProps({ keyboardLayout: layout })} />);
+      render(<Ribbon {...ribbonProps()} />);
       fireEvent.click(screen.getByRole("tab", { name: "Math" }));
       const label = screen.getByRole("button", { name: S.ribbon.commands.labels });
-      expect(label.getAttribute("title")).toBe(`${S.ribbon.commands.labels} (${shortcutLabel(layout, "label")})`);
-      expect(screen.getByRole("button", { name: S.ribbon.search }).getAttribute("title")).toContain(shortcutLabel(layout, "commandPalette")!);
+      expect(label.getAttribute("title")).toBe(`${S.ribbon.commands.labels} (${shortcutLabel("label")})`);
+      expect(screen.getByRole("button", { name: S.ribbon.search }).getAttribute("title")).toContain(shortcutLabel("commandPalette")!);
       fireEvent.click(screen.getByRole("tab", { name: "Calculate" }));
       expect(screen.getByRole("button", { name: S.ribbon.commands.recalculate }).getAttribute("title")).toBe(`${S.ribbon.commands.recalculate} (F5)`);
     }
@@ -687,7 +701,7 @@ describe("the ribbon component", () => {
 
 describe("command palette parity", () => {
   it("lists the commands of the new places", () => {
-    const ids = new Set(buildCommandItems("en-US").map((item) => item.id));
+    const ids = new Set(buildCommandItems().map((item) => item.id));
     for (const cmd of [...PLOT_COMMANDS, "toggleArea", "toggleRegionEnabled", "imageOriginalSize", "imageReplace", "insertPlot", "insertInclude", "importMcdx", "nextProblem", "previousProblem", "problemsPanel", "sidePanel", "toggleCompactRibbon", "worksheetFormat", "calculationSettings", "increaseFontSize", "decreaseFontSize", "mathFont", "resetMathFont", "matrixShowIndices"]) {
       expect(ids.has(`cmd:${cmd}`), cmd).toBe(true);
     }
@@ -695,11 +709,11 @@ describe("command palette parity", () => {
   });
 
   it("gives Original Size, Replace and Disable Region no chord on either layout: no reference application chord is known", () => {
-    for (const layout of ["en-US", "it-IT"] as const) {
-      expect(shortcutLabel(layout, "imageOriginalSize")).toBeNull();
-      expect(shortcutLabel(layout, "imageReplace")).toBeNull();
-      expect(shortcutLabel(layout, "toggleRegionEnabled")).toBeNull();
-      const items = buildCommandItems(layout);
+    {
+      expect(shortcutLabel("imageOriginalSize")).toBeNull();
+      expect(shortcutLabel("imageReplace")).toBeNull();
+      expect(shortcutLabel("toggleRegionEnabled")).toBeNull();
+      const items = buildCommandItems();
       for (const cmd of ["imageOriginalSize", "imageReplace", "toggleRegionEnabled"]) {
         expect(items.find((item) => item.id === `cmd:${cmd}`)?.shortcut ?? null).toBeNull();
       }
@@ -707,17 +721,17 @@ describe("command palette parity", () => {
   });
 
   it("gives Axes at Origin no chord on either layout: no reference application chord is known", () => {
-    for (const layout of ["en-US", "it-IT"] as const) {
-      const item = buildCommandItems(layout).find((entry) => entry.id === "cmd:plotToggleAxes");
+    {
+      const item = buildCommandItems().find((entry) => entry.id === "cmd:plotToggleAxes");
       expect(item?.shortcut ?? null).toBeNull();
       expect(item?.label).toBe("Plot: axes at the origin");
     }
   });
 
   it("gives Calculation Settings… no chord on either layout: no reference application chord is known", () => {
-    for (const layout of ["en-US", "it-IT"] as const) {
-      expect(shortcutLabel(layout, "calculationSettings")).toBeNull();
-      const item = buildCommandItems(layout).find((entry) => entry.id === "cmd:calculationSettings");
+    {
+      expect(shortcutLabel("calculationSettings")).toBeNull();
+      const item = buildCommandItems().find((entry) => entry.id === "cmd:calculationSettings");
       expect(item?.shortcut ?? null).toBeNull();
       expect(item?.label).toBe("Calculation settings…");
     }
@@ -748,15 +762,15 @@ describe("command palette parity", () => {
     fireEvent.click(button(S.ribbon.commands.increaseFontSize));
     expect(onCommand).toHaveBeenCalledWith("increaseFontSize");
     expect(screen.getByRole("group", { name: S.ribbon.groups.mathFormatting })).toBeTruthy();
-    for (const layout of ["en-US", "it-IT"] as const) {
+    {
       for (const cmd of ["increaseFontSize", "decreaseFontSize", "mathFont", "resetMathFont"]) {
-        expect(shortcutLabel(layout, cmd)).toBeNull();
-        expect(buildCommandItems(layout).find((item) => item.id === `cmd:${cmd}`)?.shortcut ?? null).toBeNull();
+        expect(shortcutLabel(cmd)).toBeNull();
+        expect(buildCommandItems().find((item) => item.id === `cmd:${cmd}`)?.shortcut ?? null).toBeNull();
       }
     }
     // The palette finds them by what a user would type.
-    expect(searchCommands(buildCommandItems("en-US"), "increase font").some((item) => item.id === "cmd:increaseFontSize")).toBe(true);
-    expect(searchCommands(buildCommandItems("it-IT"), "highlight colour").some((item) => item.id === "cmd:mathFont")).toBe(true);
+    expect(searchCommands(buildCommandItems(), "increase font").some((item) => item.id === "cmd:increaseFontSize")).toBe(true);
+    expect(searchCommands(buildCommandItems(), "highlight colour").some((item) => item.id === "cmd:mathFont")).toBe(true);
   });
 
   it("the Label Styles group of the Calculate tab needs only a worksheet and has no chord", () => {
@@ -774,65 +788,65 @@ describe("command palette parity", () => {
     fireEvent.click(button(S.ribbon.commands.labelStyles));
     expect(onCommand).toHaveBeenCalledWith("labelStyles");
     expect(screen.getByRole("group", { name: S.ribbon.groups.labelStyles })).toBeTruthy();
-    for (const layout of ["en-US", "it-IT"] as const) {
-      expect(shortcutLabel(layout, "labelStyles")).toBeNull();
-      const item = buildCommandItems(layout).find((entry) => entry.id === "cmd:labelStyles");
+    {
+      expect(shortcutLabel("labelStyles")).toBeNull();
+      const item = buildCommandItems().find((entry) => entry.id === "cmd:labelStyles");
       expect(item?.shortcut ?? null).toBeNull();
       expect(item?.label).toBe("Label styles…");
     }
     // The palette finds it by what a user would type.
-    expect(searchCommands(buildCommandItems("en-US"), "italic label style").some((item) => item.id === "cmd:labelStyles")).toBe(true);
+    expect(searchCommands(buildCommandItems(), "italic label style").some((item) => item.id === "cmd:labelStyles")).toBe(true);
   });
 
   it("gives Show indices a palette entry and no chord on either layout", () => {
-    for (const layout of ["en-US", "it-IT"] as const) {
-      expect(shortcutLabel(layout, "matrixShowIndices")).toBeNull();
-      const item = buildCommandItems(layout).find((entry) => entry.id === "cmd:matrixShowIndices");
+    {
+      expect(shortcutLabel("matrixShowIndices")).toBeNull();
+      const item = buildCommandItems().find((entry) => entry.id === "cmd:matrixShowIndices");
       expect(item?.label).toBe("Matrix: show indices");
       expect(item?.shortcut ?? null).toBeNull();
     }
     // It is found by what a user would type, on both layouts (search is over English labels).
-    expect(searchCommands(buildCommandItems("en-US"), "show indices").some((item) => item.id === "cmd:matrixShowIndices")).toBe(true);
-    expect(searchCommands(buildCommandItems("it-IT"), "matrix index").some((item) => item.id === "cmd:matrixShowIndices")).toBe(true);
+    expect(searchCommands(buildCommandItems(), "show indices").some((item) => item.id === "cmd:matrixShowIndices")).toBe(true);
+    expect(searchCommands(buildCommandItems(), "matrix index").some((item) => item.id === "cmd:matrixShowIndices")).toBe(true);
   });
 
   it("gives Worksheet Format… no chord on either layout: no reference application chord is known", () => {
-    for (const layout of ["en-US", "it-IT"] as const) {
-      expect(shortcutLabel(layout, "worksheetFormat")).toBeNull();
-      const item = buildCommandItems(layout).find((entry) => entry.id === "cmd:worksheetFormat");
+    {
+      expect(shortcutLabel("worksheetFormat")).toBeNull();
+      const item = buildCommandItems().find((entry) => entry.id === "cmd:worksheetFormat");
       expect(item?.shortcut ?? null).toBeNull();
       expect(item?.label).toBe("Worksheet format…");
     }
   });
 
   it("searchable Header and footer carries no chord on either layout", () => {
-    for (const layout of ["en-US", "it-IT"] as const) {
-      expect(shortcutLabel(layout, "headerFooter")).toBeNull();
-      const item = buildCommandItems(layout).find((entry) => entry.id === "cmd:headerFooter");
+    {
+      expect(shortcutLabel("headerFooter")).toBeNull();
+      const item = buildCommandItems().find((entry) => entry.id === "cmd:headerFooter");
       expect(item?.label).toBe("Header and footer…");
       expect(item?.shortcut ?? null).toBeNull();
     }
     // The palette finds it by what a reference application user would type.
-    expect(searchCommands(buildCommandItems("en-US"), "footer")[0]?.id).toBe("cmd:headerFooter");
-    expect(searchCommands(buildCommandItems("it-IT"), "page number")[0]?.id).toBe("cmd:headerFooter");
+    expect(searchCommands(buildCommandItems(), "footer")[0]?.id).toBe("cmd:headerFooter");
+    expect(searchCommands(buildCommandItems(), "page number")[0]?.id).toBe("cmd:headerFooter");
   });
 
   it("searchable Page setup carries no chord either: no reference application chord is known", () => {
-    for (const layout of ["en-US", "it-IT"] as const) {
-      expect(shortcutLabel(layout, "pageSetup")).toBeNull();
-      const item = buildCommandItems(layout).find((entry) => entry.id === "cmd:pageSetup");
+    {
+      expect(shortcutLabel("pageSetup")).toBeNull();
+      const item = buildCommandItems().find((entry) => entry.id === "cmd:pageSetup");
       expect(item?.label).toContain("Page setup");
       expect(item?.shortcut ?? null).toBeNull();
     }
     // The palette searches English labels on both layouts.
-    expect(searchCommands(buildCommandItems("it-IT"), "margins page")[0]?.id).toBe("cmd:pageSetup");
-    expect(searchCommands(buildCommandItems("en-US"), "page orientation")[0]?.id).toBe("cmd:pageSetup");
+    expect(searchCommands(buildCommandItems(), "margins page")[0]?.id).toBe("cmd:pageSetup");
+    expect(searchCommands(buildCommandItems(), "page orientation")[0]?.id).toBe("cmd:pageSetup");
   });
 
   it("keeps the reference application import searchable and the palette shortcut available on US and Italian layouts", () => {
-    for (const layout of ["en-US", "it-IT"] as const) {
-      expect(buildCommandItems(layout).some((item) => item.id === "cmd:importMcdx")).toBe(true);
-      expect(shortcutLabel(layout, "commandPalette")).toBe("Ctrl+K");
+    {
+      expect(buildCommandItems().some((item) => item.id === "cmd:importMcdx")).toBe(true);
+      expect(shortcutLabel("commandPalette")).toBe("Ctrl+K");
     }
   });
 });

@@ -2807,6 +2807,9 @@ impl Generator {
         last: bool,
     ) -> Result<(), CodegenError> {
         match &target.kind {
+            TargetKind::Transpose { target } => {
+                self.assign_local(target, format!("eq_transpose({value})"), out, last)
+            }
             TargetKind::Ident { name } => {
                 let ident = local_ident(name);
                 if self.lookup_local(&ident).is_none() {
@@ -3342,6 +3345,7 @@ impl Generator {
         let mut out = Vec::new();
         let mut defined = Vec::new();
         let mut range_value = false;
+        let mut shown = None;
         if symbolic {
             // Not an `eq_error` value: assigning one is itself an evaluation error, and the
             // session needs the region to succeed before it asks for the symbolic result.
@@ -3374,8 +3378,15 @@ impl Generator {
             ));
             defined.push(new);
         } else {
-            let (value, is_range) = self.definition_value(rhs)?;
+            let (mut value, is_range) = self.definition_value(rhs)?;
             range_value = is_range;
+            // `[a; b] := e =` shows the value of `e`, as `e =` would, not only its first part.
+            if shows_value && !symbolic && is_destructure(target) {
+                let whole = self.fresh_temp();
+                out.push(format!("{whole} = {value}"));
+                value = whole.clone();
+                shown = Some(whole);
+            }
             self.sheet_assign(target, value, &mut defs, &mut out, &mut defined, is_range)?;
         }
         if let Some(Tail::Eval { unit: Some(unit) }) = tail {
@@ -3383,7 +3394,9 @@ impl Generator {
                 self.display_unit(unit)?;
             }
         }
-        let value = if shows_value && !symbolic {
+        let value = if shown.is_some() {
+            shown
+        } else if shows_value && !symbolic {
             defined.first().map(|ident| {
                 if range_value {
                     format!("eq_collect({ident})")
@@ -3470,6 +3483,14 @@ impl Generator {
         range: bool,
     ) -> Result<(), CodegenError> {
         match &target.kind {
+            TargetKind::Transpose { target } => self.sheet_assign(
+                target,
+                format!("eq_transpose({value})"),
+                defs,
+                out,
+                defined,
+                false,
+            ),
             TargetKind::Ident { name } => {
                 let ident = self.bind_sheet(name, Space::Var, defs, range);
                 out.push(format!("{ident} = {value}"));
@@ -3647,7 +3668,9 @@ fn target_roots(target: &Target, out: &mut Vec<(Name, Space)>) {
         TargetKind::Index { base, .. }
         | TargetKind::Column { base, .. }
         | TargetKind::Row { base, .. } => target_roots(base, out),
-        TargetKind::Paren { target } => target_roots(target, out),
+        TargetKind::Paren { target } | TargetKind::Transpose { target } => {
+            target_roots(target, out)
+        }
         TargetKind::Destructure { cells, .. } => {
             for cell in cells {
                 target_roots(cell, out);
@@ -3656,12 +3679,23 @@ fn target_roots(target: &Target, out: &mut Vec<(Name, Space)>) {
     }
 }
 
+/// Whether `target` splits a matrix into names (`[a; b]`, also in parentheses).
+fn is_destructure(target: &Target) -> bool {
+    match &target.kind {
+        TargetKind::Paren { target } => is_destructure(target),
+        TargetKind::Destructure { .. } => true,
+        _ => false,
+    }
+}
+
 /// Whether every name an inline definition writes is a plain name, possibly inside a
 /// destructuring matrix: only then does it bind.
 fn binds_plain_names(target: &Target) -> bool {
     match &target.kind {
         TargetKind::Ident { .. } => true,
-        TargetKind::Paren { target } => binds_plain_names(target),
+        TargetKind::Paren { target } | TargetKind::Transpose { target } => {
+            binds_plain_names(target)
+        }
         TargetKind::Destructure { cells, .. } => cells.iter().all(binds_plain_names),
         _ => false,
     }
@@ -3684,7 +3718,9 @@ fn scan_target(target: &Target, indexed: bool, scan: &mut Scan) {
         TargetKind::Index { base, .. }
         | TargetKind::Column { base, .. }
         | TargetKind::Row { base, .. } => scan_target(base, true, scan),
-        TargetKind::Paren { target } => scan_target(target, indexed, scan),
+        TargetKind::Paren { target } | TargetKind::Transpose { target } => {
+            scan_target(target, indexed, scan)
+        }
         TargetKind::Destructure { cells, .. } => {
             for cell in cells {
                 scan_target(cell, false, scan);

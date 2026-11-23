@@ -5,7 +5,8 @@
 // Editing form (`toEditing`): the wire AST with three liberties, so that every slot can
 // hold a placeholder while the user types and every node has a `type`:
 //  - targets (left of `:=`, `≡`, `←`, inline definitions) are expressions: `Ident`,
-//    `Index`, `Column`, `Row` keep their shape, `Paren{target}` becomes `Paren{expr}`,
+//    `Index`, `Column`, `Row` keep their shape, `Paren{target}` becomes `Paren{expr}` and
+//    `Transpose{target}` becomes `Transpose{expr}`,
 //    `Destructure` becomes `Matrix`, `FunctionHead` becomes `Call`;
 //  - binder names (`∑ ∏ ∫ ⅆ ∂ lim` variables, `for` variables, symbolic keywords) get
 //    `type: "Ident"`;
@@ -135,7 +136,8 @@ export function childRefs(n: Node): Step[][] {
   if (BINARY_LEVEL[n.type] !== undefined || n.type === "Div" || n.type === "Pow") {
     return [["left"], ["right"]];
   }
-  if (UNARY.has(n.type)) return [["expr"]];
+  // A transposed or parenthesised target holds a `target` where the expression has `expr`.
+  if (UNARY.has(n.type)) return [[n.expr === undefined && n.target !== undefined ? "target" : "expr"]];
   switch (n.type) {
     case "Define": {
       const refs: Step[][] = [["target"], ["rhs"]];
@@ -405,6 +407,8 @@ function targetToExpr(t: Node): Node {
       const { target, ...rest } = t;
       return { ...rest, type: "Paren", expr: targetToExpr(target) };
     }
+    case "Transpose":
+      return { type: "Transpose", expr: targetToExpr(t.target) };
     case "Destructure":
       return { type: "Matrix", rows: t.rows, cols: t.cols, cells: t.cells.map(targetToExpr) };
     case "FunctionHead":
@@ -559,6 +563,8 @@ function exprToTarget(e: Node, functionHead: boolean): Node {
       return { type: e.type, base: exprToTarget(e.base, false), index: toWireExpr(e.index) };
     case "Paren":
       return { type: "Paren", target: exprToTarget(e.expr, false) };
+    case "Transpose":
+      return { type: "Transpose", target: exprToTarget(e.expr, false) };
     case "Matrix":
       return { type: "Destructure", rows: e.rows, cols: e.cols, cells: e.cells.map((c: Node) => exprToTarget(c, false)) };
     case "Call":

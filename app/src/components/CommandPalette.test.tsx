@@ -9,7 +9,7 @@ import { CommandPalette } from "./CommandPalette";
 afterEach(cleanup);
 
 it("marks glyph entries for the math font and leaves command names in the chrome font", () => {
-  render(<CommandPalette items={buildCommandItems("en-US")} onRun={vi.fn()} onClose={vi.fn()} />);
+  render(<CommandPalette items={buildCommandItems()} onRun={vi.fn()} onClose={vi.fn()} />);
   fireEvent.change(screen.getByRole("searchbox", { name: S.commands.search }), { target: { value: "save worksheet" } });
   expect(screen.getByText("Save worksheet").className).toBe("command-label");
   fireEvent.change(screen.getByRole("searchbox", { name: S.commands.search }), { target: { value: "kN" } });

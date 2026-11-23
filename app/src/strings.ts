@@ -522,6 +522,8 @@ export const S = {
       clearMatrixCells: "Clear Cells",
       /** The Matrix tab's display checkbox: checked draws the indices around the result. */
       showIndices: "Show indices",
+      /** The Matrix tab's checkbox of a result with matrix elements: checked draws them expanded. */
+      expandNested: "Expand nested",
       deleteMatrixRow: "Delete Row",
       deleteMatrixColumn: "Delete Column",
       selectMatrixRow: "Select Row",
@@ -904,8 +906,8 @@ export const S = {
 
   shortcutSheet: {
     title: "Keyboard shortcuts",
-    layout: "Keyboard layout",
-    layouts: { "en-US": "US", "it-IT": "Italian" } as Record<string, string>,
+    /** The shortcuts are the US characters: any layout types them with its own keys. */
+    anyLayout: "The shortcuts are shown with US keys. On another keyboard layout, press Ctrl with the keys that type the same character (on the Italian layout Ctrl+[ is Ctrl+AltGr+è).",
     keys: "Keys",
     command: "Command",
     contexts: {
@@ -994,7 +996,9 @@ export const S = {
     complexThreshold: "Complex threshold",
     complexForm: "Complex numbers",
     complexForms: { cartesian: "Cartesian (a + bi)", polar: "Polar (r ∠ θ°)" } as Record<string, string>,
-    expandNested: "Show nested arrays expanded",
+    expandNested: "Nested arrays",
+    /** Automatic expands a result made only of matrices (as `svd` gives) and collapses any other. */
+    nestedChoices: { auto: "Automatic", expanded: "Expanded", collapsed: "Collapsed ({r×c})" } as Record<string, string>,
     apply: "Apply",
     reset: "Use the worksheet format",
     resetWorksheet: "Reset to the built-in format",

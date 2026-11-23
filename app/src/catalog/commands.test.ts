@@ -3,7 +3,7 @@ import { UNIT_NAMES } from "../math/units";
 import { BUILTIN_ENTRIES } from "./builtins";
 import { buildCommandItems, commandApplies, equationInsertionItems, searchCommands, type CommandScope } from "./commands";
 
-const items = buildCommandItems("en-US");
+const items = buildCommandItems();
 
 it("keeps equation search to special symbols and structures", () => {
   const equation = equationInsertionItems(items);
@@ -65,7 +65,7 @@ describe("text paragraph styles and alignment", () => {
       expect(find(`cmd:${cmd}`)?.run).toEqual({ kind: "window", cmd });
       // No reference application chord is known on the US or the Italian layout: the palette entry has no shortcut.
       expect(find(`cmd:${cmd}`)?.shortcut ?? null).toBeNull();
-      expect(buildCommandItems("it-IT").find((item) => item.id === `cmd:${cmd}`)?.shortcut ?? null).toBeNull();
+      expect(buildCommandItems().find((item) => item.id === `cmd:${cmd}`)?.shortcut ?? null).toBeNull();
     }
   });
 
@@ -88,7 +88,7 @@ describe("plot trace types", () => {
       expect(find(`cmd:${cmd}`)?.run).toEqual({ kind: "window", cmd });
       // No reference application chord is known on the US or the Italian layout: the palette entry has no shortcut.
       expect(find(`cmd:${cmd}`)?.shortcut ?? null).toBeNull();
-      expect(buildCommandItems("it-IT").find((item) => item.id === `cmd:${cmd}`)?.shortcut ?? null).toBeNull();
+      expect(buildCommandItems().find((item) => item.id === `cmd:${cmd}`)?.shortcut ?? null).toBeNull();
     }
     // The presentation commands keep their own entries: the two are different things.
     expect(find("cmd:plotLines")?.label).toBe("Plot: lines");
@@ -106,7 +106,7 @@ describe("find and replace", () => {
     expect(replace?.label).toBe("Replace with…");
     expect(replace?.run).toEqual({ kind: "window", cmd: "replace" });
     expect(replace?.shortcut).toBeNull();
-    expect(buildCommandItems("it-IT").find((item) => item.id === "cmd:replace")?.shortcut).toBeNull();
+    expect(buildCommandItems().find((item) => item.id === "cmd:replace")?.shortcut).toBeNull();
     expect(searchCommands(items, "replace with")[0].id).toBe("cmd:replace");
   });
 });
@@ -128,7 +128,6 @@ describe("command palette catalogue", () => {
     }
     const global = items.find((i) => i.group === "Operator" && i.label === "≡");
     expect(global?.shortcut).toBe("Ctrl+Shift+~");
-    expect(buildCommandItems("it-IT").find((i) => i.group === "Operator" && i.label === "≡")?.shortcut).toBe("Ctrl+Shift+ò");
     expect(items.some((i) => i.group === "Symbolic" && i.label === "simplify")).toBe(true);
   });
 
@@ -150,7 +149,7 @@ describe("command palette catalogue", () => {
 });
 
 describe("the palette's scope", () => {
-  const items = buildCommandItems("en-US");
+  const items = buildCommandItems();
   const worksheet: CommandScope = { fileTab: null, project: false, object: null, selectedKind: null, mathEditing: false, inMatrix: false };
   const listed = (scope: CommandScope) => items.filter((item) => commandApplies(item, scope)).map((item) => item.label);
 

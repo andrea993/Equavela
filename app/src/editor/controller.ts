@@ -1,7 +1,7 @@
-// The editor's only entry point for keys: `handleKey(state, event, layout)`, pure and used
+// The editor's only entry point for keys: `handleKey(state, event)`, pure and used
 // by both the UI and the tests.
 
-import { LAYOUTS, resolve, type Action, type KeyInput, type LayoutId } from "../keymap/keymap";
+import { resolve, type Action, type KeyInput } from "../keymap/keymap";
 import {
   MODEL_COMMANDS,
   contextOf,
@@ -23,8 +23,8 @@ export interface KeyResult {
   handled: boolean;
 }
 
-export function handleKey(state: EditorState, ev: KeyInput, layout: LayoutId): KeyResult {
-  const action = resolve(ev, LAYOUTS[layout], contextOf(state));
+export function handleKey(state: EditorState, ev: KeyInput): KeyResult {
+  const action = resolve(ev, contextOf(state));
   if (!action) return { state, action, handled: false };
   if (action.kind === "char") return { state: typeCharacter(state, action.ch), action, handled: true };
   // Enter right after a breakable operator breaks the line instead of leaving.
