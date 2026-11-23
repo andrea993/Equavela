@@ -242,13 +242,14 @@ br.eq-break {
 }
 /* An exponent on a tall base (a fraction in parentheses, a matrix) sits at the base's top right,
    its baseline just above the top of the base, as the reference application draws it. The flex box
-   keeps the base's baseline as the line's. */
+   keeps the base's baseline as the line's. The base is moved down rather than the exponent up, so
+   the exponent is inside the box: a radical or a fence around the power makes room for it. */
 .pow.tall {
   display: inline-flex;
   align-items: flex-start;
 }
-.pow.tall > .sup {
-  margin-top: -5px;
+.pow.tall > :not(.sup) {
+  margin-top: 5px;
 }
 
 /* fractions: each part is as high as its content, and the bar sits on the math axis. The fraction's
