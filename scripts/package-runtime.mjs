@@ -156,15 +156,44 @@ for (const name of ["EquavelaKernel", "EqRuntime"]) {
   console.log(`depot   ${count} package sources`);
 }
 
-// ---- Depot artifacts: CondaPkg's JLLs (pixi_jll, micromamba_jll) resolve their artifact directory when
-// the kernel loads, and download it when it is missing. We never run those programs (the Python
-// environment is shipped, backend Null), so a directory with emptied files satisfies the lookup offline.
-// The directories are learned from a real kernel start in a throw-away depot (needs the network once).
+// ---- Depot artifacts. The libraries of the JLL packages the kernel loads (those in the sysimage and
+// those EquavelaKernel loads after it) are shipped as they are: their `__init__` needs them at start.
+// They are learned from a kernel start with this machine's depot. CondaPkg's JLLs (pixi_jll,
+// micromamba_jll) resolve their artifact directory when the kernel loads, and download it when it is
+// missing. We never run those programs (the Python environment is shipped, backend Null), so a
+// directory with emptied files satisfies the lookup offline. Those directories are learned from a
+// real kernel start in a throw-away depot (needs the network once).
 {
   const scratch = mkdtempSync(join(os.tmpdir(), "equavela-depot-"));
   const pythonExe = join(out, "python", windows ? "python.exe" : "bin/python");
+  const julia = join(out, "julia", "bin", windows ? "julia.exe" : "julia");
+  const libraries = execFileSync(
+    julia,
+    [
+      "--startup-file=no",
+      `--sysimage=${sysimage}`,
+      `--project=${join(out, "kernel", "EquavelaKernel")}`,
+      "-e",
+      "using EquavelaKernel; for m in Base.loaded_modules_array(); name = String(nameof(m)); " +
+        "(endswith(name, \"_jll\") && isdefined(m, :artifact_dir) && !(name in (\"pixi_jll\", \"micromamba_jll\"))) || continue; " +
+        "dir = getfield(m, :artifact_dir); startswith(dir, dirname(Sys.BINDIR)) || println(dir); end",
+    ],
+    {
+      encoding: "utf8",
+      env: { ...process.env, JULIA_PYTHONCALL_EXE: pythonExe, JULIA_CONDAPKG_BACKEND: "Null" },
+    },
+  )
+    .split(/\r?\n/)
+    .filter(Boolean);
+  const shipped = new Set();
+  for (const dir of libraries) {
+    const hash = dir.split(/[\\/]/).pop();
+    copyTree(dir, join(scratch, "artifacts", hash), () => false);
+    shipped.add(hash);
+  }
+  console.log(`depot   ${shipped.size} JLL artifacts shipped with their libraries`);
   execFileSync(
-    join(out, "julia", "bin", windows ? "julia.exe" : "julia"),
+    julia,
     ["--startup-file=no", `--sysimage=${sysimage}`, `--project=${join(out, "kernel", "EquavelaKernel")}`, "-e", "using EquavelaKernel"],
     {
       stdio: "inherit",
@@ -188,7 +217,7 @@ for (const name of ["EquavelaKernel", "EqRuntime"]) {
     if (stat.isDirectory()) readdirSync(path).forEach((name) => empty(join(path, name)));
     else if (stat.size > 2 ** 20) truncateSync(path, 0);
   };
-  empty(target);
+  readdirSync(target).filter((hash) => !shipped.has(hash)).forEach((hash) => empty(join(target, hash)));
   makeWritable(scratch);
   rmSync(scratch, { recursive: true, force: true });
 }
