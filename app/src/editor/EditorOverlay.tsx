@@ -21,9 +21,10 @@ const pathKey = (path: Path) => path.join(".");
  * draws after its operator (`span.result`): the editing lines belong to the expression, so a tall
  * matrix result must not stretch the insertion line and the underline of the statement over its height.
  */
-// The box that clips what it holds: a part inside one
-// is drawn only within its edges, so a selection box over it stops there too.
-const CLIPPING = ".result-matrix-scroll";
+// The boxes that clip what they hold: a part inside one
+// is drawn only within its edges, so a selection box over it stops there too. The scroll bars
+// beside a clipped matrix hold a filler as large as the whole matrix.
+const CLIPPING = ".result-matrix-scroll, .matrix-scrollbar";
 
 export function unionRect(element: Element): DOMRect | null {
   let box: { l: number; t: number; r: number; b: number } | null = null;

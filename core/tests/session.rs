@@ -1655,3 +1655,36 @@ fn an_inline_definition_is_seen_by_the_later_operands() {
     assert_eq!(real(&state(&session, "p")), 6.0);
     assert_eq!(real(&state(&session, "s")), 10.0);
 }
+
+#[test]
+fn stored_results_show_again_until_a_region_changes() {
+    use equavela_core::stored_results::{decode, encode};
+    let Some(kernel) = kernel() else { return };
+    let math = [
+        ("a", "a := 2"),
+        ("b", "b := a·3"),
+        ("bv", "b = "),
+        ("m", "m := [1, 2; 3, 4]·b"),
+        ("mv", "m = "),
+    ];
+    let mut first = session(Arc::clone(&kernel), &math);
+    first.recalculate(RecalcMode::Changed, &mut |_| {}).unwrap();
+    let stored = decode(&encode(&first.stored_results())).unwrap();
+    assert_eq!(stored.len(), math.len());
+
+    let reopened = session(Arc::clone(&kernel), &math);
+    assert_eq!(reopened.restore_results(stored.clone()), math.len());
+    assert_eq!(reopened.results().snapshot(), first.results().snapshot());
+
+    // A changed region and every region after it are calculated again.
+    let mut edited = math;
+    edited[1] = ("b", "b := a·4");
+    let changed = session(kernel, &edited);
+    assert_eq!(changed.restore_results(stored), 1);
+    let pending = changed.results().snapshot();
+    assert!(
+        matches!(pending[2].state, RegionState::Pending),
+        "{:?}",
+        pending[2].state
+    );
+}

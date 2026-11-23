@@ -271,8 +271,9 @@ function RegionView({
         left: x,
         top: y,
         transform: shift,
-        // Wide results (tables) stay inside the printable width.
-        ["--region-max-w" as string]: `${Math.max(120, ptToPx(setup.width - setup.margins.right - snapToGrid(region.x)))}px`,
+        // The default box of a wide result reaches the right margin, and is never narrower than
+        // 420 pt (560 CSS px), so a region near or past the margin still shows a usable box.
+        ["--region-max-w" as string]: `${Math.max(560, ptToPx(setup.width - setup.margins.right - snapToGrid(region.x)))}px`,
       }}
       onPointerDown={(event) => onPointerDown(event, region.id)}
       onDoubleClick={onDoubleClick && ((event) => onDoubleClick(event, region.id))}
