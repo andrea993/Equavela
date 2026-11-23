@@ -550,7 +550,9 @@ fn is_solving_function(name: &Name) -> bool {
 pub(crate) fn odesolve_names(statement: &Statement) -> Vec<Name> {
     let expr = match &statement.kind {
         StatementKind::Define { rhs, .. } => rhs,
-        StatementKind::Evaluate { expr, .. } | StatementKind::ExprRegion { expr } => expr,
+        StatementKind::Evaluate { expr, .. }
+        | StatementKind::ExprRegion { expr }
+        | StatementKind::Symbolic { expr, .. } => expr,
         _ => return Vec::new(),
     };
     let ExprKind::Call { callee, args } = &expr.kind else {

@@ -66,6 +66,36 @@ if !SYMBOLIC_READY
     end
 else
     @testset "symbolic" begin
+        @testset "dsolve" begin
+            prime(f, n, arg) = Dict{String,Any}("type" => "Call",
+                "callee" => Dict{String,Any}("type" => "PrimeDeriv", "function" => V(f), "order" => n),
+                "args" => Any[Dict{String,Any}("type" => "Expr", "expr" => arg)])
+            col(cells...) = Dict{String,Any}("type" => "Matrix", "rows" => length(cells), "cols" => 1, "cells" => Any[cells...])
+            # y'' + y = 0, y(0) = 0, y'(0) = 1 is sin(t).
+            oscillator = col(Eqn(Add(prime("y", 2, V("t")), call("y", V("t"))), N("0")),
+                Eqn(call("y", N("0")), N("0")), Eqn(prime("y", 1, N("0")), N("1")))
+            result = value_expr(run_symbolic(oscillator; keywords=Any[kw("dsolve", call("y", V("t")))]))
+            @test same(result, call("sin", V("t")))
+            # A worksheet value of t does not reach the variable of the equation.
+            result = value_expr(run_symbolic(oscillator; keywords=Any[kw("dsolve", call("y", V("t")))],
+                definitions=Any[defn("t", N("5"))]))
+            @test same(result, call("sin", V("t")))
+            # A system: x' = y, y' = -x, x(0) = 0, y(0) = 1.
+            system = col(Eqn(prime("x", 1, V("t")), call("y", V("t"))), Eqn(prime("y", 1, V("t")), Neg(call("x", V("t")))),
+                Eqn(call("x", N("0")), N("0")), Eqn(call("y", N("0")), N("1")))
+            result = value_expr(run_symbolic(system; keywords=Any[kw("dsolve", col(call("x", V("t")), call("y", V("t"))))]))
+            @test result["type"] == "Matrix" && (result["rows"], result["cols"]) == (2, 1)
+            @test same(result["cells"][1], call("sin", V("t"))) && same(result["cells"][2], call("cos", V("t")))
+            # Without conditions the integration constants stay.
+            free = run_symbolic(Eqn(prime("y", 1, V("t")), call("y", V("t"))); keywords=Any[kw("dsolve", call("y", V("t")))])
+            @test free["status"] == "ok" && occursin("C1", JSON3.write(free["value"]["expr"]))
+            # A definition by the solution is a function of the variable.
+            definition = defn("y", oscillator; params=["t"], keywords=Any[kw("dsolve", call("y", V("t")))])
+            @test same(value_expr(run_symbolic(call("y", V("s")); definitions=Any[definition])), call("sin", V("s")))
+            # Not a differential equation.
+            bad = run_symbolic(Eqn(call("y", N("0")), N("1")); keywords=Any[kw("dsolve", call("y", V("t")))])
+            @test bad["status"] == "error"
+        end
         @testset "Jacobian" begin
             idx(i) = Dict{String,Any}("type" => "Index", "base" => V("x"), "indices" => Any[N(string(i))])
             mat(cells) = Dict{String,Any}("type" => "Matrix", "rows" => length(cells), "cols" => 1, "cells" => Any[cells...] )

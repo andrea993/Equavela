@@ -136,6 +136,9 @@ pub struct SymbolicTarget {
     pub ident: String,
     /// The parameters of a function definition (`None` for a variable).
     pub params: Option<Vec<Name>>,
+    /// A variable whose value is a function of `params` (the closed-form solution of an
+    /// `odesolve` block, `y := odesolve(y(t), b) →`): bound as an anonymous function.
+    pub value_function: bool,
 }
 
 /// A unit override as generated code plus the text the UI shows after the result.
@@ -3300,6 +3303,7 @@ impl Generator {
                 self.region_symbolic_target = Some(SymbolicTarget {
                     ident: ident.clone(),
                     params: Some(params.iter().map(|p| p.name.clone()).collect()),
+                    value_function: false,
                 });
                 let error = symbolic_definition_error();
                 format!("{ident}({list}) = {error}")
@@ -3358,9 +3362,15 @@ impl Generator {
                 false,
             )?;
             if let (TargetKind::Ident { .. }, [ident]) = (&target.kind, defined.as_slice()) {
+                // The closed-form solution of an `odesolve` block is a function of its variable.
+                let variable = self
+                    .region_solve
+                    .as_ref()
+                    .and(odesolve_variable_of(rhs));
                 self.region_symbolic_target = Some(SymbolicTarget {
                     ident: ident.clone(),
-                    params: None,
+                    value_function: variable.is_some(),
+                    params: variable.map(|name| vec![name]),
                 });
             }
         } else if let Some(iterated) = self.iterated(target) {
@@ -3783,6 +3793,36 @@ fn scan_statements(body: &[Stmt], scan: &mut Scan) {
 /// expression, in a scope that holds only the function's parameters, so a name that is
 /// still free in the result is an undefined name when the code runs. A result that cannot
 /// be generated keeps the name an evaluation error with the reason.
+/// The variable of `odesolve(y(t), b)` or `odesolve([x(t); y(t)], b)`.
+fn odesolve_variable_of(expr: &Expr) -> Option<Name> {
+    let ExprKind::Call { callee, args } = &expr.kind else {
+        return None;
+    };
+    let ExprKind::Ident { name } = &callee.kind else {
+        return None;
+    };
+    if !crate::syntax::print_name(name).eq_ignore_ascii_case("odesolve") {
+        return None;
+    }
+    let Some(Arg::Expr { expr: functions }) = args.first() else {
+        return None;
+    };
+    let first = match &functions.kind {
+        ExprKind::Matrix { cells, .. } => cells.first()?,
+        _ => functions,
+    };
+    let ExprKind::Call { args, .. } = &first.kind else {
+        return None;
+    };
+    match args.first()? {
+        Arg::Expr { expr } => match &expr.kind {
+            ExprKind::Ident { name } => Some(name.clone()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 pub fn symbolic_definition_code(target: &SymbolicTarget, result: &Expr) -> String {
     let mut generator = Generator::default();
     let ident = &target.ident;
@@ -3792,7 +3832,13 @@ pub fn symbolic_definition_code(target: &SymbolicTarget, result: &Expr) -> Strin
             let list = idents.join(", ");
             generator
                 .with_binder(&idents, |g| g.expression(result))
-                .map(|body| format!("{ident}({list}) = {body}"))
+                .map(|body| {
+                    if target.value_function {
+                        format!("{ident} = ({list}) -> {body}")
+                    } else {
+                        format!("{ident}({list}) = {body}")
+                    }
+                })
         }
         None => generator
             .definition_value(result)
@@ -3810,12 +3856,16 @@ pub fn symbolic_definition_code(target: &SymbolicTarget, result: &Expr) -> Strin
                     .map(local_ident)
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("{ident}({list}) = eq_error({message})")
+                if target.value_function {
+                    format!("{ident} = ({list}) -> eq_error({message})")
+                } else {
+                    format!("{ident}({list}) = eq_error({message})")
+                }
             }
             None => format!("{ident} = eq_error({message})"),
         }
     });
-    if target.params.is_some() {
+    if target.params.is_some() && !target.value_function {
         worksheet_function(ident, &code)
     } else {
         code

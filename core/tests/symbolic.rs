@@ -123,6 +123,34 @@ fn symbolic_find_builds_a_system_without_dependencies_on_guesses() {
 }
 
 #[test]
+fn symbolic_odesolve_solves_the_block_in_closed_form() {
+    let mut sheet = worksheet(&[
+        "y := 5",
+        "t := 2",
+        "Given",
+        "y′′(t) + y(t) == 0",
+        "y(0) == 0",
+        "y′(0) == 1",
+        "Y := odesolve(y(t), 10) →",
+        "Y(t) →",
+    ]);
+    sheet.assemble_solve_blocks();
+    let graph = DependencyGraph::build(&sheet).unwrap();
+    let request = region_request(&sheet, &graph, "r6").unwrap();
+    assert_eq!(request.keywords[0].keyword, "dsolve");
+    assert_eq!(print_expression(&request.keywords[0].args[0]), "y(t)");
+    assert_eq!(print_expression(&request.expr), "[y′′(t) + y(t) == 0; y(0) == 0; y′(0) == 1]");
+    // The unknown function and its variable are local to the block.
+    assert!(request.definitions.is_empty(), "{:?}", request.definitions);
+    // The solution is a function of the variable.
+    let downstream = region_request(&sheet, &graph, "r7").unwrap();
+    let definition = downstream.definitions.last().unwrap();
+    assert_eq!(definition.name, name("Y"));
+    assert_eq!(definition.params.as_deref(), Some(&[name("t")][..]));
+    assert_eq!(definition.keywords[0].keyword, "dsolve");
+}
+
+#[test]
 fn a_definition_by_a_symbolic_result_keeps_its_keywords_and_frees_its_parameters() {
     let sheet = worksheet(&[
         "S(n, N_z) := (2·N_z - (k - 1))/2·k == n →[solve, k]",
@@ -820,4 +848,30 @@ fn fast_symbolic_runs_parameter_ready_operations_with_engine_defaults() {
         assert_eq!(result(&fast), result(&standard), "{operation}");
     }
     kernel.shutdown();
+}
+
+#[test]
+fn odesolve_with_the_symbolic_arrow_gives_the_closed_form_solution() {
+    let Some(kernel) = symbolic_kernel() else {
+        return;
+    };
+    let mut session = session(
+        kernel.clone(),
+        &[
+            ("t", "t := 3"),
+            ("given", "Given"),
+            ("ode", "y′′(t) + y(t) == 0"),
+            ("start", "y(0) == 0"),
+            ("slope", "y′(0) == 1"),
+            ("solution", "Y := odesolve(y(t), 10) →"),
+            ("symbolic", "Y(s) →"),
+            ("numeric", "Y(1) ="),
+        ],
+    );
+    session.recalculate(RecalcMode::Changed, &mut |_| {}).unwrap();
+    let (text, _) = symbolic_result(&session, "solution");
+    assert!(equivalent(&kernel, &text, "sin(t)"), "{text}");
+    let (text, _) = symbolic_result(&session, "symbolic");
+    assert!(equivalent(&kernel, &text, "sin(s)"), "{text}");
+    assert!((real_value(&session, "numeric") - 1f64.sin()).abs() < 1e-12);
 }
