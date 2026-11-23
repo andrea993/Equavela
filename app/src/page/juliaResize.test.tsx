@@ -19,8 +19,8 @@ async function openEmpty(): Promise<MockBackend> {
   const backend = createMockBackend({ fast: true });
   render(<App backend={backend} />);
   await waitFor(() => expect(document.querySelector("[data-region-id=m1]")).not.toBeNull());
-  // A new worksheet: its crosshair sits at the top margin, so a block inserted from the ribbon has
-  // room below it inside the printable area (a box can never grow past the bottom margin).
+  // A new worksheet: its crosshair sits at the top margin, where a block inserted from the ribbon
+  // lands.
   fireEvent.click(screen.getByRole("button", { name: S.quickAccess.new }));
   await waitFor(() => expect(document.querySelector("[data-region-id=m1]")).toBeNull());
   return backend;
@@ -65,6 +65,19 @@ describe("the box of a Julia region", () => {
     await waitFor(() => expect(box().style.width).toBe(""));
     fireEvent.click(undoButton());
     await waitFor(() => expect(box().style.width).toBe("312px"));
+  });
+
+  it("grows past the printable margins when dragged there", async () => {
+    await openEmpty();
+    await insertJulia();
+    fireEvent.pointerDown(handle()!, { button: 0, clientX: 500, clientY: 400 });
+    // 1600 x 2000 CSS px = 1200 x 1500 pt: far past the right and the bottom margin of an A4 page.
+    await act(async () => void fireEvent.pointerMove(window, { clientX: 2100, clientY: 2400 }));
+    // 144 + 1200 = 1344 pt and 39 + 1500 = 1539 pt, as CSS px.
+    expect(box().style.width).toBe("1792px");
+    expect(box().style.height).toBe("2052px");
+    await act(async () => void fireEvent.pointerUp(window, { button: 0, clientX: 2100, clientY: 2400 }));
+    await waitFor(() => expect(box().style.width).toBe("1792px"));
   });
 
   it("a press and release on the handle without moving changes nothing", async () => {

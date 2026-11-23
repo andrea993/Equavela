@@ -36,7 +36,6 @@ import {
   sheetToDraftPage,
   snapToGrid,
   EQUAVELA_PADDING_PX,
-  NEW_TEXT_BOX_WIDTH_PT,
   fitResultBox,
   type BoxContent,
   type Size,
@@ -226,6 +225,7 @@ type ResizeState = {
   startY: number;
   startWidth: number;
   min: number;
+  /** No limit but the content of a result box: the margins never stop a resize. */
   max: number;
   /** Current width in points (snapped). */
   width: number;
@@ -1050,12 +1050,12 @@ export default function PageView({
           startY: event.clientY,
           startWidth,
           min: MIN_TABLE_PT.w,
-          max: Math.max(MIN_TABLE_PT.w, snapToGrid(right - snapToGrid(region.x))),
+          max: Infinity,
           width: Math.max(MIN_TABLE_PT.w, snapToGrid(startWidth)),
           height: {
             start: startHeight,
             min: MIN_TABLE_PT.h,
-            max: Math.max(MIN_TABLE_PT.h, snapToGrid(area.bottom - snapToGrid(region.y))),
+            max: Infinity,
             value: Math.max(MIN_TABLE_PT.h, snapToGrid(startHeight)),
           },
           image: null,
@@ -1108,10 +1108,10 @@ export default function PageView({
           startY: event.clientY,
           startWidth: w,
           min: MIN_IMAGE_PT,
-          max: Math.max(MIN_IMAGE_PT, area.right - snapToGrid(region.x)),
+          max: Infinity,
           width: w,
-          height: { start: h, min: MIN_IMAGE_PT, max: area.height, value: h },
-          image: { maxHeight: area.height },
+          height: { start: h, min: MIN_IMAGE_PT, max: Infinity, value: h },
+          image: { maxHeight: Infinity },
         };
         resizeRef.current = state;
         setResize(state);
@@ -1119,7 +1119,7 @@ export default function PageView({
       }
       if (region.kind === "julia") {
         // The box of a Julia block: both sides follow the pointer in
-        // whole 3 pt steps, between the smallest box and the printable margins. The
+        // whole 3 pt steps, from the smallest box up, past the margins when dragged there. The
         // drag starts at the stored size or, without one, at the size the block is drawn at, so the
         // first drag does not jump.
         const stored = region.block.size ?? null;
@@ -1132,12 +1132,12 @@ export default function PageView({
           startY: event.clientY,
           startWidth,
           min: MIN_JULIA_PT.w,
-          max: Math.max(MIN_JULIA_PT.w, snapToGrid(area.right - snapToGrid(region.x))),
+          max: Infinity,
           width: startWidth,
           height: {
             start: startHeight,
             min: MIN_JULIA_PT.h,
-            max: Math.max(MIN_JULIA_PT.h, snapToGrid(area.bottom - snapToGrid(region.y))),
+            max: Infinity,
             value: startHeight,
           },
           image: null,
@@ -1155,22 +1155,19 @@ export default function PageView({
         ? plot[0]
         : ((region.kind === "text" ? region.width : null) ??
           (growing ? Math.max(MIN_WIDTH_PT, sizeOf(id).w) : Math.max(MIN_WIDTH_PT, right - snapToGrid(region.x))));
-      // Outside the paper in the draft view the space to the right margin is negative: a text box can
-      // still be made as wide as the room a growing box has there.
-      const room = region.kind === "text" ? Math.max(right - snapToGrid(region.x), NEW_TEXT_BOX_WIDTH_PT) : right - snapToGrid(region.x);
       const state: ResizeState = {
         id,
         startX: event.clientX,
         startY: event.clientY,
         startWidth,
         min: minWidth,
-        max: Math.max(minWidth, snapToGrid(room)),
+        max: Infinity,
         width: snapToGrid(startWidth),
         height: plot
           ? {
               start: plot[1],
               min: MIN_PLOT_PT.h,
-              max: Math.max(MIN_PLOT_PT.h, snapToGrid(area.bottom - snapToGrid(region.y))),
+              max: Infinity,
               value: snapToGrid(plot[1]),
             }
           : null,

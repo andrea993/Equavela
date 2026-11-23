@@ -40,4 +40,19 @@ describe("the box of an expression under the editing lines", () => {
     expect([r?.left, r?.top, r?.right, r?.bottom]).toEqual([0, 0, 40, 240]);
     expect(unionRect(result)?.bottom).toBe(240);
   });
+
+  it("stops at the edges of the scroll bars beside a long result, whose filler spans the whole matrix", () => {
+    const result = box(null, rect(0, 0, 46, 246), "result");
+    const clip = box(result, rect(0, 0, 40, 240), "result-matrix-scroll");
+    clip.getBoundingClientRect = () => new DOMRect(0, 0, 40, 240);
+    box(clip, rect(0, 0, 4800, 1_145_000), "result-matrix");
+    const vertical = box(result, rect(40, 0, 46, 240), "matrix-scrollbar vertical");
+    vertical.getBoundingClientRect = () => new DOMRect(40, 0, 6, 240);
+    box(vertical, rect(40, 0, 41, 1_145_000)); // as tall as the matrix
+    const horizontal = box(result, rect(0, 240, 40, 246), "matrix-scrollbar horizontal");
+    horizontal.getBoundingClientRect = () => new DOMRect(0, 240, 40, 6);
+    box(horizontal, rect(0, 240, 4800, 241)); // as wide as the matrix
+    const r = unionRect(result);
+    expect([r?.left, r?.top, r?.right, r?.bottom]).toEqual([0, 0, 46, 246]);
+  });
 });

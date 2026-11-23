@@ -251,30 +251,41 @@ br.eq-break {
   margin-top: -5px;
 }
 
-/* fractions: equal rows around the bar keep the bar on the math axis */
+/* fractions: each part is as high as its content, and the bar sits on the math axis. The fraction's
+   baseline is the top of the bar (the one line box in its normal flow, see `.bar-wrap::before`;
+   the denominator floats, so its lines do not count), raised by half an x-height and half the
+   bar, as `vertical-align: middle` puts the middle of a box. The fraction is a block formatting
+   context, so the floating denominator counts in its height. */
 .frac {
-  display: inline-grid;
-  grid-template-rows: 1fr 4px 1fr;
-  justify-items: center;
-  vertical-align: middle;
+  display: inline-block;
+  vertical-align: calc(0.5ex + 2px);
+  text-align: center;
   margin: 0 2px;
 }
 .frac > .num,
 .frac > .den {
+  display: block;
   padding: 0 3px;
 }
-.frac > .num {
-  align-self: end;
-}
 .frac > .den {
-  align-self: start;
+  float: left;
+  width: 100%;
+  box-sizing: border-box;
 }
-/* The bar is out of flow so that its width never counts toward the fraction's width. */
+/* The bar is out of flow so that its width never counts toward the fraction's width;
+   with no font size and no line height, the line box of the empty strut and its baseline are at
+   the top of the bar. */
 .frac > .bar-wrap {
   position: relative;
   display: block;
   width: 100%;
   height: 4px;
+  font-size: 0;
+  line-height: 0;
+}
+.frac > .bar-wrap::before {
+  content: "";
+  display: inline-block;
 }
 /* Only the fraction's own rule: an absolute value inside a fraction is also `.bar` (a fence kind)
    and must stay in flow. */

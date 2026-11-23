@@ -50,6 +50,20 @@ async function dragHandleBy(dx: number, dy: number) {
 }
 
 describe("the box of a matrix result", () => {
+  it("grows past the printable margins when dragged there", async () => {
+    await openDemo();
+    await selectRegion("m22");
+    await waitFor(() => expect(handle("m22")).not.toBeNull());
+    await dragHandleBy(40, 40);
+    await act(async () => void fireEvent.pointerUp(window, { button: 0, clientX: 540, clientY: 440 }));
+    await waitFor(() => expect(boxPt("m22")).not.toBeNull());
+    const start = boxPt("m22")!;
+    // 1600 x 2000 CSS px = 1200 x 1500 pt more: far past the right and the bottom margin of an A4 page.
+    await dragHandleBy(1600, 2000);
+    await act(async () => void fireEvent.pointerUp(window, { button: 0, clientX: 2100, clientY: 2400 }));
+    await waitFor(() => expect(boxPt("m22")).toEqual([start[0] + 1200, start[1] + 1500]));
+  });
+
   it("resizes with its corner handle, one undo step per drag", async () => {
     await openDemo();
     // Nothing to grab while the region is not selected: the handle belongs to the resize gesture.

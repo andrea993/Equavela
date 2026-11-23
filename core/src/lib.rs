@@ -39,6 +39,7 @@ pub mod project_tree;
 pub mod richtext;
 pub mod session;
 pub mod spell;
+pub mod stored_results;
 pub mod symbolic;
 pub mod syntax;
 pub mod table;

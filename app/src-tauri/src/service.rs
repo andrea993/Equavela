@@ -48,6 +48,7 @@ use equavela_core::session::{
     RecalcMode, RegionEntry, RegionKey, ResultsHandle, SessionDiagnostic, SessionError,
     SessionEvent, ViewRegion, WarningInfo, WorksheetSession,
 };
+use equavela_core::stored_results;
 use equavela_core::syntax::{
     normalize_expr, normalize_statement, normalize_target, parse_arguments, parse_statement,
     print_arguments, print_statement,
@@ -3384,6 +3385,15 @@ impl Service {
         // user trusted it before, otherwise its Julia blocks stay stopped until the user trusts it.
         session
             .set_trusted(!is_absolute_path(root.as_str()) || self.is_trusted_path(root.as_str()));
+        // The results of the last calculation, as long as the regions still calculate the same.
+        if let Some(file) = Self::results_file(&root, archive.is_some()) {
+            if let Some(entries) = std::fs::read(&file)
+                .ok()
+                .and_then(|bytes| stored_results::decode(&bytes).ok())
+            {
+                session.restore_results(entries);
+            }
+        }
         let results = session.results();
         let regions = results.snapshot();
         let view = session.view(&root).expect("the root document is loaded");
@@ -3415,6 +3425,52 @@ impl Service {
         lock(&self.worksheets).insert(id, worksheet);
         self.start_kernel();
         Ok(opened)
+    }
+
+    // ---- stored results ----------------------------------------------------------------
+
+    /// The results file of a worksheet saved as a `.eqv` file: in its project's results folder or
+    /// next to it. `None` for an untitled worksheet and a portable document.
+    fn results_file(root: &DocumentId, archive: bool) -> Option<PathBuf> {
+        if archive || !is_absolute_path(root.as_str()) {
+            return None;
+        }
+        let path = path_for_document(root);
+        let path = std::fs::canonicalize(&path).unwrap_or(path);
+        let project =
+            Self::project_of(root).map(|folder| std::fs::canonicalize(&folder).unwrap_or(folder));
+        Some(stored_results::results_path(&path, project.as_deref()))
+    }
+
+    /// Writes the worksheet's results file with its current results, if it has any. A failure only
+    /// loses the stored results: the worksheet itself is untouched.
+    fn write_results(worksheet: &OpenWorksheet) {
+        let Some(file) = Self::results_file(&worksheet.root, worksheet.archive.is_some()) else {
+            return;
+        };
+        // A command that holds the session may be waiting for this pass to end: never wait for it
+        // here; the next pass or save writes the file.
+        let Ok(session) = worksheet.session.try_lock() else {
+            return;
+        };
+        let entries = session.stored_results();
+        drop(session);
+        // A worksheet that was never calculated has nothing to keep: no file is created for it.
+        if entries.is_empty() {
+            return;
+        }
+        let bytes = stored_results::encode(&entries);
+        let written = file
+            .parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .map_err(|error| error.to_string())
+            .and_then(|()| write_bytes_atomic(&file, &bytes).map_err(|error| error.to_string()));
+        if let Err(error) = written {
+            eprintln!(
+                "could not write the results file {}: {error}",
+                file.display()
+            );
+        }
     }
 
     // ---- saving -----------------------------------------------------------------------
@@ -3491,6 +3547,8 @@ impl Service {
             let text = write_document(document)?;
             write_file_atomic(&path, &text)?;
         }
+        drop(session);
+        Self::write_results(&worksheet);
         self.delete_recovery(&root);
         Ok(SavedWorksheet {
             path: root.to_string(),
@@ -6311,6 +6369,7 @@ impl Service {
                 }
                 worksheet.rerun.store(false, Ordering::SeqCst);
             }
+            Self::write_results(&worksheet);
             worksheet.running.store(false, Ordering::SeqCst);
             release_free_memory();
             // A request that came between the check above and the store found the thread

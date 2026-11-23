@@ -46,6 +46,13 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
             libayatana-appindicator3-dev librsvg2-dev patchelf file desktop-file-utils
+      # The Rust build, the Julia depot, the sysimage and the swap file do not fit on the free
+      # disk of a hosted Linux runner, which then dies: drop the toolchains this build never uses.
+      - name: Free disk space (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
       # Compiling the system image can exceed the memory of a hosted Linux runner.
       - name: Swap space (Linux)
         if: runner.os == 'Linux'
@@ -77,13 +84,14 @@ jobs:
           julia --project=kernel/EquavelaKernel -e "using Pkg; Pkg.instantiate(); Pkg.precompile(); using CondaPkg; CondaPkg.resolve()"
       - run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@v2
+      # Built where the staged runtime keeps it: the installers take it from build/package.
       - name: Build the portable sysimage
-        run: julia scripts/build-sysimage.jl --portable
-      - name: Stage the runtime
         shell: bash
         run: |
-          image=$(ls build/sysimage/equavelakernel.*)
-          node scripts/package-runtime.mjs --python-env "$JULIA_CONDAPKG_ENV" --sysimage "$PWD/$image"
+          ext=$([ "$RUNNER_OS" = Windows ] && echo dll || echo so)
+          julia scripts/build-sysimage.jl --portable --output "build/package/sysimage/equavelakernel.$ext"
+      - name: Stage the runtime
+        run: node scripts/package-runtime.mjs --python-env "${{ env.JULIA_CONDAPKG_ENV }}"
       - name: Build the Windows installer
         if: runner.os == 'Windows'
         run: pnpm --dir app package:bundle --bundles nsis

@@ -46,6 +46,7 @@ use crate::project::{
     ProjectDocument, ProjectError,
 };
 use crate::richtext::RichText;
+use crate::stored_results::{StoredEntry, StoredState};
 use crate::symbolic::{
     region_request_in, request_json, statements_by_id, SymbolicOutcome, SymbolicRequest,
 };
@@ -1240,6 +1241,141 @@ impl WorksheetSession {
 
     pub fn results(&self) -> ResultsHandle {
         self.results.clone()
+    }
+
+    /// The results to keep in the worksheet's results file: every value and every failure of a
+    /// region's own calculation (or of one it depends on), with the fingerprint of the calculation
+    /// that produced it. Out-of-date and pending regions are left out, and so are values that only
+    /// live in this kernel (Julia handles).
+    pub fn stored_results(&self) -> Vec<StoredEntry> {
+        let context = self.stored_context();
+        let store = self.results.lock();
+        self.derived
+            .order
+            .iter()
+            .filter_map(|gid| {
+                let key = &self.derived.keys[gid];
+                let entry = &store.entries[*store.index.get(key)?];
+                let state = match &entry.state {
+                    RegionState::Value {
+                        value,
+                        display_unit,
+                    } if !value.as_ref().is_some_and(holds_handle) => StoredState::Value {
+                        value: value.clone(),
+                        display_unit: display_unit.clone(),
+                    },
+                    RegionState::Error { failure }
+                        if matches!(
+                            failure.kind,
+                            FailureKind::Evaluation | FailureKind::Blocked
+                        ) =>
+                    {
+                        StoredState::Error {
+                            failure: failure.clone(),
+                        }
+                    }
+                    _ => return None,
+                };
+                Some(StoredEntry {
+                    key: key.clone(),
+                    fingerprint: self.stored_fingerprint(gid, &context),
+                    state,
+                    output: entry.output.clone(),
+                })
+            })
+            .collect()
+    }
+
+    /// Shows the stored results that still hold, in evaluation order, and returns how many. A
+    /// result holds while its region would calculate exactly as when it was stored; the first one
+    /// that does not (or is missing or invalid) ends the restore, since every region after it may
+    /// read what changed. Restored results are not in the kernel: a pass calculates them again.
+    pub fn restore_results(&self, entries: Vec<StoredEntry>) -> usize {
+        let mut stored: HashMap<RegionKey, StoredEntry> = entries
+            .into_iter()
+            .map(|entry| (entry.key.clone(), entry))
+            .collect();
+        let context = self.stored_context();
+        let mut store = self.results.lock();
+        let mut restored = 0;
+        for gid in &self.derived.order {
+            let key = &self.derived.keys[gid];
+            let Some(entry) = stored.remove(key) else {
+                break;
+            };
+            if entry.fingerprint != self.stored_fingerprint(gid, &context) {
+                break;
+            }
+            let state = match entry.state {
+                StoredState::Value {
+                    value,
+                    display_unit,
+                } => {
+                    if value
+                        .as_ref()
+                        .is_some_and(|value| value.validate().is_err())
+                    {
+                        break;
+                    }
+                    RegionState::Value {
+                        value,
+                        display_unit,
+                    }
+                }
+                StoredState::Error { failure } => RegionState::Error { failure },
+            };
+            if store.set(key, state).is_none() {
+                break;
+            }
+            store.set_output(key, entry.output);
+            restored += 1;
+        }
+        restored
+    }
+
+    /// What every stored result depends on besides its own region: the worksheet's calculation
+    /// settings (its display settings change no value).
+    fn stored_context(&self) -> String {
+        let mut context = String::new();
+        if let Some(document) = self.project.document(&self.root) {
+            let settings: BTreeMap<_, _> = document
+                .settings
+                .values
+                .iter()
+                .filter(|(name, _)| !name.starts_with("format."))
+                .collect();
+            for (name, value) in settings {
+                context.push_str(&format!("{name}={value}\u{1f}"));
+            }
+        }
+        context
+    }
+
+    /// The fingerprint of the calculation of region `gid`, as a results file keeps it.
+    fn stored_fingerprint(&self, gid: &str, context: &str) -> String {
+        let mut text = String::from(context);
+        if let Some(&index) = self.derived.generated_index.get(gid) {
+            let region = &self.derived.generated.regions[index];
+            for part in [
+                region.code.as_str(),
+                region.value.as_deref().unwrap_or("\u{0}"),
+                region
+                    .display_unit
+                    .as_ref()
+                    .map_or("\u{0}", |unit| unit.code.as_str()),
+            ] {
+                text.push_str(part);
+                text.push('\u{1e}');
+            }
+            if let Some(request) = self.derived.symbolic.get(gid) {
+                text.push_str(&request_json(request).to_string());
+            }
+        }
+        // The Fowler-Noll-Vo hash: the same text gives the same fingerprint in every run and version.
+        let hash = text.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+        format!("{hash:016x}")
     }
 
     pub fn interrupt_handle(&self) -> InterruptHandle {
@@ -2735,6 +2871,18 @@ fn active_environment(directory: Option<PathBuf>) -> Option<String> {
         .iter()
         .any(|name| directory.join(name).is_file())
         .then(|| directory.to_string_lossy().into_owned())
+}
+
+/// Whether `value` is or holds a Julia handle, which names an object of this kernel only.
+fn holds_handle(value: &KernelValue) -> bool {
+    match value {
+        KernelValue::Handle { .. } => true,
+        KernelValue::Matrix {
+            storage: crate::kernel_value::MatrixStorage::Inline { values },
+            ..
+        } => values.iter().any(holds_handle),
+        _ => false,
+    }
 }
 
 /// Invalidating an untouched region keeps it pending; a previous good value becomes stale.
