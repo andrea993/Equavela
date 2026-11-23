@@ -86,6 +86,23 @@ function pathsRect(root: Element, paths: Path[]): DOMRect | null {
   return box;
 }
 
+/**
+ * The text node and the offset in it of character `at` of a span's text. A piece of text may hold
+ * several nodes (the upright apostrophes of a name); an offset at a boundary goes to the earlier node.
+ */
+export function textPoint(span: Node, at: number): { node: Text; offset: number } | null {
+  const walker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
+  let rest = at;
+  let last: Text | null = null;
+  for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+    const length = node.data.length;
+    if (rest <= length) return { node, offset: rest };
+    rest -= length;
+    last = node;
+  }
+  return last ? { node: last, offset: last.data.length } : null;
+}
+
 /** The text spans of a leaf, one per name segment (or the single literal span). */
 export function leafTextSpans(leaf: Element): HTMLElement[] {
   const name = leaf.querySelector(":scope > .name");
@@ -95,13 +112,14 @@ export function leafTextSpans(leaf: Element): HTMLElement[] {
 }
 
 function textClientX(span: HTMLElement, at: number): number | null {
-  const text = span.firstChild;
-  if (!text || text.nodeType !== Node.TEXT_NODE) return null;
-  const length = (text.textContent ?? "").length;
+  if (span.firstChild?.nodeType !== Node.TEXT_NODE) return null;
+  const length = (span.textContent ?? "").length;
   const index = Math.min(Math.max(at, 0), length);
+  const point = textPoint(span, index);
+  if (!point) return null;
   const range = document.createRange();
-  range.setStart(text, index);
-  range.setEnd(text, index);
+  range.setStart(point.node, point.offset);
+  range.setEnd(point.node, point.offset);
   const rect = range.getBoundingClientRect();
   if (rect.width === 0 && rect.height === 0 && rect.left === 0) {
     const r = span.getBoundingClientRect();

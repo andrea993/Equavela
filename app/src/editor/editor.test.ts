@@ -401,6 +401,20 @@ describe.each(["en-US", "it-IT"] as const)("editor on %s", (layout) => {
     for (const glyph of ["∗", "⊛", "∇", "∠"]) expect(ast(typeText(initialState(), `a${glyph}`))).toBe("a");
   });
 
+  it("An apostrophe joins a name after its first character", () => {
+    expect(ast(typeText(initialState(), "x'"))).toBe("x'");
+    expect(ast(typeText(initialState(), "x''"))).toBe("x''");
+    expect(ast(typeText(initialState(), "v'0"))).toBe("v'0");
+    // It never starts a name, and it is not the prime derivative.
+    expect(ast(typeText(initialState(), "'"))).toBe("□");
+    expect(ast(runCommand(typeText(initialState(), "f"), "primeDeriv"))).toBe("(PrimeDeriv f 1)");
+  });
+
+  it("the apostrophe typed on the Italian layout joins the name", () => {
+    const s = run("it-IT", [typed("y'", "it-IT")]);
+    expect(ast(s)).toBe("y'");
+  });
+
   it("Symbols without an operator meaning join a name", () => {
     expect(ast(typeText(initialState(), "c€"))).toBe("c€");
     expect(ast(typeText(initialState(), "€r"))).toBe("€r");

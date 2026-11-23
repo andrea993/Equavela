@@ -36,6 +36,10 @@
 .up {
   font-style: normal;
 }
+/* The apostrophe of a name stands upright, so it never reads as the slanted prime derivative. */
+.apos {
+  font-style: normal;
+}
 .unit {
   color: var(--unit-color);
   font-weight: 700;
@@ -128,6 +132,8 @@
 }
 .prime {
   font-family: "MC Math";
+  /* Clear of the overhang of an italic function name (f′, y′). */
+  margin-left: 0.07em;
 }
 .juxt {
   display: inline-block;

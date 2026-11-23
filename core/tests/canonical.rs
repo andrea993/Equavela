@@ -33,7 +33,7 @@ fn r3_ascii_spellings_become_unicode() {
     normalizes("y := M<<j>> + M<<<i>>>", "y := M⟨j⟩ + M⟪i⟫");
     normalizes("y := \\abs(x) + \\norm(v)", "y := |x| + ‖v‖");
     normalizes("y := \\sqrt(x) + \\sqrt[3](a + b)", "y := √x + √[3](a + b)");
-    normalizes("y := f'(x) + g''(x)", "y := f′(x) + g′′(x)");
+    normalizes("y := (f)'(x) + (g)''(x)", "y := (f)′(x) + (g)′′(x)");
     normalizes(
         "y := \\sum[k \\in 0..n] \\prod[i] \\int[t \\in 0..1] x",
         "y := ∑[k ∈ 0..n] ∏[i] ∫[t ∈ 0..1] x",
@@ -373,4 +373,20 @@ fn json_shape() {
     let e: Expr =
         serde_json::from_str(r#"{"type":"Neg","expr":{"type":"Num","text":"1"}}"#).unwrap();
     assert_eq!(print_expression(&e), "-1");
+}
+
+#[test]
+fn an_apostrophe_after_the_first_character_belongs_to_the_name() {
+    for text in ["x' := 1", "x'' := x' + 1", "v_0' := 2", "f'(t) := t^2"] {
+        assert_fixed_point(text);
+    }
+    let StatementKind::Define { target, .. } = parse_statement("x'' := 1").unwrap().kind else {
+        panic!("not a definition");
+    };
+    let TargetKind::Ident { name } = target.kind else {
+        panic!("not a variable target");
+    };
+    assert_eq!(name.segments[0].text, "x''");
+    // The prime derivative is a different glyph: `f′(t)` derives `f`, `f'(t)` calls `f'`.
+    assert_ne!(parse_statement("y := f′(t)").unwrap(), parse_statement("y := f'(t)").unwrap());
 }

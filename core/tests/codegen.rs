@@ -2623,3 +2623,25 @@ fn a_transposed_target_defines_the_name_transposed() {
         "__t1, __t2, __t3 = eq_unpack(eq_val(M_v1), 3, 1)\nU_v1 = __t1\ns_v1 = __t2\nW_v1 = eq_transpose(__t3)"
     );
 }
+
+#[test]
+fn a_name_with_apostrophes_is_a_valid_julia_identifier() {
+    let generated = regions(&["x' := 1", "x'' := x' + 2"]);
+    let first = &generated[0].code;
+    let second = &generated[1].code;
+    assert!(!first.contains('\'') && !second.contains('\''), "{first}\n{second}");
+    let x1 = worksheet_ident(&parse_name("x'"), 1);
+    assert!(second.contains(&x1), "{second}");
+    let (segments, _) = demangle_ident(&x1).unwrap();
+    assert_eq!(segments[0].text, "x'");
+}
+
+fn parse_name(text: &str) -> equavela_core::ast::Name {
+    match parse_statement(&format!("{text} := 0")).unwrap().kind {
+        equavela_core::ast::StatementKind::Define { target, .. } => match target.kind {
+            equavela_core::ast::TargetKind::Ident { name } => name,
+            other => panic!("{other:?}"),
+        },
+        other => panic!("{other:?}"),
+    }
+}

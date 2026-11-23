@@ -333,6 +333,16 @@ const GREEK = /^[Ͱ-Ͽ]/;
  */
 const shown = (text: string) => text.replace(/˖/g, "+").replace(/˗/g, "−");
 
+/**
+ * A name part as drawn: the apostrophes stand upright whatever the style of the name, so `x''` never
+ * reads as the slanted prime derivative `x″`. The characters are the same, one for one.
+ */
+function NamePart({ text }: { text: string }) {
+  const pieces = shown(text).split(/('+)/).filter((piece) => piece !== "");
+  if (pieces.length === 1 && !pieces[0].startsWith("'")) return <>{pieces[0]}</>;
+  return <>{pieces.map((piece, i) => (piece.startsWith("'") ? <span key={i} className="apos">{piece}</span> : piece))}</>;
+}
+
 function NameView({ name, upright = false, callee = false }: { name: Name; upright?: boolean; callee?: boolean }) {
   const names = useContext(MathNamesContext);
   const [first, ...rest] = name.segments;
@@ -348,16 +358,16 @@ function NameView({ name, upright = false, callee = false }: { name: Name; uprig
     // of and the name carries the attribute that selects the colour rule of the stylesheet. Both
     // are empty for a label the worksheet does not style, so nothing changes for a default worksheet.
     <span className="name" data-name={nameText(name)} data-label={paint.label ?? undefined} style={paint.style}>
-      <span className={klass(first.text)} style={paint.style}>{shown(first.text)}</span>
+      <span className={klass(first.text)} style={paint.style}><NamePart text={first.text} /></span>
       {rest.map((segment, index) =>
         segment.subscript ? (
           // A literal subscript is drawn in the style of its name.
           <span key={index} className={klass(segment.text).replace(/^id/, "sub lit")} style={paint.style}>
-            {shown(segment.text)}
+            <NamePart text={segment.text} />
           </span>
         ) : (
           <span key={index} className={klass(segment.text)} style={paint.style}>
-            {shown(segment.text)}
+            <NamePart text={segment.text} />
           </span>
         ),
       )}
