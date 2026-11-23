@@ -224,6 +224,10 @@ impl Printer {
                 self.target(target);
                 self.out.push(')');
             }
+            TargetKind::Transpose { target } => {
+                self.target(target);
+                self.out.push('ᵀ');
+            }
             TargetKind::Destructure { cols, cells, .. } => {
                 self.out.push('[');
                 for (k, c) in cells.iter().enumerate() {

@@ -3,7 +3,7 @@ import { handleKey } from "./controller";
 import { focusAt, runCommand, type EditorState } from "./model";
 import { get, ident, leafPaths, type Node } from "./tree";
 import { sameCursor } from "../text/InlineMath";
-import type { LayoutId } from "../keymap/keymap";
+import type { LayoutId } from "../keymap/testKeys";
 
 const region = (expr: Node): Node => ({ type: "ExprRegion", expr });
 const wrap = (type: string, expr: Node = ident("a")): Node =>
@@ -12,7 +12,7 @@ const wrap = (type: string, expr: Node = ident("a")): Node =>
       : { type, expr };
 
 for (const layout of ["en-US", "it-IT"] satisfies LayoutId[]) {
-  const arrow = (s: EditorState, key = "ArrowRight") => handleKey(s, { key, code: key }, layout).state;
+  const arrow = (s: EditorState, key = "ArrowRight") => handleKey(s, { key, code: key }).state;
   describe(`structural boundary navigation (${layout})`, () => {
     it.each(["Paren", "Abs", "Det", "Norm", "Root", "Conj", "Vectorize", "Factorial", "Percent", "Transpose", "PrimeDeriv"])(
       "stops outside %s before leaving or appending an operator", type => {

@@ -42,7 +42,7 @@ import {
   type LexicalEditor,
 } from "lexical";
 import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
-import { LAYOUTS, fromDom, resolve, type LayoutId } from "../../keymap/keymap";
+import { fromDom, resolve } from "../../keymap/keymap";
 import { emptyStatement } from "../../editor/tree";
 import { mathOfPaste } from "../../mathPaste";
 import { S } from "../../strings";
@@ -58,7 +58,6 @@ export type TextEditorProps = {
   initial: RichText;
   /** Client coordinates of the click that opened the editor: the caret goes there. */
   point: { x: number; y: number } | null;
-  layout: LayoutId;
   /** The value as the editor reads it right after opening (the baseline for "unchanged"). */
   onReady: (value: RichText) => void;
   onChange: (value: RichText) => void;
@@ -299,7 +298,7 @@ function Behaviour({ props }: { props: TextEditorProps }) {
           live.current.onLeave();
           return true;
         }
-        const action = resolve(fromDom(event), LAYOUTS[live.current.layout], "text");
+        const action = resolve(fromDom(event), "text");
         if (!action || action.kind !== "command") return false;
         switch (action.cmd) {
           case "toggleBold":
@@ -395,7 +394,7 @@ function Behaviour({ props }: { props: TextEditorProps }) {
     const offKeyboardPaste = editor.registerCommand(
       KEY_DOWN_COMMAND,
       (event) => {
-        const action = resolve(fromDom(event), LAYOUTS[live.current.layout], "text");
+        const action = resolve(fromDom(event), "text");
         if (!action || action.kind !== "command" || action.cmd !== "paste") return false;
         // Keep the browser's paste action alive: the hidden textarea receives its event on WebKitGTK,
         // where Lexical's contenteditable paste event can be missing. The async clipboard API is a fallback.
@@ -508,8 +507,8 @@ function Behaviour({ props }: { props: TextEditorProps }) {
 export default function TextEditor(props: TextEditorProps) {
   const initial = useRef(props.initial);
   const env = useMemo(
-    () => ({ layout: props.layout, mathTarget: props.mathTarget, clipboard: props.clipboard, inlineResult: props.inlineResult, onInline: props.onInline }),
-    [props.layout, props.mathTarget, props.clipboard, props.inlineResult, props.onInline],
+    () => ({ mathTarget: props.mathTarget, clipboard: props.clipboard, inlineResult: props.inlineResult, onInline: props.onInline }),
+    [props.mathTarget, props.clipboard, props.inlineResult, props.onInline],
   );
   return (
     <TextEnvContext.Provider value={env}>

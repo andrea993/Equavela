@@ -4,7 +4,7 @@
 // `.chrome`, so it is never printed.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { shortcutLabel, type LayoutId } from "../keymap/keymap";
+import { shortcutLabel } from "../keymap/keymap";
 import type { PaletteKind } from "../catalog/palettes";
 import type { PaletteAnchor } from "../workbench/usePalettes";
 import type { Command } from "../editor/model";
@@ -42,14 +42,14 @@ export type RibbonProps = {
   running: boolean;
   calcMode: CalcMode;
   viewMode: ViewMode;
-  keyboardLayout: LayoutId;
   /** the active object, or null. */
   context: RibbonContext | null;
   matrixControls: { canDeleteRow: boolean; canDeleteColumn: boolean; rows?: number; cols?: number } | null;
   /** The rows and columns of the matrix the tab acts on, shown read-only; null when there is none. */
   matrixShape?: { rows: number; cols: number } | null;
   /** The matrix result whose display the Matrix tab can choose, and the choice in force. */
-  matrixDisplay: { indices: boolean } | null;
+  /** `nested` is null for a matrix result without matrix elements. */
+  matrixDisplay: { indices: boolean; nested: boolean | null } | null;
   /** The worksheet size threshold of the Matrix tab's box, `format.matrix-size`. */
   matrixSize: { rows: number; cols: number } | null;
   compact: boolean;
@@ -87,6 +87,8 @@ export type RibbonProps = {
   onEditorCommand: (command: Command) => void;
   /** Sets the display of the matrix result: one undo step of the region override. */
   onMatrixDisplay: (indices: boolean) => void;
+  /** Expands or collapses the nested arrays of the target matrix result. */
+  onMatrixNested: (expand: boolean) => void;
   /** Sets the worksheet size threshold: the display setting `format.matrix-size`. */
   onMatrixSize: (rows: number, cols: number) => void;
   /** Stores an edited plot specification (Plot tab controls): one undo step. */
@@ -115,7 +117,7 @@ export function Ribbon(props: RibbonProps) {
   const activeContext = contextSelection.kind === contextKind && contextSelection.selected ? contextKind : null;
   const file = props.file ?? null;
   const fileLabel = file?.kind === "image" ? S.code.imageTab : S.code.tab;
-  const searchKeys = shortcutLabel(props.keyboardLayout, "commandPalette");
+  const searchKeys = shortcutLabel("commandPalette");
 
   useEffect(() => {
     tabList.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
@@ -213,7 +215,7 @@ export function Ribbon(props: RibbonProps) {
   );
 }
 
-/** the label plus the chord of the first command that has one on the active layout. */
+/** the label plus the chord of the first command that has one. */
 
 /**
  * The ribbon body: it scrolls sideways when its groups do not fit, and then shows an
@@ -276,9 +278,9 @@ function RibbonBody({ label, task, children }: { label: string; task: boolean; c
   );
 }
 
-function tip(layout: LayoutId, label: string, ...commands: string[]): string {
+function tip(label: string, ...commands: string[]): string {
   for (const cmd of commands) {
-    const keys = shortcutLabel(layout, cmd);
+    const keys = shortcutLabel(cmd);
     if (keys) return `${label} (${keys})`;
   }
   return label;
@@ -375,7 +377,6 @@ function FileTabRibbon(props: RibbonProps & { file: NonNullable<RibbonProps["fil
 
 function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
   const C = S.ribbon.commands;
-  const L = props.keyboardLayout;
   const run = (cmd: string) => () => props.onCommand(cmd);
   const off = !props.hasDoc;
   const idle = off || props.running;
@@ -383,9 +384,9 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
     <>
       {props.tab === "Insert" && <>
       <Group title="Write">
-        <ToolButton keepFocus label={C.math} icon={<RibbonIcon name="mathRegion" />} title={tip(L, C.math, "insertMath")} disabled={off} onClick={run("insertMath")} />
-        <ToolButton keepFocus label={C.text} icon={<RibbonIcon name="paragraph" />} title={tip(L, C.text, "insertText")} disabled={off} onClick={run("insertText")} />
-        <ToolButton keepFocus label={C.textBox} icon={<RibbonIcon name="textBox" />} title={tip(L, C.textBox, "insertTextRegion")} disabled={off} onClick={run("insertTextRegion")} />
+        <ToolButton keepFocus label={C.math} icon={<RibbonIcon name="mathRegion" />} title={tip(C.math, "insertMath")} disabled={off} onClick={run("insertMath")} />
+        <ToolButton keepFocus label={C.text} icon={<RibbonIcon name="paragraph" />} title={tip(C.text, "insertText")} disabled={off} onClick={run("insertText")} />
+        <ToolButton keepFocus label={C.textBox} icon={<RibbonIcon name="textBox" />} title={tip(C.textBox, "insertTextRegion")} disabled={off} onClick={run("insertTextRegion")} />
       </Group>
       <Group title="Build an expression" stacked roomy>
         <FormulaButton {...props} command="frac" label="Fraction" glyph="a⁄b" />
@@ -399,7 +400,7 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
       </Group>
       <Group title="Data and figures">
         <ToolButton keepFocus label={C.plot} icon={<RibbonIcon name="plot" />} disabled={off} onClick={run("insertPlot")} />
-        <ToolButton keepFocus label={C.insertMatrix} icon={<RibbonIcon name="matrix" />} title={tip(L, C.insertMatrix, "matrix")} disabled={off} onClick={run("matrixDialog")} />
+        <ToolButton keepFocus label={C.insertMatrix} icon={<RibbonIcon name="matrix" />} title={tip(C.insertMatrix, "matrix")} disabled={off} onClick={run("matrixDialog")} />
         <ToolButton keepFocus label="Table" icon={<RibbonIcon name="table" />} disabled={off} onClick={run("insertTable")} />
         <ToolButton keepFocus label={C.image} icon={<RibbonIcon name="image" />} disabled={off} onClick={run("insertImage")} />
       </Group>
@@ -413,16 +414,16 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
         <Group title="Notation" stacked roomy>
           <PaletteButton {...props} kind="operators" label={C.operators} icon="operators" />
           <PaletteButton {...props} kind="symbols" label={C.symbols} icon="symbols" />
-          <ToolButton keepFocus label={C.insertSearch} icon={<RibbonIcon name="find" />} title={tip(L, S.commands.insertSearch, "insertSearch")} disabled={off} onClick={run("insertSearch")} />
-          <ToolButton keepFocus label={C.subscript} icon={<Icon>x.y</Icon>} title={tip(L, C.subscript, "literalSubscript")} disabled={off} onClick={() => props.onEditorCommand("literalSubscript")} />
+          <ToolButton keepFocus label={C.insertSearch} icon={<RibbonIcon name="find" />} title={tip(S.commands.insertSearch, "insertSearch")} disabled={off} onClick={run("insertSearch")} />
+          <ToolButton keepFocus label={C.subscript} icon={<Icon>x.y</Icon>} title={tip(C.subscript, "literalSubscript")} disabled={off} onClick={() => props.onEditorCommand("literalSubscript")} />
         </Group>
         <Group title="Quantities" stacked roomy>
           <PaletteButton {...props} kind="units" label={C.unitsPalette} icon="units" />
           <PaletteButton {...props} kind="constants" label={C.constants} icon="constants" />
-          <ToolButton keepFocus label={C.labels} icon={<Icon>ℓ</Icon>} title={tip(L, C.labels, "label")} disabled={off} onClick={() => props.onEditorCommand("label")} />
+          <ToolButton keepFocus label={C.labels} icon={<Icon>ℓ</Icon>} title={tip(C.labels, "label")} disabled={off} onClick={() => props.onEditorCommand("label")} />
         </Group>
         <Group title="Functions and programs" stacked roomy>
-          <ToolButton keepFocus label={C.functions} icon={<Icon>ƒ</Icon>} title={tip(L, C.functions, "functionCatalogue")} onClick={run("functionCatalogue")} />
+          <ToolButton keepFocus label={C.functions} icon={<Icon>ƒ</Icon>} title={tip(C.functions, "functionCatalogue")} onClick={run("functionCatalogue")} />
           <PaletteButton {...props} kind="matrixFunctions" label={C.matrixFunctions} icon="matrix" />
           <PaletteButton {...props} kind="programming" label={C.programming} icon="programming" />
         </Group>
@@ -434,19 +435,19 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
         </Group>
       </>}
       {props.tab === "Math" && <Group title="Line layout" stacked>
-        <ToolButton keepFocus label={C.equationBreak} icon={<Icon>+↵</Icon>} title={tip(L, C.equationBreak, "toggleBreak")} disabled={off} onClick={() => props.onEditorCommand("toggleBreak")} />
-        <ToolButton keepFocus label={C.lineBreak} icon={<Icon>↵</Icon>} title={tip(L, C.lineBreak, "insertLineBreak")} disabled={off} onClick={() => props.onEditorCommand("insertLineBreak")} />
+        <ToolButton keepFocus label={C.equationBreak} icon={<Icon>+↵</Icon>} title={tip(C.equationBreak, "toggleBreak")} disabled={off} onClick={() => props.onEditorCommand("toggleBreak")} />
+        <ToolButton keepFocus label={C.lineBreak} icon={<Icon>↵</Icon>} title={tip(C.lineBreak, "insertLineBreak")} disabled={off} onClick={() => props.onEditorCommand("insertLineBreak")} />
       </Group>}
       {props.tab === "Edit" && <Group title={S.ribbon.groups.edit} stacked roomy>
-        <ToolButton keepFocus label="Undo" title={tip(L, "Undo", "undo")} disabled={!props.canUndo} icon={<RibbonIcon name="undo" />} onClick={run("undo")} />
-        <ToolButton keepFocus label="Redo" title={tip(L, "Redo", "redo")} disabled={!props.canRedo} icon={<RibbonIcon name="redo" />} onClick={run("redo")} />
-        <ToolButton keepFocus label={C.cut} icon={<RibbonIcon name="cut" />} title={tip(L, C.cut, "cut")} disabled={off} onClick={run("cut")} />
-        <ToolButton keepFocus label={C.copy} icon={<RibbonIcon name="copy" />} title={tip(L, C.copy, "copy")} disabled={off} onClick={run("copy")} />
-        <ToolButton keepFocus label={C.paste} icon={<RibbonIcon name="paste" />} title={tip(L, C.paste, "paste")} disabled={off} onClick={run("paste")} />
-        <ToolButton keepFocus label="Find…" title={tip(L, "Find…", "find")} disabled={off} icon={<RibbonIcon name="find" />} onClick={run("find")} />
-        <ToolButton keepFocus label="Replace…" title={tip(L, "Replace…", "replace")} disabled={off} icon={<RibbonIcon name="replace" />} onClick={run("replace")} />
-        <ToolButton keepFocus label={C.deleteRegion} icon={<RibbonIcon name="delete" />} title={tip(L, C.deleteRegion, "deleteRegions")} disabled={!props.hasSelection} onClick={run("deleteRegions")} />
-        <ToolButton keepFocus label={C.selectAll} icon={<RibbonIcon name="select" />} title={tip(L, C.selectAll, "selectAll")} disabled={off} onClick={run("selectAll")} />
+        <ToolButton keepFocus label="Undo" title={tip("Undo", "undo")} disabled={!props.canUndo} icon={<RibbonIcon name="undo" />} onClick={run("undo")} />
+        <ToolButton keepFocus label="Redo" title={tip("Redo", "redo")} disabled={!props.canRedo} icon={<RibbonIcon name="redo" />} onClick={run("redo")} />
+        <ToolButton keepFocus label={C.cut} icon={<RibbonIcon name="cut" />} title={tip(C.cut, "cut")} disabled={off} onClick={run("cut")} />
+        <ToolButton keepFocus label={C.copy} icon={<RibbonIcon name="copy" />} title={tip(C.copy, "copy")} disabled={off} onClick={run("copy")} />
+        <ToolButton keepFocus label={C.paste} icon={<RibbonIcon name="paste" />} title={tip(C.paste, "paste")} disabled={off} onClick={run("paste")} />
+        <ToolButton keepFocus label="Find…" title={tip("Find…", "find")} disabled={off} icon={<RibbonIcon name="find" />} onClick={run("find")} />
+        <ToolButton keepFocus label="Replace…" title={tip("Replace…", "replace")} disabled={off} icon={<RibbonIcon name="replace" />} onClick={run("replace")} />
+        <ToolButton keepFocus label={C.deleteRegion} icon={<RibbonIcon name="delete" />} title={tip(C.deleteRegion, "deleteRegions")} disabled={!props.hasSelection} onClick={run("deleteRegions")} />
+        <ToolButton keepFocus label={C.selectAll} icon={<RibbonIcon name="select" />} title={tip(C.selectAll, "selectAll")} disabled={off} onClick={run("selectAll")} />
       </Group>}
       {props.tab === "Insert" && <>
       <Group title={S.ribbon.groups.page}>
@@ -474,7 +475,7 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
           label={C.worksheetFormat}
           icon={<Icon>≡0.0</Icon>}
           disabled={!props.hasDoc}
-          title={tip(L, C.worksheetFormat, "worksheetFormat")}
+          title={tip(C.worksheetFormat, "worksheetFormat")}
           onClick={run("worksheetFormat")}
         />
       </Group>
@@ -502,28 +503,28 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
         <ToolButton
           label={C.mathFont}
           icon={<Icon>Aa</Icon>}
-          title={props.canFormatMath ? tip(L, C.mathFont, "mathFont") : S.mathFont.noRegion}
+          title={props.canFormatMath ? tip(C.mathFont, "mathFont") : S.mathFont.noRegion}
           disabled={!props.canFormatMath}
           onClick={run("mathFont")}
         />
         <ToolButton
           label={C.resetMathFont}
           icon={<Icon>A</Icon>}
-          title={props.canFormatMath ? tip(L, C.resetMathFont, "resetMathFont") : S.mathFont.noRegion}
+          title={props.canFormatMath ? tip(C.resetMathFont, "resetMathFont") : S.mathFont.noRegion}
           disabled={!props.canFormatMath}
           onClick={run("resetMathFont")}
         />
         <ToolButton
           label={C.decreaseFontSize}
           icon={<Icon>A−</Icon>}
-          title={props.canFormatMath ? tip(L, C.decreaseFontSize, "decreaseFontSize") : S.mathFont.noRegion}
+          title={props.canFormatMath ? tip(C.decreaseFontSize, "decreaseFontSize") : S.mathFont.noRegion}
           disabled={!props.canFormatMath}
           onClick={run("decreaseFontSize")}
         />
         <ToolButton
           label={C.increaseFontSize}
           icon={<Icon>A+</Icon>}
-          title={props.canFormatMath ? tip(L, C.increaseFontSize, "increaseFontSize") : S.mathFont.noRegion}
+          title={props.canFormatMath ? tip(C.increaseFontSize, "increaseFontSize") : S.mathFont.noRegion}
           disabled={!props.canFormatMath}
           onClick={run("increaseFontSize")}
         />
@@ -532,7 +533,7 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
         <ToolButton
           label={C.labelStyles}
           icon={<Icon>Abc</Icon>}
-          title={props.hasDoc ? tip(L, C.labelStyles, "labelStyles") : S.labelStyles.needsWorksheet}
+          title={props.hasDoc ? tip(C.labelStyles, "labelStyles") : S.labelStyles.needsWorksheet}
           disabled={!props.hasDoc}
           onClick={run("labelStyles")}
         />
@@ -540,8 +541,8 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
       </>}
       {props.tab === "Calculate" && <>
       <Group title={S.ribbon.groups.calculate}>
-        <ToolButton keepFocus label={C.recalculate} icon={<RibbonIcon name="run" />} title={tip(L, C.recalculate, "calculate")} disabled={idle} onClick={run("calculate")} />
-        <ToolButton keepFocus label={C.recalculateAll} icon={<RibbonIcon name="runAll" />} title={tip(L, C.recalculateAll, "calculateAll")} disabled={idle} onClick={run("calculateAll")} />
+        <ToolButton keepFocus label={C.recalculate} icon={<RibbonIcon name="run" />} title={tip(C.recalculate, "calculate")} disabled={idle} onClick={run("calculate")} />
+        <ToolButton keepFocus label={C.recalculateAll} icon={<RibbonIcon name="runAll" />} title={tip(C.recalculateAll, "calculateAll")} disabled={idle} onClick={run("calculateAll")} />
         <ToolButton keepFocus label={C.automatic} icon={<RibbonIcon name="auto" />} disabled={!props.hasDoc} active={props.calcMode === "auto"} onClick={run("toggleCalculation")} />
         <ToolButton keepFocus label={C.stop} icon={<RibbonIcon name="stop" />} disabled={!props.running} onClick={run("stop")} />
         <ToolButton
@@ -561,7 +562,7 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
           label={C.calculationSettings}
           icon={<RibbonIcon name="settings" />}
           disabled={!props.hasDoc}
-          title={tip(L, C.calculationSettings, "calculationSettings")}
+          title={tip(C.calculationSettings, "calculationSettings")}
           onClick={run("calculationSettings")}
         />
       </Group>
@@ -588,7 +589,7 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
       <Group title={S.ribbon.groups.zoom} stacked roomy>
         <ToolButton keepFocus label={C.zoomOut} icon={<Icon>−</Icon>} onClick={run("zoomOut")} />
         <ToolButton keepFocus label={C.zoomIn} icon={<Icon>＋</Icon>} onClick={run("zoomIn")} />
-        <ToolButton keepFocus label={C.zoomReset} icon={<Icon>1:1</Icon>} title={tip(L, C.zoomReset, "zoomReset")} onClick={run("zoomReset")} />
+        <ToolButton keepFocus label={C.zoomReset} icon={<Icon>1:1</Icon>} title={tip(C.zoomReset, "zoomReset")} onClick={run("zoomReset")} />
         <ToolButton keepFocus label={C.fitWidth} icon={<Icon>↔</Icon>} disabled={!props.hasDoc} onClick={run("fitWidth")} />
         <ToolButton keepFocus label={C.fitPage} icon={<RibbonIcon name="pageView" />} disabled={!props.hasDoc} onClick={run("fitPage")} />
       </Group>
@@ -598,7 +599,7 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
       <Group title={S.ribbon.groups.io}>
         <ToolButton keepFocus label={C.importMcdx} icon={<RibbonIcon name="importFile" />} title={S.ribbon.importMcdxTitle} onClick={run("importMcdx")} />
         <ToolButton keepFocus label={C.exportPdf} icon={<RibbonIcon name="exportPdf" />} disabled={!props.hasDoc} onClick={run("exportPdf")} />
-        <ToolButton keepFocus label={C.print} icon={<RibbonIcon name="print" />} title={tip(L, C.print, "print")} disabled={!props.hasDoc} onClick={run("print")} />
+        <ToolButton keepFocus label={C.print} icon={<RibbonIcon name="print" />} title={tip(C.print, "print")} disabled={!props.hasDoc} onClick={run("print")} />
       </Group>
       <Group title={S.ribbon.groups.file} stacked>
         <ToolButton keepFocus label={C.options} icon={<RibbonIcon name="settings" />} onClick={run("options")} />
@@ -611,14 +612,14 @@ function TaskCommands(props: RibbonProps & { tab: TaskTab }) {
 
 function FormulaButton(props: RibbonProps & { command: Command; label: string; glyph: string }) {
   return <ToolButton keepFocus label={props.label} icon={<Icon>{props.glyph}</Icon>}
-    title={tip(props.keyboardLayout, props.label, props.command)} disabled={!props.hasDoc}
+    title={tip(props.label, props.command)} disabled={!props.hasDoc}
     onClick={() => props.onEditorCommand(props.command)} />;
 }
 
 function FileCommands(props: RibbonProps) {
   const item = (label: string, command: string, icon: RibbonIconName, disabled = false, iconOnly = false) => (
     <ToolButton keepFocus label={label} icon={<RibbonIcon name={icon} />} iconOnly={iconOnly}
-      title={tip(props.keyboardLayout, label, command)} disabled={disabled} onClick={() => props.onCommand(command)} />
+      title={tip(label, command)} disabled={disabled} onClick={() => props.onCommand(command)} />
   );
   return (
     <>
@@ -648,14 +649,13 @@ function FileCommands(props: RibbonProps) {
 
 function HelpTab(props: RibbonProps) {
   const C = S.ribbon.commands;
-  const L = props.keyboardLayout;
   const run = (cmd: string) => () => props.onCommand(cmd);
   return (
     <Group title={S.ribbon.groups.help}>
-      <ToolButton keepFocus label={C.commandPalette} icon={<RibbonIcon name="find" />} title={tip(L, C.commandPalette, "commandPalette")} onClick={run("commandPalette")} />
-      <ToolButton keepFocus label={C.functionCatalogue} icon={<Icon>ƒ</Icon>} title={tip(L, C.functionCatalogue, "functionCatalogue")} onClick={run("functionCatalogue")} />
+      <ToolButton keepFocus label={C.commandPalette} icon={<RibbonIcon name="find" />} title={tip(C.commandPalette, "commandPalette")} onClick={run("commandPalette")} />
+      <ToolButton keepFocus label={C.functionCatalogue} icon={<Icon>ƒ</Icon>} title={tip(C.functionCatalogue, "functionCatalogue")} onClick={run("functionCatalogue")} />
       <ToolButton keepFocus label={C.shortcutSheet} icon={<RibbonIcon name="keyboard" />} onClick={run("shortcutSheet")} />
-      <ToolButton keepFocus label={C.functionHelp} icon={<RibbonIcon name="help" />} title={tip(L, C.functionHelp, "functionHelp")} onClick={run("functionHelp")} />
+      <ToolButton keepFocus label={C.functionHelp} icon={<RibbonIcon name="help" />} title={tip(C.functionHelp, "functionHelp")} onClick={run("functionHelp")} />
       <ToolButton keepFocus label={C.manual} icon={<Icon>?</Icon>} onClick={run("openManual")} />
     </Group>
   );
@@ -696,11 +696,10 @@ const STYLE_GLYPH: Record<ParagraphStyle, ReactNode> = {
 function TextTab(props: RibbonProps) {
   const format = props.textFormat;
   const off = format === null;
-  const L = props.keyboardLayout;
   const toggle = (kind: TextFormatKind, label: string, cmd: string, glyph: ReactNode) => (
     <ToolButton
       label={label}
-      title={off ? S.text.needsTextRegion : tip(L, label, cmd)}
+      title={off ? S.text.needsTextRegion : tip(label, cmd)}
       icon={<Icon>{glyph}</Icon>}
       keepFocus
       disabled={off}
@@ -795,7 +794,7 @@ function TextTab(props: RibbonProps) {
       <Group title={S.ribbon.groups.textInsert}>
         <ToolButton
           label={S.text.insertMath}
-          title={off ? S.text.needsTextRegion : tip(L, S.text.insertMath, "insertInlineMath")}
+          title={off ? S.text.needsTextRegion : tip(S.text.insertMath, "insertInlineMath")}
           icon={<Icon>∑</Icon>}
           keepFocus
           disabled={off}
@@ -808,7 +807,6 @@ function TextTab(props: RibbonProps) {
 
 function MatrixTab(props: RibbonProps) {
   const C = S.ribbon.commands;
-  const L = props.keyboardLayout;
   const editor = (command: Command) => () => props.onEditorCommand(command);
   const controls = props.matrixControls;
   const display = props.matrixDisplay;
@@ -821,9 +819,9 @@ function MatrixTab(props: RibbonProps) {
         <>
           <Group title={S.ribbon.groups.rowsColumns} stacked>
             <ToolButton label={C.insertRowAbove} icon={<Icon>⤒</Icon>} keepFocus onClick={editor("addRowAbove")} />
-            <ToolButton label={C.insertRowBelow} icon={<Icon>⤓</Icon>} title={tip(L, C.insertRowBelow, "addRow")} keepFocus onClick={editor("addRow")} />
+            <ToolButton label={C.insertRowBelow} icon={<Icon>⤓</Icon>} title={tip(C.insertRowBelow, "addRow")} keepFocus onClick={editor("addRow")} />
             <ToolButton label={C.insertColumnLeft} icon={<Icon>⇤</Icon>} keepFocus onClick={editor("addColumnLeft")} />
-            <ToolButton label={C.insertColumnRight} icon={<Icon>⇥</Icon>} title={tip(L, C.insertColumnRight, "addColumn")} keepFocus onClick={editor("addColumn")} />
+            <ToolButton label={C.insertColumnRight} icon={<Icon>⇥</Icon>} title={tip(C.insertColumnRight, "addColumn")} keepFocus onClick={editor("addColumn")} />
             <ToolButton label={C.selectMatrixRow} icon={<Icon>☰</Icon>} keepFocus onClick={editor("selectRow")} />
             <ToolButton label={C.selectMatrixColumn} icon={<Icon>⫼</Icon>} keepFocus onClick={editor("selectColumn")} />
             <ToolButton label={C.deleteMatrixRow} icon={<Icon>⊟</Icon>} keepFocus disabled={!controls.canDeleteRow} onClick={editor("deleteRow")} />
@@ -831,7 +829,7 @@ function MatrixTab(props: RibbonProps) {
             <ToolButton label={C.clearMatrixCells} icon={<Icon>⌫</Icon>} keepFocus onClick={editor("clearCells")} />
           </Group>
           <Group title={S.ribbon.groups.matrix}>
-            <ToolButton label={C.insertMatrix} icon={<Icon>[ ]</Icon>} title={tip(L, C.insertMatrix, "matrix")} onClick={() => props.onCommand("matrixDialog")} />
+            <ToolButton label={C.insertMatrix} icon={<Icon>[ ]</Icon>} title={tip(C.insertMatrix, "matrix")} onClick={() => props.onCommand("matrixDialog")} />
             <PaletteButton {...props} kind="matrixFunctions" label={C.matrixFunctions} icon="matrix" />
           </Group>
         </>
@@ -849,6 +847,7 @@ function MatrixTab(props: RibbonProps) {
               belongs to the target result and is shown only while there is one. */}
           {size && <MatrixSizeBox rows={size.rows} cols={size.cols} onCommit={props.onMatrixSize} />}
           {display && <CheckButton label={C.showIndices} checked={display.indices} onChange={props.onMatrixDisplay} />}
+          {display && display.nested !== null && <CheckButton label={C.expandNested} checked={display.nested} onChange={props.onMatrixNested} />}
         </Group>
       )}
     </>

@@ -2599,3 +2599,27 @@ fn jacob_takes_a_column_vector_of_names() {
     assert!(!code.contains("must be a variable name"), "{code}");
     eprintln!("{code}");
 }
+
+#[test]
+fn an_evaluated_destructuring_definition_shows_the_whole_value() {
+    // `[a; b] := e =` shows `e`, as `e =` would, and still binds every name.
+    let regions = regions(&["[p; q] := [1; 2] = "]);
+    assert_eq!(
+        regions[0].code,
+        "__t1 = eq_matrix(2, 1, 1.0, 2.0)\n__t2, __t3 = eq_unpack(__t1, 2, 1)\np_v1 = __t2\nq_v1 = __t3"
+    );
+    assert_eq!(regions[0].value.as_deref(), Some("__t1"));
+}
+
+#[test]
+fn a_transposed_target_defines_the_name_transposed() {
+    let regions = regions(&["Vᵀ := [1, 2, 3]", "M := [1; 2; 3]", "[U; s; Wᵀ] := M"]);
+    assert_eq!(
+        regions[0].code,
+        "V_v1 = eq_transpose(eq_matrix(1, 3, 1.0, 2.0, 3.0))"
+    );
+    assert_eq!(
+        regions[2].code,
+        "__t1, __t2, __t3 = eq_unpack(eq_val(M_v1), 3, 1)\nU_v1 = __t1\ns_v1 = __t2\nW_v1 = eq_transpose(__t3)"
+    );
+}

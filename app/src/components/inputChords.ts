@@ -12,7 +12,7 @@
 
 import type { KeyboardEvent } from "react";
 import { toggleGreek } from "../editor/greek";
-import { fromDom, LAYOUTS, resolve, type LayoutId } from "../keymap/keymap";
+import { fromDom, resolve } from "../keymap/keymap";
 
 /** Replaces `input`'s text through the native setter so React's `onChange` runs, and places the caret. */
 function setValue(input: HTMLInputElement, value: string, caret: number): void {
@@ -30,7 +30,7 @@ function setValue(input: HTMLInputElement, value: string, caret: number): void {
 export function handleInputChord(event: KeyboardEvent<HTMLInputElement>): boolean {
   if (!event.ctrlKey && !event.metaKey) return false;
   // The layout argument only matters for punctuation, which `resolve` re-derives from the key.
-  const action = resolve(fromDom(event.nativeEvent), LAYOUTS["en-US"], "math");
+  const action = resolve(fromDom(event.nativeEvent), "math");
   if (action?.kind !== "command" || (action.cmd !== "greek" && action.cmd !== "literalSubscript")) return false;
   event.preventDefault();
   event.stopPropagation();
@@ -57,12 +57,12 @@ export function handleInputChord(event: KeyboardEvent<HTMLInputElement>): boolea
 /**
  * Whether a key switches Find and Replace between text and math mode: the
  * chord that turns text into math in a text region (`insertInlineMath`, Ctrl+M on both layouts),
- * resolved in the text context of the layout's own table. It is a switch in both
+ * resolved in the text context of the keymap. It is a switch in both
  * directions, so in a math box it wins over the matrix chord.
  */
-export function isFindModeSwitch(event: { nativeEvent: globalThis.KeyboardEvent }, layout: LayoutId): boolean {
+export function isFindModeSwitch(event: { nativeEvent: globalThis.KeyboardEvent }): boolean {
   const native = event.nativeEvent;
   if (!native.ctrlKey && !native.metaKey) return false;
-  const action = resolve(fromDom(native), LAYOUTS[layout], "text");
+  const action = resolve(fromDom(native), "text");
   return action?.kind === "command" && action.cmd === "insertInlineMath";
 }

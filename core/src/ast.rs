@@ -877,7 +877,9 @@ impl Target {
             TargetKind::Index { base, .. }
             | TargetKind::Column { base, .. }
             | TargetKind::Row { base, .. } => base.has_placeholder(),
-            TargetKind::Paren { target } => target.has_placeholder(),
+            TargetKind::Paren { target } | TargetKind::Transpose { target } => {
+                target.has_placeholder()
+            }
             TargetKind::Destructure { cells, .. } => cells.iter().any(Target::has_placeholder),
             TargetKind::FunctionHead { name, params } => {
                 empty(&name.name) || params.iter().any(|p| empty(&p.name))
@@ -905,6 +907,10 @@ pub enum TargetKind {
         index: Box<Expr>,
     },
     Paren {
+        target: Box<Target>,
+    },
+    /// `Vᵀ`: defines `V` as the transpose of the value.
+    Transpose {
         target: Box<Target>,
     },
     /// `[a, b; c, d]`: cells in row-major order.

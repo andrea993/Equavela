@@ -20,7 +20,7 @@ const io: MathIO = {
 
 /** An editor after typing `text` on the US layout, through the keymap. */
 const state = (text: string): EditorState =>
-  typed(text, "en-US").reduce((s, key) => handleKey(s, key, "en-US").state, initialState());
+  typed(text, "en-US").reduce((s, key) => handleKey(s, key).state, initialState());
 const root = (s: EditorState) => sexpr(s.root);
 /** What the editor shows for text pasted as mock-parsed math. */
 const tree = (text: string) => sexpr(toEditing(mockParse(text)));
@@ -72,7 +72,7 @@ describe("paste", () => {
     const then = async (start: EditorState, text: string, keys: string) => {
       const pasted = await pasteMath(io, start, text);
       if (!("state" in pasted)) throw new Error(pasted.error);
-      return root(typed(keys, "en-US").reduce((s, key) => handleKey(s, key, "en-US").state, pasted.state));
+      return root(typed(keys, "en-US").reduce((s, key) => handleKey(s, key).state, pasted.state));
     };
     expect(await then(initialState(), "Mmax", "=")).toBe("(= Mmax)");
     expect(await then(initialState(), "x + y", "=")).toBe("(= (+ x y))");
@@ -387,7 +387,7 @@ describe("program blocks on the clipboard", () => {
   const wireIO: MathIO = { ...io, print: async (statement) => JSON.stringify(statement), parse: async (text) => JSON.parse(text) };
   const program = (): EditorState => {
     const keys = [...typed("x:", "en-US"), ...typed("]", "en-US"), ...typed("a", "en-US"), ...typed("}", "en-US"), ...typed("1", "en-US")];
-    return keys.reduce((s, key) => handleKey(s, key, "en-US").state, initialState());
+    return keys.reduce((s, key) => handleKey(s, key).state, initialState());
   };
   const pathOf = (s: EditorState, type: string) => allPaths(s.root).find((path) => get(s.root, path).type === type)!;
   const emptyLine = (s: EditorState) =>
@@ -413,7 +413,7 @@ describe("program blocks on the clipboard", () => {
     const text = (await copyMath(wireIO, focusAt(s.root, pathOf(s, "If"), "R", true))) as { text: string };
     const pasted = await pasteMath(wireIO, placeCaret(s, leafNamed(s, "a"), "R"), text.text);
     if (!("state" in pasted)) throw new Error("no paste");
-    const undone = handleKey(pasted.state, { key: "z", code: "KeyZ", ctrlKey: true, shiftKey: false, altKey: false, metaKey: false } as never, "en-US").state;
+    const undone = handleKey(pasted.state, { key: "z", code: "KeyZ", ctrlKey: true, shiftKey: false, altKey: false, metaKey: false } as never).state;
     expect(root(undone)).toBe(root(s));
   });
 
@@ -430,7 +430,7 @@ describe("program blocks on the clipboard", () => {
       ...typed("x:", "en-US"), ...typed("]", "en-US"), ...typed("a", "en-US"), ...typed("}", "en-US"), ...typed("1", "en-US"),
       named("ArrowDown"), ctrl("Semicolon", ";"), ...typed("b", "en-US"), named("Tab"), ...typed("2", "en-US"),
     ];
-    const s = keys.reduce((x, key) => handleKey(x, key, "en-US").state, initialState());
+    const s = keys.reduce((x, key) => handleKey(x, key).state, initialState());
     expect(root(s)).toBe("(:= x (program (if (if a 1) (elseif b 2))))");
     const elseIf = allPaths(s.root).filter((path) => get(s.root, path).type === "Branch")[1];
     const copied = (await copyMath(wireIO, focusAt(s.root, elseIf, "R", true))) as { text: string };

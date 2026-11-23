@@ -1029,6 +1029,15 @@ export function TargetView({ target, path }: { target: Target; path?: Path }): R
           <Fenced kind="paren"><TargetView target={target.target} path={at(path, 0)} /></Fenced>
         </N>
       );
+    case "Transpose":
+      // In the editing form the target is the transpose of an expression.
+      if (!target.target) break;
+      return (
+        <N path={path} node={target}>
+          <TargetView target={target.target} path={at(path, 0)} />
+          <span className="sup up">T</span>
+        </N>
+      );
     case "Destructure":
       return (
         <N path={path} node={target}>

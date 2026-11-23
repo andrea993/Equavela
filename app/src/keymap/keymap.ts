@@ -1,24 +1,26 @@
-// Keymap: explicit per-layout tables, context-scoped.
+// Keymap: one table for every keyboard layout, context-scoped.
+//
+// A Ctrl shortcut is the US character it types: `Ctrl+[` is Ctrl and the character `[`, typed on any
+// layout with the keys that layout uses for it (`Ctrl+AltGr+è` on the Italian one). A layout that
+// cannot type a character has no shortcut for it; the command stays in the ribbon and the palette.
 //
 // Resolution order for a keydown:
-//  1. AltGr (Windows sends Ctrl+Alt): if the produced character is one the layout makes
-//     with AltGr (or `getModifierState("AltGraph")` is true), it is a plain character and
-//     Ctrl bindings are never consulted.
-//  2. Ctrl (without AltGr): named keys with Ctrl (Ctrl+arrows, Ctrl+F5), then the layout's
-//     Ctrl table matched on the physical key (`code`).
-//  3. Named keys (Space, Enter, Tab, arrows, ...), matched on `key`.
-//  4. Printable characters, matched on the produced character (`key`).
+//  1. An explicit Ctrl+Alt binding.
+//  2. AltGr (`getModifierState("AltGraph")`, or Ctrl+Alt with a character, as Windows sends it): the
+//     typed character is a Ctrl shortcut when the real Ctrl key is down too (`realCtrl`, read from
+//     the key events: Windows synthesizes a Ctrl for AltGr), otherwise it is a plain character.
+//  3. Ctrl: named keys with Ctrl (Ctrl+arrows, Ctrl+F5), then the Ctrl table matched on the typed
+//     character (a letter of another script falls back to the physical letter key).
+//  4. Named keys (Space, Enter, Tab, arrows, ...), matched on `key`.
+//  5. Printable characters, matched on the produced character (`key`).
 //
 // Contexts form a chain: the most specific context that has a binding wins.
 // `matrix` and `program` fall back to `math`; every context falls back to `global`.
 // In the `string` context (typing a string literal) every printable key is text.
 
 import common from "./common.json";
-import enUS from "./en-US.json";
-import itIT from "./it-IT.json";
-
-export type LayoutId = "en-US" | "it-IT";
-export const LAYOUT_IDS: LayoutId[] = ["en-US", "it-IT"];
+import shortcuts from "./shortcuts.json";
+import { realCtrlDown } from "./nativeKeys";
 
 export type KeyContext = "global" | "sheet" | "text" | "math" | "matrix" | "program" | "string";
 
@@ -32,16 +34,22 @@ export interface KeyInput {
   metaKey?: boolean;
   /** KeyboardEvent.getModifierState("AltGraph") when available. */
   altGraph?: boolean;
+  /**
+   * Whether a Ctrl key the user pressed is down, read from the key events (`nativeKeys.ts`);
+   * undefined where it is unknown. With AltGr, Windows presses a Ctrl of its own, which does not count.
+   */
+  realCtrl?: boolean;
 }
 
 export interface CtrlBinding {
-  code: string;
+  /** The character typed with Ctrl: a letter in lower case (with `shift` for its upper case). */
+  key: string;
   shift?: boolean;
   alt?: boolean;
   ctx: KeyContext;
   cmd: string;
-  /** The combination as printed in the vendor's shortcut reference. */
-  pdf: string;
+  /** The US combination, shown in menus and tooltips. */
+  label: string;
 }
 
 export interface KeyBinding {
@@ -55,9 +63,7 @@ export interface KeyBinding {
   cmd: string;
 }
 
-export interface LayoutTable {
-  id: LayoutId;
-  altGrChars: string[];
+export interface KeymapTable {
   ctrl: CtrlBinding[];
   keys: KeyBinding[];
   chars: Record<string, string>;
@@ -65,19 +71,10 @@ export interface LayoutTable {
 
 export type Action = { kind: "command"; cmd: string } | { kind: "char"; ch: string };
 
-function table(t: { id: string; altGrChars: string[]; ctrl: unknown[] }): LayoutTable {
-  return {
-    id: t.id as LayoutId,
-    altGrChars: t.altGrChars,
-    ctrl: t.ctrl as CtrlBinding[],
-    keys: common.keys as KeyBinding[],
-    chars: common.chars as Record<string, string>,
-  };
-}
-
-export const LAYOUTS: Record<LayoutId, LayoutTable> = {
-  "en-US": table(enUS),
-  "it-IT": table(itIT),
+export const KEYMAP: KeymapTable = {
+  ctrl: shortcuts.ctrl as CtrlBinding[],
+  keys: common.keys as KeyBinding[],
+  chars: common.chars as Record<string, string>,
 };
 
 export function contextChain(ctx: KeyContext): KeyContext[] {
@@ -104,15 +101,23 @@ function pick<T extends { ctx: KeyContext }>(candidates: T[], ctx: KeyContext): 
   return undefined;
 }
 
-export function isAltGr(ev: KeyInput, layout: LayoutTable): boolean {
+/** A key typed with AltGr: reported as such, or as Ctrl+Alt with a character (Windows). */
+export function isAltGr(ev: KeyInput): boolean {
   if (ev.altGraph) return true;
-  return !!ev.ctrlKey && !!ev.altKey && layout.altGrChars.includes(ev.key);
+  return !!ev.ctrlKey && !!ev.altKey && ev.key.length === 1 && ev.key !== " ";
 }
 
-function character(ch: string, layout: LayoutTable, ctx: KeyContext): Action | null {
+/** Whether a Ctrl key the user pressed is down while AltGr is, read from the key events. */
+function realCtrlWithAltGr(ev: KeyInput): boolean {
+  if (ev.realCtrl !== undefined) return ev.realCtrl;
+  // Linux reports AltGr as a key of its own: `ctrlKey` is the real Ctrl, and Alt is not down.
+  return !!ev.altGraph && !!ev.ctrlKey && !ev.altKey;
+}
+
+function character(ch: string, ctx: KeyContext): Action | null {
   if (ctx === "string") return ch === '"' ? { kind: "command", cmd: "endString" } : { kind: "char", ch };
   if (inMath(ctx)) {
-    const cmd = layout.chars[ch];
+    const cmd = KEYMAP.chars[ch];
     return cmd ? { kind: "command", cmd } : { kind: "char", ch };
   }
   // On the sheet a printable character starts a math region at the crosshair.
@@ -120,60 +125,70 @@ function character(ch: string, layout: LayoutTable, ctx: KeyContext): Action | n
   return null;
 }
 
-export function resolve(ev: KeyInput, layout: LayoutTable, ctx: KeyContext): Action | null {
+/** The Ctrl shortcut of the character `ev` typed, in `ctx`. */
+function ctrlShortcut(ev: KeyInput, ctx: KeyContext, alt: boolean): Action | null {
+  let key = ev.key;
+  // A letter of another script (a Cyrillic layout) is the Latin letter of its physical key.
+  if (/^\p{L}$/u.test(key) && !/\p{Script=Latin}/u.test(key) && /^Key[A-Z]$/.test(ev.code)) key = ev.code.slice(3);
+  const letter = /^[a-zA-Z]$/.test(key);
+  const shift = !!ev.shiftKey;
+  const b = pick(
+    KEYMAP.ctrl.filter((b) =>
+      !!b.alt === alt && (letter ? b.key === key.toLowerCase() && !!b.shift === shift : b.key === key),
+    ),
+    ctx,
+  );
+  return b ? { kind: "command", cmd: b.cmd } : null;
+}
+
+export function resolve(ev: KeyInput, ctx: KeyContext): Action | null {
   if (/^(Control|Alt|AltGraph|Shift|Meta|CapsLock|Dead|Process|Unidentified)$/.test(ev.key)) return null;
 
-  if (isAltGr(ev, layout)) {
-    // Windows reports Ctrl+Alt as AltGr too, so an explicit Ctrl+Alt binding wins over typing.
-    if (ev.ctrlKey && ev.altKey) {
-      const shift = !!ev.shiftKey;
-      const chord = pick(layout.keys.filter((b) => b.ctrl && b.alt && !!b.shift === shift && b.key === ev.key), ctx);
-      if (chord) return { kind: "command", cmd: chord.cmd };
-    }
-    return ev.key.length === 1 ? character(ev.key, layout, ctx) : null;
+  const shift = !!ev.shiftKey;
+  if (ev.ctrlKey && ev.altKey) {
+    // An explicit Ctrl+Alt binding wins over typing with AltGr.
+    const chord = pick(KEYMAP.keys.filter((b) => b.ctrl && b.alt && !!b.shift === shift && b.key === ev.key), ctx);
+    if (chord) return { kind: "command", cmd: chord.cmd };
+  }
+  if (isAltGr(ev)) {
+    if (realCtrlWithAltGr(ev) && ev.key.length === 1) return ctrlShortcut(ev, ctx, false);
+    return ev.key.length === 1 ? character(ev.key, ctx) : null;
   }
 
-  const shift = !!ev.shiftKey;
   const alt = !!ev.altKey;
   if (ev.ctrlKey || ev.metaKey) {
-    const named = pick(layout.keys.filter((b) => {
+    const named = pick(KEYMAP.keys.filter((b) => {
       if (!b.ctrl || !!b.shift !== shift || !!b.alt !== alt) return false;
       if (!b.code) return b.key === ev.key;
       return b.key.toLowerCase() === ev.key.toLowerCase() ||
         (b.code === ev.code && !/\p{Script=Latin}/u.test(ev.key));
     }), ctx);
     if (named) return { kind: "command", cmd: named.cmd };
-    // The character the key produced is ground truth for the layout (Chromium and WebView2 keep it
-    // in `key` under Ctrl): a chord that contradicts the detected layout uses the layout it proves.
-    const proven = layoutFromChord(ev);
-    if (proven) layout = LAYOUTS[proven];
-    const b = pick(layout.ctrl.filter((b) => b.code === ev.code && !!b.shift === shift && !!b.alt === alt), ctx);
-    return b ? { kind: "command", cmd: b.cmd } : null;
+    return ctrlShortcut(ev, ctx, alt);
   }
   if (alt) return null;
 
-  if (ctx === "string" && ev.key.length === 1) return character(ev.key, layout, ctx);
-  const named = pick(layout.keys.filter((b) => !b.ctrl && b.key === ev.key && !!b.shift === shift), ctx);
+  if (ctx === "string" && ev.key.length === 1) return character(ev.key, ctx);
+  const named = pick(KEYMAP.keys.filter((b) => !b.ctrl && b.key === ev.key && !!b.shift === shift), ctx);
   if (named) return { kind: "command", cmd: named.cmd };
 
-  if (ev.key.length === 1) return character(ev.key, layout, ctx);
+  if (ev.key.length === 1) return character(ev.key, ctx);
   return null;
 }
 
 /**
- * The shortcut of `cmd` on `layout`, for tooltips and the command palette: the chord as
- * printed in the vendor's shortcut reference, else the character that triggers it in a math
- * region, else a named key (`F5`, `Ctrl+Shift+Enter`). Null when the command has none.
+ * The shortcut of `cmd`, for tooltips and the command palette: the US Ctrl combination, else the
+ * character that triggers it in a math region, else a named key (`F5`, `Ctrl+Shift+Enter`). Null
+ * when the command has none.
  */
-export function shortcutLabel(layout: LayoutId, cmd: string): string | null {
-  const table = LAYOUTS[layout];
-  const shared = table.keys.find((b) => b.code && b.cmd === cmd);
+export function shortcutLabel(cmd: string): string | null {
+  const shared = KEYMAP.keys.find((b) => b.code && b.cmd === cmd);
   if (shared) return namedShortcutLabel(shared);
-  const chord = table.ctrl.find((b) => b.cmd === cmd);
-  if (chord) return chord.pdf;
-  const char = Object.entries(table.chars).find(([, command]) => command === cmd);
+  const chord = KEYMAP.ctrl.find((b) => b.cmd === cmd);
+  if (chord) return chord.label;
+  const char = Object.entries(KEYMAP.chars).find(([, command]) => command === cmd);
   if (char) return char[0];
-  const key = table.keys.find((b) => b.cmd === cmd);
+  const key = KEYMAP.keys.find((b) => b.cmd === cmd);
   return key ? namedShortcutLabel(key) : null;
 }
 
@@ -192,117 +207,6 @@ export function fromDom(e: KeyboardEvent): KeyInput {
     shiftKey: e.shiftKey,
     metaKey: e.metaKey,
     altGraph: typeof e.getModifierState === "function" ? e.getModifierState("AltGraph") : false,
+    realCtrl: realCtrlDown(),
   };
-}
-
-// ---- layout detection ---------------------------------------------------------------------
-
-/** Layout from a Keyboard Map (`navigator.keyboard.getLayoutMap()`), or null. */
-export function layoutFromMap(map: { get(code: string): string | undefined }): LayoutId | null {
-  const bracket = map.get("BracketLeft");
-  if (bracket === "è" || map.get("Semicolon") === "ò") return "it-IT";
-  if (bracket === "[") return "en-US";
-  return null;
-}
-
-/**
- * Best-effort OS layout detection through the Keyboard Map API (Chromium / WebView2).
- * Returns null when the API is unavailable (WebKitGTK on Linux): the layout is then
- * learned from key events (`layoutFromEvent`) or set by the user.
- */
-export async function detectLayout(): Promise<LayoutId | null> {
-  const kb = (navigator as unknown as { keyboard?: { getLayoutMap?: () => Promise<Map<string, string>> } }).keyboard;
-  if (!kb?.getLayoutMap) return null;
-  try {
-    return layoutFromMap(await kb.getLayoutMap());
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Punctuation whose physical key (`code`) differs between the layouts: the produced character
- * and the key it sits on, per layout (unshifted).
- */
-const PUNCTUATION: { key: string; code: string; layout: LayoutId; shift?: boolean }[] = [
-  { key: "-", code: "Minus", layout: "en-US" },
-  { key: "-", code: "Slash", layout: "it-IT" },
-  { key: "/", code: "Slash", layout: "en-US" },
-  { key: "'", code: "Quote", layout: "en-US" },
-  { key: "'", code: "Minus", layout: "it-IT" },
-  { key: "[", code: "BracketLeft", layout: "en-US" },
-  { key: "è", code: "BracketLeft", layout: "it-IT" },
-  { key: ";", code: "Semicolon", layout: "en-US" },
-  { key: "ò", code: "Semicolon", layout: "it-IT" },
-  { key: "\\", code: "Backslash", layout: "en-US" },
-  { key: "ù", code: "Backslash", layout: "it-IT" },
-  { key: "=", code: "Equal", layout: "en-US" },
-  { key: "ì", code: "Equal", layout: "it-IT" },
-  { key: "]", code: "BracketRight", layout: "en-US" },
-  { key: "+", code: "BracketRight", layout: "it-IT" },
-  { key: "à", code: "Quote", layout: "it-IT" },
-  { key: "`", code: "Backquote", layout: "en-US" },
-  { key: "\\", code: "Backquote", layout: "it-IT" },
-  // Shifted: Ctrl+Shift chords report the shifted character.
-  { key: "_", code: "Minus", layout: "en-US", shift: true },
-  { key: "?", code: "Minus", layout: "it-IT", shift: true },
-  { key: "?", code: "Slash", layout: "en-US", shift: true },
-  { key: "_", code: "Slash", layout: "it-IT", shift: true },
-  { key: ":", code: "Semicolon", layout: "en-US", shift: true },
-  { key: "ç", code: "Semicolon", layout: "it-IT", shift: true },
-  { key: "{", code: "BracketLeft", layout: "en-US", shift: true },
-  { key: "é", code: "BracketLeft", layout: "it-IT", shift: true },
-  { key: "}", code: "BracketRight", layout: "en-US", shift: true },
-  { key: "*", code: "BracketRight", layout: "it-IT", shift: true },
-  { key: "+", code: "Equal", layout: "en-US", shift: true },
-  { key: "^", code: "Equal", layout: "it-IT", shift: true },
-  { key: "|", code: "Backslash", layout: "en-US", shift: true },
-  { key: "§", code: "Backslash", layout: "it-IT", shift: true },
-  { key: '"', code: "Quote", layout: "en-US", shift: true },
-  { key: "°", code: "Quote", layout: "it-IT", shift: true },
-  { key: "~", code: "Backquote", layout: "en-US", shift: true },
-  { key: "|", code: "Backquote", layout: "it-IT", shift: true },
-];
-
-/**
- * The layout proved by a punctuation key (with or without Ctrl, shifted or not): the character
- * that `key` reports against the physical `code`. Null for letters, digits and everything else.
- */
-export function layoutFromChord(ev: KeyInput): LayoutId | null {
-  if (ev.key.length !== 1) return null;
-  const shift = !!ev.shiftKey;
-  return PUNCTUATION.find((p) => p.key === ev.key && p.code === ev.code && !!p.shift === shift)?.layout ?? null;
-}
-
-/** A key event that reveals the layout (the key left of `]`/`+`, `-`, `/`), or null. */
-export function layoutFromEvent(ev: KeyInput): LayoutId | null {
-  if (ev.altKey || ev.metaKey) return null;
-  const proven = layoutFromChord(ev);
-  if (proven) return proven;
-  if (ev.ctrlKey) return null;
-  if (ev.code === "BracketLeft") {
-    if (ev.key === "è" || ev.key === "é") return "it-IT";
-    if (ev.key === "[" || ev.key === "{") return "en-US";
-  }
-  if (ev.code === "Semicolon") {
-    if (ev.key === "ò" || ev.key === "ç") return "it-IT";
-    if (ev.key === ";" || ev.key === ":") return "en-US";
-  }
-  return null;
-}
-
-/**
- * The app always follows the system keyboard layout: there is no user setting. An older version
- * stored a choice under this key; it is ignored and removed so a stale value cannot override the
- * detected layout. The literal is the *pre-rename* spelling on purpose: it must name the key that
- * earlier build actually wrote.
- */
-const LEGACY_SETTING_KEY = "sheet.keyboardLayout";
-
-export function clearLegacyLayoutSetting(): void {
-  try {
-    localStorage.removeItem(LEGACY_SETTING_KEY);
-  } catch {
-    /* storage unavailable */
-  }
 }

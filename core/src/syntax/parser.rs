@@ -568,6 +568,16 @@ impl<'s> Parser<'s> {
                         index: Box::new(index),
                     }
                 }
+                // `Vᵀ := e` defines `V` as `eᵀ`; the transpose ends the target.
+                Tok::Transpose => {
+                    self.bump();
+                    return Ok(Target::new(
+                        TargetKind::Transpose {
+                            target: Box::new(t),
+                        },
+                        self.span_from(start),
+                    ));
+                }
                 _ => break,
             };
             t = Target::new(kind, self.span_from(start));

@@ -1,0 +1,25 @@
+format: equavela-worksheet/3
+page:
+  size: A4
+  margins: {top: 72, right: 54, bottom: 72, left: 54}
+regions:
+  - id: r1
+    page: 1
+    at: [54, 72]
+    math: "A := [1, 2; 3, 4; 5, 6]"
+  - id: r2
+    page: 1
+    at: [54, 102]
+    math: |
+      [s; U; V] := program
+        [U; S; V] ← svd(A)
+        [S; U; Vᵀ]
+  - id: r3
+    page: 1
+    at: [54, 132]
+    math: |
+      F(M) := program
+        [a; b; c] ← program
+          [U; S; V] ← svd(M)
+          [S; U; Vᵀ]
+        c

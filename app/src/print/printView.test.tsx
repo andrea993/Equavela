@@ -376,7 +376,7 @@ describe("Export PDF and Print", () => {
 
   it("the command palette lists both commands", async () => {
     const { buildCommandItems } = await import("../catalog/commands");
-    const items = buildCommandItems("en-US");
+    const items = buildCommandItems();
     expect(items.find((i) => i.id === "cmd:exportPdf")?.label).toBe("Export PDF…");
     expect(items.find((i) => i.id === "cmd:print")?.shortcut).toBe("Ctrl+P");
   });

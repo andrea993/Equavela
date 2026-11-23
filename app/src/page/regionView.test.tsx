@@ -71,7 +71,6 @@ function editing(): RegionEdit {
     textEdit: {
       initial: PARAGRAPHS,
       point: null,
-      layout: "en-US",
       mathTarget: { current: null },
       clipboard: null,
       onReady: noop,

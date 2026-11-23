@@ -5,7 +5,6 @@
 
 import { type ReactNode } from "react";
 import type { Node } from "../editor/tree";
-import type { LayoutId } from "../keymap/keymap";
 import { InlineMath, TextEnvContext } from "../text/InlineMath";
 import type { MathClipboard } from "../text/value";
 import { isFindModeSwitch } from "./inputChords";
@@ -13,7 +12,6 @@ import { isFindModeSwitch } from "./inputChords";
 export function FindMathBox({
   tree,
   label,
-  layout,
   autoFocus,
   clipboard = null,
   onTree,
@@ -23,7 +21,6 @@ export function FindMathBox({
   /** The tree the box opens with; the parent remounts the box (a `key`) to put a new one in. */
   tree: Node;
   label: string;
-  layout: LayoutId;
   autoFocus: boolean;
   /** Copy and paste of math: the math editors' clipboard. */
   clipboard?: MathClipboard | null;
@@ -38,7 +35,7 @@ export function FindMathBox({
       role="group"
       aria-label={label}
       onKeyDownCapture={(event) => {
-        if (isFindModeSwitch(event, layout)) {
+        if (isFindModeSwitch(event)) {
           event.preventDefault();
           event.stopPropagation();
           onToggleMode();
@@ -49,7 +46,7 @@ export function FindMathBox({
         }
       }}
     >
-      <TextEnvContext.Provider value={{ layout, mathTarget: null, clipboard }}>
+      <TextEnvContext.Provider value={{ mathTarget: null, clipboard }}>
         <InlineMath tree={tree} autoFocus={autoFocus} onTree={onTree} onLeave={() => undefined} onEmpty={() => undefined} onFocused={() => undefined} />
       </TextEnvContext.Provider>
     </span>

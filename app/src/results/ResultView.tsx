@@ -7,6 +7,7 @@ import { ptToPx } from "../layout/geometry";
 import { S } from "../strings";
 import type { DisplayUnit, KernelValue, RegionKey, WireFloat } from "../equavelaApi";
 import {
+  expandsNested,
   formatComplex,
   formatReal,
   isBoxedMatrix,
@@ -852,7 +853,7 @@ export function ValueView({ value, displayUnit, format, onTableResizeStart, acti
         <MatrixResult
           value={value}
           displayUnit={displayUnit}
-          format={format}
+          format={format.expandNested === expandsNested(format, value) ? format : { ...format, expandNested: !format.expandNested }}
           onTableResizeStart={onTableResizeStart}
           active={active}
         />

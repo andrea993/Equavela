@@ -2068,7 +2068,8 @@ describe("worksheet window (mock backend)", () => {
       fireEvent.click(within(dialog).getByTestId("rf-apply"));
     });
     await waitFor(() => expect(text("m7")).toBe("−11"));
-    // The override is a region property and carries every key the dialog offers.
+    // The override is a region property and carries every key the dialog offers but the nested
+    // arrays, left to the automatic rule.
     expect(formats.mock.calls.at(-1)?.[2]).toEqual({
       "format.type": "general",
       "format.precision": "3",
@@ -2078,7 +2079,6 @@ describe("worksheet window (mock backend)", () => {
       "format.zero-threshold": "15",
       "format.complex-threshold": "10",
       "format.complex-form": "cartesian",
-      "format.expand-nested": "false",
     });
     // Only that region: the other results keep the worksheet digits, the complex parts included.
     expect([text("m20"), text("m13")]).toEqual(["3+4i", "1.55"]);
@@ -3662,9 +3662,9 @@ describe("symbolic result while editing", () => {
   });
 });
 
-describe("Ctrl++ / Ctrl+= and Ctrl+- on the empty crosshair", () => {
+describe("Ctrl+= and Ctrl+- on the empty crosshair", () => {
   it.each([
-    ["Italian Ctrl++", { key: "+", code: "BracketRight", ctrlKey: true }],
+    ["Italian Ctrl+Shift+0 (the character =)", { key: "=", code: "Digit0", ctrlKey: true, shiftKey: true }],
     ["US Ctrl+=", { key: "=", code: "Equal", ctrlKey: true }],
   ])("%s starts a math region holding a Boolean equality with the caret in the left placeholder", async (_name, ev) => {
     await openDemo();

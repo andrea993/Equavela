@@ -241,7 +241,6 @@ export interface TextEditBinding {
   atEnd?: boolean;
   /** An arrow key had nothing more to do inside the text: leave the region on that side. */
   onEdge?: (direction: "left" | "right" | "up" | "down") => void;
-  layout: import("../keymap/keymap").LayoutId;
   mathTarget: import("react").MutableRefObject<MathTarget | null>;
   clipboard: MathClipboard | null;
   onReady: (value: import("../equavelaApi").RichText) => void;

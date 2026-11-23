@@ -1181,7 +1181,9 @@ fn collect_target_reads(target: &Target, locals: &HashSet<NameKey>, out: &mut Ve
             record_target_base(base, locals, out);
             collect_expr(index, locals, out);
         }
-        TargetKind::Paren { target } => collect_target_reads(target, locals, out),
+        TargetKind::Paren { target } | TargetKind::Transpose { target } => {
+            collect_target_reads(target, locals, out)
+        }
         TargetKind::Destructure { cells, .. } => {
             for cell in cells {
                 collect_target_reads(cell, locals, out);
@@ -1205,7 +1207,9 @@ fn record_inline_binding(target: &Target, out: &mut Vec<Occurrence>) {
             optional: false,
             binds: true,
         }),
-        TargetKind::Paren { target } => record_inline_binding(target, out),
+        TargetKind::Paren { target } | TargetKind::Transpose { target } => {
+            record_inline_binding(target, out)
+        }
         TargetKind::Destructure { cells, .. } => {
             for cell in cells {
                 record_inline_binding(cell, out);
@@ -1239,7 +1243,9 @@ fn collect_nested_target_indices(
             collect_nested_target_indices(base, locals, out);
             collect_expr(index, locals, out);
         }
-        TargetKind::Paren { target } => collect_nested_target_indices(target, locals, out),
+        TargetKind::Paren { target } | TargetKind::Transpose { target } => {
+            collect_nested_target_indices(target, locals, out)
+        }
         _ => {}
     }
 }
@@ -1309,7 +1315,9 @@ fn target_defined_names(target: &Target, out: &mut Vec<DefinedName>) {
         TargetKind::Index { base, .. }
         | TargetKind::Column { base, .. }
         | TargetKind::Row { base, .. } => target_defined_names(base, out),
-        TargetKind::Paren { target } => target_defined_names(target, out),
+        TargetKind::Paren { target } | TargetKind::Transpose { target } => {
+            target_defined_names(target, out)
+        }
         TargetKind::Destructure { cells, .. } => {
             for cell in cells {
                 target_defined_names(cell, out);
@@ -1335,7 +1343,7 @@ fn target_root_name(target: &Target) -> Option<&Name> {
         TargetKind::Index { base, .. }
         | TargetKind::Column { base, .. }
         | TargetKind::Row { base, .. } => target_root_name(base),
-        TargetKind::Paren { target } => target_root_name(target),
+        TargetKind::Paren { target } | TargetKind::Transpose { target } => target_root_name(target),
         TargetKind::FunctionHead { name, .. } if !target.has_placeholder() => Some(&name.name),
         TargetKind::FunctionHead { .. } => None,
         TargetKind::Destructure { .. } => None,

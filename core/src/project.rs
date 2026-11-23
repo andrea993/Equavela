@@ -1279,6 +1279,7 @@ fn target_names(target: &Target) -> Vec<(Name, Label)> {
         TargetKind::Ident { name } => vec![(name.clone(), Label::Var)],
         TargetKind::FunctionHead { name, .. } => vec![(name.name.clone(), Label::Fn)],
         TargetKind::Paren { target }
+        | TargetKind::Transpose { target }
         | TargetKind::Index { base: target, .. }
         | TargetKind::Column { base: target, .. }
         | TargetKind::Row { base: target, .. } => target_names(target),

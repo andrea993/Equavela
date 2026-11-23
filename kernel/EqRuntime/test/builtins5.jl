@@ -47,9 +47,9 @@ end
     @test eq_svds(eq_matrix(1, 1, -5)) ≈ eq_vec(5)
     B = eq_matrix(4, 3, 1, 2, 1, 5, 4, 3, 6, 7, 8, 7, 8, 9)
     decomposition = eq_svd(B)
-    s, U, VH = decomposition[1], decomposition[2], decomposition[3]
+    U, s, V = decomposition[1], decomposition[2], decomposition[3]
     @test size(decomposition) == (3, 1)
-    @test U * diagm(vec(s)) * VH ≈ B
+    @test U * diagm(vec(s)) * V' ≈ B
     @test issorted(vec(s); rev=true)
     @test eq_svds(B) ≈ s
     @test_throws EqError eq_svds(5.0)

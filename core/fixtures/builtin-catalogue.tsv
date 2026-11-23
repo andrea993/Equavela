@@ -317,7 +317,7 @@ Cholesky	Cholesky(M, [p, [u]])	Matrix factorization	Returns nested [P; L] (pivot
 LU	LU(M)	Matrix factorization	Returns nested [P; L; U] with P*M = L*U.
 QR	QR(M, [p])	Matrix factorization	Returns nested [P; Q; R] with M*P = Q*R.
 svds	svds(A)	Matrix factorization	Singular values (sqrt of eigenvalues of A^H*A).
-svd	svd(A)	Matrix factorization	Returns nested [s; U; V^H] with A = U*diag(s)*V^H.
+svd	svd(A)	Matrix factorization	Returns nested [U; S; V] with A = U*diag(S)*V^T, as Julia's `svd`.
 genvals	genvals(M, N)	Array characteristics and linear algebra	Generalized eigenvalues of M*x = v*N*x in Julia's order, by real part then imaginary part.
 genvecs	genvecs(M, N, ["L"])	Array characteristics and linear algebra	Generalized eigenvectors as unit columns, in genvals order.
 eigenvec	eigenvec(M, z)	Array characteristics and linear algebra	One unit-length eigenvector for eigenvalue z by inverse iteration.

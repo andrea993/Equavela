@@ -586,6 +586,14 @@ fn apply(node: Node) -> R {
             .iter()
             .map(|a| argument(*a))
             .collect::<Result<_, _>>()?;
+        // An imported `svd(A)` gives `[s; U; Vᴴ]` and Equavela's Julia's `[U; S; V]`: the call
+        // becomes the algorithm that computes it once and returns it in the imported order.
+        if callee.text == "svd" && args.len() == 1 {
+            return Ok(Emit::new(
+                format!("program {{ [U; S; V] ← svd({}); [S; U; Vᵀ] }}", args[0]),
+                L_ATOM,
+            ));
+        }
         return Ok(Emit::new(
             format!("{}({})", callee.text, args.join(", ")),
             L_POSTFIX,

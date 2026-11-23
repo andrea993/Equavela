@@ -353,7 +353,8 @@ fn collect_target_names(target: &Target, out: &mut HashSet<String>) {
         TargetKind::Index { base, .. }
         | TargetKind::Column { base, .. }
         | TargetKind::Row { base, .. }
-        | TargetKind::Paren { target: base } => collect_target_names(base, out),
+        | TargetKind::Paren { target: base }
+        | TargetKind::Transpose { target: base } => collect_target_names(base, out),
     }
 }
 
@@ -648,7 +649,9 @@ fn label_target_indices(target: &mut Target, ctx: &LabelCtx) {
             label_target_indices(base, ctx);
             label_expr(index, ctx);
         }
-        TargetKind::Paren { target } => label_target_indices(target, ctx),
+        TargetKind::Paren { target } | TargetKind::Transpose { target } => {
+            label_target_indices(target, ctx)
+        }
     }
 }
 

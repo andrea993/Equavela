@@ -4,6 +4,7 @@ import type { KernelValue } from "../equavelaApi";
 import {
   clearFormatSettings,
   DEFAULT_FORMAT,
+  expandsNested,
   formatComplex,
   formatFromSettings,
   formatReal,
@@ -121,6 +122,7 @@ describe("General format", () => {
         complexThreshold: 4,
         complexForm: "polar",
         expandNested: true,
+        expandNestedSet: true,
       }),
     ).toEqual({
       "format.type": "engineering",
@@ -133,6 +135,8 @@ describe("General format", () => {
       "format.complex-form": "polar",
       "format.expand-nested": "true",
     });
+    // A choice to collapse is kept too: without one, the automatic rule applies.
+    expect(formatSettingEdits({ ...DEFAULT_FORMAT, expandNestedSet: true })["format.expand-nested"]).toBe("false");
     // Reset removes every key the dialog offers.
     expect(clearFormatSettings()).toEqual(formatSettingEdits(DEFAULT_FORMAT));
     // The edits read back as the format they came from (one round trip, no loss).
@@ -545,5 +549,23 @@ describe("the size threshold of the Matrix tab", () => {
     for (const bad of ["", " ", "0", "-3", "2.5", "twelve", "12,12", "1e3"]) {
       expect(parseMatrixSizeField(bad), bad).toBeNull();
     }
+  });
+});
+
+describe("nested arrays", () => {
+  const real = (value: number): KernelValue => ({ type: "real", value });
+  const matrix = (values: KernelValue[]): KernelValue => ({ type: "matrix", rows: values.length, cols: 1, storage: { type: "inline", values } });
+  const several = matrix([matrix([real(1)]), matrix([real(2), real(3)])]);
+  const mixed = matrix([real(1), matrix([real(2)])]);
+
+  it("expand a result made only of matrices, and collapse a mixed one, without a choice", () => {
+    const format = formatFromSettings({});
+    expect(expandsNested(format, several)).toBe(true);
+    expect(expandsNested(format, mixed)).toBe(false);
+  });
+
+  it("follow the worksheet's or the region's choice", () => {
+    expect(expandsNested(formatFromSettings({ "format.expand-nested": "false" }), several)).toBe(false);
+    expect(expandsNested(formatFromSettings({ "format.expand-nested": "true" }), mixed)).toBe(true);
   });
 });

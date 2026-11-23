@@ -101,11 +101,12 @@ function eq_svds(matrix)
     reshape(svdvals(float(numeric)), :, 1)
 end
 
-"`svd(A)`: nested `[s; U; V^H]` (thin factors) with `A = U diag(s) V^H`; signs are LAPACK's."
+"`svd(A)`: nested `[U; S; V]` (thin factors, as Julia's `svd` gives them) with `A = U diag(S) V^H`;
+`S` is the column of singular values in descending order; signs are LAPACK's."
 function eq_svd(matrix)
     numeric = _numeric_matrix(matrix, "svd")
     decomposition = svd(float(numeric))
-    _nested(reshape(decomposition.S, :, 1), Matrix(decomposition.U), Matrix(decomposition.Vt))
+    _nested(Matrix(decomposition.U), reshape(decomposition.S, :, 1), Matrix(decomposition.V))
 end
 
 function _pair(first, second, name)
