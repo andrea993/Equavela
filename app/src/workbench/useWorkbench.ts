@@ -2,7 +2,7 @@
 // Document content (regions, undo history) is owned by the backend; this hook only mirrors
 // the last view the backend returned and sends commands.
 
-import { setRealCtrl } from "../keymap/nativeKeys";
+import { installKeyTracking } from "../keymap/nativeKeys";
 import { fastSymbolicContext, type FastSymbolicOperation, type FastSymbolicOptions } from "../editor/fastSymbolic";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { Backend, BackendMode, ReferencesChange } from "../backend";
@@ -3368,8 +3368,8 @@ export function useWorkbench(backend: Backend) {
     const track = (promise: Promise<() => void>) =>
       promise.then((fn) => (cancelled ? fn() : unlisten.push(fn)));
     track(backend.onKernelStatus((status) => dispatch({ type: "kernel", status })));
-    // The real Ctrl key, where the system reports it (Windows, where AltGr arrives as Ctrl+Alt).
-    if (backend.onRealCtrl) track(backend.onRealCtrl(setRealCtrl));
+    // The real Ctrl key, read from the key events (Windows, where AltGr arrives as Ctrl+Alt).
+    unlisten.push(installKeyTracking());
     // A calculation pass reports one event per region: the results are queued per worksheet and
     // applied together once per frame, so a pass costs one render per frame instead of one per
     // region. Every other event flushes what is queued first, so nothing is reordered.

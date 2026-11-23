@@ -6,8 +6,6 @@ mod crash_reports;
 pub mod dialogs;
 mod environment_metadata;
 pub mod kernel_path;
-#[cfg(windows)]
-mod native_keys;
 pub mod open_request;
 pub mod print;
 mod project_archive_files;
@@ -2302,14 +2300,6 @@ pub fn run() {
             #[cfg(windows)]
             if let Some(window) = app.get_webview_window("main") {
                 browser_shortcuts::configure(&window)?;
-            }
-            // The real Ctrl key, which the web view cannot tell from the Ctrl that AltGr sends.
-            #[cfg(windows)]
-            {
-                let handle = app.handle().clone();
-                native_keys::start(move |down| {
-                    let _ = handle.emit(native_keys::EVENT_REAL_CTRL, down);
-                });
             }
             let handle = app.handle().clone();
             let sink: EventSink = Arc::new(move |name, payload| {

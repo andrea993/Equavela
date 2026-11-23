@@ -8,7 +8,7 @@
 //  1. An explicit Ctrl+Alt binding.
 //  2. AltGr (`getModifierState("AltGraph")`, or Ctrl+Alt with a character, as Windows sends it): the
 //     typed character is a Ctrl shortcut when the real Ctrl key is down too (`realCtrl`, read from
-//     the system: Windows synthesizes a Ctrl for AltGr), otherwise it is a plain character.
+//     the key events: Windows synthesizes a Ctrl for AltGr), otherwise it is a plain character.
 //  3. Ctrl: named keys with Ctrl (Ctrl+arrows, Ctrl+F5), then the Ctrl table matched on the typed
 //     character (a letter of another script falls back to the physical letter key).
 //  4. Named keys (Space, Enter, Tab, arrows, ...), matched on `key`.
@@ -35,8 +35,8 @@ export interface KeyInput {
   /** KeyboardEvent.getModifierState("AltGraph") when available. */
   altGraph?: boolean;
   /**
-   * Whether the physical Ctrl key is down, as the system reports it (`nativeKeys.ts`); undefined
-   * where it is unknown. With AltGr, Windows reports a Ctrl of its own in `ctrlKey`.
+   * Whether a Ctrl key the user pressed is down, read from the key events (`nativeKeys.ts`);
+   * undefined where it is unknown. With AltGr, Windows presses a Ctrl of its own, which does not count.
    */
   realCtrl?: boolean;
 }
@@ -107,7 +107,7 @@ export function isAltGr(ev: KeyInput): boolean {
   return !!ev.ctrlKey && !!ev.altKey && ev.key.length === 1 && ev.key !== " ";
 }
 
-/** Whether the physical Ctrl key is down while AltGr is: the system says it where it knows. */
+/** Whether a Ctrl key the user pressed is down while AltGr is, read from the key events. */
 function realCtrlWithAltGr(ev: KeyInput): boolean {
   if (ev.realCtrl !== undefined) return ev.realCtrl;
   // Linux reports AltGr as a key of its own: `ctrlKey` is the real Ctrl, and Alt is not down.

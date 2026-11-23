@@ -1172,11 +1172,6 @@ export function onKernelStatus(
   );
 }
 
-/** The physical Ctrl key on Windows, sent by the native keyboard hook whenever it changes. */
-export function onRealCtrl(handler: (down: boolean) => void): Promise<UnlistenFn> {
-  return listen<boolean>("real-ctrl", (event) => handler(event.payload));
-}
-
 /** A second launch queued files to open: the handler should call `takeOpenRequests`. */
 export function onOpenRequest(handler: () => void): Promise<UnlistenFn> {
   return listen<null>(EVENT_OPEN_REQUEST, () => handler());
