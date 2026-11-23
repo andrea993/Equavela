@@ -97,7 +97,7 @@ jobs:
         run: pnpm --dir app package:bundle --bundles nsis
       - name: Build the Linux packages
         if: runner.os == 'Linux'
-        run: node scripts/package-linux.mjs
+        run: node scripts/package-linux.mjs --verbose
       - name: Collect the installers
         shell: bash
         run: |

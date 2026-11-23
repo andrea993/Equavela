@@ -57,6 +57,15 @@ if (!existsSync(juliaLib)) {
   throw new Error(`the staged Julia runtime is missing: ${juliaLib} (run node scripts/package-runtime.mjs first)`);
 }
 
+// The shipped JLL libraries (ImageMagick, X11, ...) find each other through the loader of their
+// Julia packages, not through a RUNPATH: linuxdeploy needs every artifact's library directory too.
+const artifacts = join(out, "depot", "artifacts");
+const artifactLibs = existsSync(artifacts)
+  ? readdirSync(artifacts)
+      .map((hash) => join(artifacts, hash, "lib"))
+      .filter((dir) => existsSync(dir))
+  : [];
+
 const run = (command, commandArgs, options = {}) => {
   const result = spawnSync(command, commandArgs, { stdio: "inherit", ...options });
   if (result.status !== 0) process.exit(result.status ?? 1);
@@ -80,7 +89,7 @@ run(
     cwd: join(repo, "app"),
     env: {
       ...process.env,
-      LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH ? `${juliaLib}:${process.env.LD_LIBRARY_PATH}` : juliaLib,
+      LD_LIBRARY_PATH: [juliaLib, ...artifactLibs, process.env.LD_LIBRARY_PATH].filter(Boolean).join(":"),
     },
   },
 );
