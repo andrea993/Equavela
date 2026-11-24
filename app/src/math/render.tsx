@@ -1390,9 +1390,12 @@ export function showsResult(statement: unknown): boolean {
 /** The unit override of an evaluation (`e = … unit`), when there is one. */
 export function unitOverride(statement: unknown): Expr | null {
   if (!isNode(statement)) return null;
-  if (statement.type === "Evaluate" && statement.unit) return statement.unit;
-  if (statement.type === "Define" && isNode(statement.tail) && statement.tail.type === "Eval") {
-    return statement.tail.unit ?? null;
-  }
-  return null;
+  const unit =
+    statement.type === "Evaluate"
+      ? statement.unit
+      : statement.type === "Define" && isNode(statement.tail) && statement.tail.type === "Eval"
+        ? statement.tail.unit
+        : null;
+  // The empty slot of the editor is no override.
+  return isNode(unit) && unit.type !== "Placeholder" ? (unit as Expr) : null;
 }

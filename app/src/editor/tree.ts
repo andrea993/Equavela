@@ -514,6 +514,24 @@ export function withTableUnitSlots(value: Node): Node {
   return { ...value, units: true, grid: { ...grid, rows: (grid.rows as number) + 1, cells: [...cells.slice(0, cols), ...units, ...cells.slice(cols)] } };
 }
 
+/**
+ * An evaluation is edited with its unit slot after the result, where a unit or a scale factor
+ * converts the displayed value; `toWire` drops the slot again if it is left empty.
+ */
+export function withUnitSlot(statement: Node): Node {
+  if (statement.type === "Evaluate" && !statement.unit) return { ...statement, unit: ph() };
+  const tail = statement.tail as Node | null | undefined;
+  if (statement.type === "Define" && tail?.type === "Eval" && !tail.unit) {
+    return { ...statement, tail: { ...tail, unit: ph() } };
+  }
+  return statement;
+}
+
+/** The unit of an evaluation tail as stored: an empty slot is no unit. */
+function wireUnit(unit: unknown): Node | null {
+  return isObject(unit) && unit.type !== "Placeholder" ? toWireExpr(unit as Node) : null;
+}
+
 /** Offer bounds when editing an indefinite integral; empty slots serialize as no bounds. */
 export function withIntegralBoundSlots(value: Node): Node {
   const walk = (v: unknown): unknown => {
@@ -729,7 +747,7 @@ export function toWire(statement: Node): Node {
     case "GlobalDefine":
       return { type: "GlobalDefine", target: definitionTarget(statement.target), rhs: toWireExpr(statement.rhs) };
     case "Evaluate":
-      return { type: "Evaluate", expr: toWireExpr(statement.expr), unit: statement.unit ? toWireExpr(statement.unit) : null };
+      return { type: "Evaluate", expr: toWireExpr(statement.expr), unit: wireUnit(statement.unit) };
     case "Symbolic":
       return { type: "Symbolic", expr: toWireExpr(statement.expr), keywords: keywordGroups(statement.keywords).map(toWireAny) };
     case "ExprRegion":
@@ -753,7 +771,7 @@ export function toWire(statement: Node): Node {
 }
 
 function toWireTail(tail: Node): Node {
-  if (tail.type === "Eval") return { type: "Eval", unit: tail.unit ? toWireExpr(tail.unit) : null };
+  if (tail.type === "Eval") return { type: "Eval", unit: wireUnit(tail.unit) };
   return { type: "Sym", keywords: keywordGroups(tail.keywords).map(toWireAny) };
 }
 
@@ -876,7 +894,8 @@ export function sexpr(n: Node): string {
     case "EllipsisCell":
       return n.form === "vertical" ? "(⋮)" : n.form === "diagonal" ? "(⋱)" : "(⋯)";
     case "Evaluate":
-      return n.unit ? `(= ${sexpr(n.expr)} ${sexpr(n.unit)})` : `(= ${sexpr(n.expr)})`;
+      // The empty unit slot of the editor is no unit.
+      return n.unit && n.unit.type !== "Placeholder" ? `(= ${sexpr(n.expr)} ${sexpr(n.unit)})` : `(= ${sexpr(n.expr)})`;
     case "Symbolic":
       return `(→ ${[n.expr, ...n.keywords].map(sexpr).join(" ")})`;
     case "Define": {

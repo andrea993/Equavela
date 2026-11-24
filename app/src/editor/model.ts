@@ -665,11 +665,12 @@ function evaluate(s: EditorState, symbolic: boolean): EditorState {
   if (r.type === "ExprRegion") {
     const root: Node = symbolic
       ? { type: "Symbolic", expr: r.expr, keywords: [emptyKeywordGroup()] }
-      : { type: "Evaluate", expr: r.expr, unit: null };
+      : { type: "Evaluate", expr: r.expr, unit: ph() };
     return { ...s, root, growOrigin: null };
   }
   if (r.type === "Define" && !r.tail) {
-    const tail = symbolic ? { type: "Sym", keywords: [emptyKeywordGroup()] } : { type: "Eval", unit: null };
+    // A numeric evaluation comes with its empty unit slot after the result.
+    const tail = symbolic ? { type: "Sym", keywords: [emptyKeywordGroup()] } : { type: "Eval", unit: ph() };
     return { ...s, root: { ...r, tail }, growOrigin: null };
   }
   return s;

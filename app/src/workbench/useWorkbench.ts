@@ -31,7 +31,7 @@ import {
 import { S } from "../strings";
 import { enterPrint, leavePrint, printReady, withPrintView } from "../print/printMode";
 import { apply as applyEditor, breakWires, initialState as initialEditor, placeCaret, type Caret, type EditorState, type Side } from "../editor/model";
-import { drawnParenPath, isEmptyKeywordGroup, isEmptyStatement, toEditing, toWire, withDrawnParens, withKeywordSlot, withIntegralBoundSlots, withTableUnitSlots, remapIntegralBoundHit, WireError, type Node, type Path } from "../editor/tree";
+import { drawnParenPath, isEmptyKeywordGroup, isEmptyStatement, toEditing, toWire, withDrawnParens, withKeywordSlot, withIntegralBoundSlots, withTableUnitSlots, withUnitSlot, remapIntegralBoundHit, WireError, type Node, type Path } from "../editor/tree";
 import { isEmptyText, sameText } from "../text/value";
 import { loadProjectSession, relativeTo, saveProjectSession } from "./projectSession";
 import { reuseEntries, reuseRegions, sameValue } from "./reuse";
@@ -1737,7 +1737,7 @@ export function useWorkbench(backend: Backend) {
       const drawn = withKeywordSlot(toEditing(region.statement));
       const base = withDrawnParens(drawn);
       const viewPath = (path: Path) => remapIntegralBoundHit(base, drawnParenPath(drawn, base, path));
-      const tree = withTableUnitSlots(withIntegralBoundSlots(base));
+      const tree = withUnitSlot(withTableUnitSlots(withIntegralBoundSlots(base)));
       const breaks = region.breaks ?? [];
       const editingBreaks = breaks.map(anchor => ({ ...anchor, path: viewPath(anchor.path) }));
       let editor = initialEditor(tree, editingBreaks);
