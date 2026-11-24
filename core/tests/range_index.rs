@@ -89,7 +89,11 @@ fn a_range_in_an_assignment_target_is_an_invalid_left_side() {
         "M⟨0..1⟩ := [1; 2]",
     ] {
         let statement = parse_statement(src).unwrap_or_else(|e| panic!("{src}: {e}"));
-        assert!(sx_statement(&statement).contains("invalid"), "{src}: {}", sx_statement(&statement));
+        assert!(
+            sx_statement(&statement).contains("invalid"),
+            "{src}: {}",
+            sx_statement(&statement)
+        );
     }
 }
 

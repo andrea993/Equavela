@@ -112,13 +112,22 @@ const RANGE_IN_TARGET: &str = "A range is not allowed on the left side of a defi
 /// The error of a left side that cannot be defined: a range used as an index is named.
 fn invalid_target(expr: &Expr, span: Span) -> CodegenError {
     let ranged = match &expr.kind {
-        ExprKind::Index { indices, .. } => indices.iter().any(|i| matches!(i.kind, ExprKind::Range { .. })),
+        ExprKind::Index { indices, .. } => indices
+            .iter()
+            .any(|i| matches!(i.kind, ExprKind::Range { .. })),
         ExprKind::Column { index, .. } | ExprKind::Row { index, .. } => {
             matches!(index.kind, ExprKind::Range { .. })
         }
         _ => false,
     };
-    CodegenError::new(if ranged { RANGE_IN_TARGET } else { INVALID_TARGET }, span)
+    CodegenError::new(
+        if ranged {
+            RANGE_IN_TARGET
+        } else {
+            INVALID_TARGET
+        },
+        span,
+    )
 }
 
 /// The Julia for one region.
