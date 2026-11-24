@@ -15,7 +15,8 @@ import { GRID_PT, printableArea, snapToGrid } from "./geometry";
 export const WORKSHEET_LINE_PT = 15;
 
 /** A region as the line insertion needs it: its stored place in points (`page` 1-based). */
-export type LineRegion = { id: string; page: number; y: number };
+/** A region as the line commands move it; `h`, its height in points, when it is known. */
+export type LineRegion = { id: string; page: number; y: number; h?: number };
 
 /** A new stored place of a region (page 1-based, y in points). */
 export type FlowPlace = { id: string; page: number; y: number };
@@ -57,10 +58,12 @@ const EPS = 1e-6;
  * view (`margins.top` and the printable height) and the whole page in the draft view (0 and the page
  * height), where regions and the crosshair may sit in the margins.
  */
-function flowFrame(setup: PageSetup, view: "page" | "draft") {
+function flowFrame(setup: PageSetup, _view: "page" | "draft") {
+  // Both views flow through the printable area: the margins are never filled by moving lines,
+  // so what is moved past the bottom margin continues on the next page in the draft view too.
   const area = printableArea(setup);
-  const origin = view === "page" ? area.top : 0;
-  const stride = view === "page" ? area.height : setup.height;
+  const origin = area.top;
+  const stride = area.height;
   return {
     origin,
     stride,
@@ -101,10 +104,46 @@ export function shiftFlow(
   // A zero shift moves nothing at all: a page break on the bottom margin only marks the page, and
   // snapping the regions there would quietly tidy them onto the grid.
   if (amount === 0) return { moves: [], at: { page: Math.max(1, Math.round(at.page)), y: snapToGrid(at.y) } };
+  const area = printableArea(setup);
+  // A region wholly in a margin is there on purpose and stays; one that only reaches into a margin
+  // flows with the rest, or the content below would pass it.
+  const inMargin = (region: LineRegion) =>
+    region.y > area.bottom - EPS || (region.y < area.top - EPS && region.y + (region.h ?? 0) <= area.top + EPS);
+  const moving = regions
+    .filter((region) => !inMargin(region) && flowOf(region.page, region.y) >= insertion - EPS)
+    .sort((a, b) => flowOf(a.page, a.y) - flowOf(b.page, b.y));
   const moves: FlowPlace[] = [];
-  for (const region of regions) {
-    if (flowOf(region.page, region.y) < insertion - EPS) continue;
-    moves.push({ id: region.id, ...placeOf(flowOf(region.page, region.y) + amount) });
+  // How far the content after a region that jumped to the next page goes on with it.
+  let extra = 0;
+  for (const region of moving) {
+    let offset = flowOf(region.page, region.y) + amount + extra;
+    let place = placeOf(offset);
+    // A region that would reach into the bottom margin never does, unless it is taller than a
+    // page and has to start at a top anyway.
+    const h = region.h ?? 0;
+    if (h > 0 && h <= area.height + EPS && place.y + h > area.bottom + EPS && place.y > area.top + EPS) {
+      const original = flowOf(region.page, region.y);
+      if (amount >= 0) {
+        // Pushed down, it continues whole on the next page, and what follows keeps its distance.
+        const next = place.page * area.height;
+        extra += next - offset;
+        offset = next;
+      } else {
+        // Pulled up past the top of its page, it goes on up onto the page above, as low as it fits
+        // whole (its bottom on the bottom margin), even above the crosshair: from there it is no
+        // longer below the crosshair and stops. What follows it only moves by the line.
+        const lowest = (place.page - 1) * area.height + Math.floor((area.bottom - h - area.top) / GRID_PT + EPS) * GRID_PT;
+        if (lowest < original - EPS) {
+          offset = lowest;
+        } else {
+          // No place above where it was: it stays, and what follows stays below it.
+          extra += original - offset;
+          offset = original;
+        }
+      }
+      place = placeOf(offset);
+    }
+    moves.push({ id: region.id, ...place });
   }
   return { moves, at: placeOf(insertion + amount) };
 }
@@ -122,6 +161,39 @@ export function insertWorksheetLine(
 ): LineInsertion {
   const shifted = shiftFlow(setup, regions, at, WORKSHEET_LINE_PT, view);
   return { moves: shifted.moves, crosshair: shifted.at };
+}
+
+/**
+ * `count` worksheet lines inserted one after the other, as `count` presses of Enter: each line goes
+ * where the crosshair moved to after the previous one. One set of moves, the final places.
+ */
+export function insertWorksheetLines(
+  setup: PageSetup,
+  regions: readonly LineRegion[],
+  at: { page: number; y: number },
+  count: number,
+  view: "page" | "draft" = "page",
+): LineInsertion {
+  return repeatInsertion(regions, at, count, (current, point) => insertWorksheetLine(setup, current, point, view));
+}
+
+/** Applies `step` `count` times, each on the places the previous step left, and merges the moves. */
+function repeatInsertion(
+  regions: readonly LineRegion[],
+  at: { page: number; y: number },
+  count: number,
+  step: (regions: readonly LineRegion[], at: { page: number; y: number }) => LineInsertion,
+): LineInsertion {
+  let current = regions;
+  let point = at;
+  const moved = new Map<string, FlowPlace>();
+  for (let i = 0; i < Math.max(1, count); i++) {
+    const insertion = step(current, point);
+    for (const move of insertion.moves) moved.set(move.id, move);
+    current = current.map((region) => moved.get(region.id) ?? region);
+    point = insertion.crosshair;
+  }
+  return { moves: [...moved.values()], crosshair: point };
 }
 
 /**
@@ -253,9 +325,14 @@ export function insertWorksheetLineInArea(
   area: LineArea,
   at: { page: number; y: number },
   view: "page" | "draft" = "page",
+  count = 1,
 ): LineInsertion & { area: AreaChange } {
-  const shifted = shiftFlow(setup, regions, at, WORKSHEET_LINE_PT, view);
-  return { moves: shifted.moves, crosshair: shifted.at, area: { id: area.id, height: area.height + WORKSHEET_LINE_PT } };
+  const lines = Math.max(1, count);
+  const insertion = repeatInsertion(regions, at, lines, (current, point) => {
+    const shifted = shiftFlow(setup, current, point, WORKSHEET_LINE_PT, view);
+    return { moves: shifted.moves, crosshair: shifted.at };
+  });
+  return { ...insertion, area: { id: area.id, height: area.height + lines * WORKSHEET_LINE_PT } };
 }
 
 /**

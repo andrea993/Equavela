@@ -2725,3 +2725,31 @@ fn constraints_on_one_unknown_are_also_its_bounds() {
         "{code}"
     );
 }
+
+#[test]
+fn a_formula_with_a_space_is_for_writing_only() {
+    let generated = code("y := a ␣ b");
+    assert!(generated.contains("for writing only"), "{generated}");
+}
+
+#[test]
+fn a_range_on_the_left_side_is_named_in_the_error_of_its_region() {
+    for src in ["v[0..3] := [1; 2; 3; 4]", "M⟨0..1⟩ := [1; 2]"] {
+        let region = regions(&[src]).remove(0);
+        let generated = format!("{region:?}");
+        assert!(
+            generated.contains("A range is not allowed on the left side of a definition."),
+            "{src}: {generated}"
+        );
+    }
+}
+
+#[test]
+fn a_definition_whose_left_side_cannot_be_defined_is_an_error_of_its_region() {
+    let region = regions(&["x + 1 := 3"]).remove(0);
+    let generated = format!("{region:?}");
+    assert!(
+        generated.contains("The left side of a definition must be a name"),
+        "{generated}"
+    );
+}

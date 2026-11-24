@@ -1179,6 +1179,7 @@ export const S = {
     insert: "Insert",
     cancel: "Cancel",
     rejected: (message: string) => `The math was not accepted: ${message}. Fix it, or press Esc to discard the changes and leave`,
+    notStored: (message: string) => `The change could not be stored and was undone: ${message}`,
     textRejected: (message: string) => `The text was not accepted: ${message}. Fix it, or press Esc to discard the changes and leave`,
     notAvailable: "This command is not available yet.",
     autocomplete: {

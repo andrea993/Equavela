@@ -1,4 +1,4 @@
-// The user manual is the submodule the specification: its built site is served at /manual/
+// The user manual is the submodule at docs/manual: its built site is served at /manual/
 // by the dev server and copied into the build, so the app opens it offline. Plain JavaScript,
 // because the frontend's TypeScript configuration has no Node types.
 import fs from "node:fs";

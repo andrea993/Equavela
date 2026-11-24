@@ -34,8 +34,8 @@ It brings live mathematics, explanatory text, physical units, matrices, and visu
 ### Building from Source
 
 ```bash
-# Clone the repository
-git clone https://github.com/andrea993/Equavela.git
+# Clone the repository with the user manual (submodule docs/manual)
+git clone --recurse-submodules https://github.com/andrea993/Equavela.git
 cd Equavela
 
 # Install frontend dependencies

@@ -7,7 +7,7 @@ import { charKey, ctrl, named, typed, type LayoutId } from "../keymap/testKeys";
 import { handleKey } from "./controller";
 import { breakWires, focusAt, initialState, insertMatrixSized, loneNameText, insertSymbolicKeyword, placeCaret, runCommand, selectedNode, selectRange, typeCharacter, typeText, type EditorState } from "./model";
 import { sameCursor } from "../text/InlineMath";
-import { childRefs, get, ident, isEmptyStatement, leafPaths, withDrawnParens, drawnParenPath, remapIntegralBoundHit, set, sexpr, type Node, toEditing, toWire, withIntegralBoundSlots, WireError } from "./tree";
+import { BIG_OPS, childRefs, get, ident, isEmptyStatement, leafPaths, withDrawnParens, drawnParenPath, remapIntegralBoundHit, set, sexpr, type Node, toEditing, toWire, withIntegralBoundSlots } from "./tree";
 
 type Chords = Record<string, KeyInput>;
 
@@ -399,6 +399,29 @@ describe.each(["en-US", "it-IT"] as const)("editor on %s", (layout) => {
     expect(ast(typeText(initialState(), "aℜ"))).toBe("a");
     // The convolution and gradient glyphs are operators too.
     for (const glyph of ["∗", "⊛", "∇", "∠"]) expect(ast(typeText(initialState(), `a${glyph}`))).toBe("a");
+  });
+
+  it("a + typed after the body of a derivative reads outside it, as the text does", () => {
+    const TAB = { key: "Tab", code: "Tab" };
+    const keys = (state: EditorState, text: string) =>
+      [...text].reduce((s, ch) => handleKey(s, { key: ch, code: "" }).state, state);
+    const derivative = (state: EditorState) => handleKey(keys(runCommand(state, "deriv"), "t"), TAB).state;
+    // d/dt Ia + d/dt Ib: two derivatives added.
+    let s = keys(derivative(initialState()), "Ia+");
+    s = keys(derivative(s), "Ib");
+    expect(ast(s)).toBe("(+ (ⅆ t Ia) (ⅆ t Ib))");
+    // A product stays in the body, as in `ⅆ[t] a·b`.
+    expect(ast(keys(derivative(initialState()), "a*b"))).toBe("(ⅆ t (· a b))");
+    // A sum in the body is written in parentheses.
+    expect(ast(keys(derivative(initialState()), "(a+b"))).toBe("(ⅆ t (paren (+ a b)))");
+  });
+
+  it("Ctrl+Space puts a blank space between two parts of a formula", () => {
+    const s = run(layout, [t("a"), { key: " ", code: "Space", ctrlKey: true }, t("b")]);
+    expect(ast(s)).toBe("(␣ a b)");
+    // It binds as loosely as or: what is on each side stays whole.
+    const wide = run(layout, [t("x+1"), { key: " ", code: "Space", ctrlKey: true }, t("y")]);
+    expect(ast(wide)).toBe("(␣ (+ x 1) y)");
   });
 
   it("An apostrophe joins a name after its first character", () => {
@@ -1662,6 +1685,12 @@ describe.each(["en-US", "it-IT"] as const)("editor on %s", (layout) => {
         if (expr === power && i === 0) rightEdit = plus(a, { ...power, left: empty() });
         if (expr === index && i === 0) rightEdit = plus(a, { ...index, base: empty() });
         if ((expr === call && i === 0) || expr.type === "Neg") rightEdit = plus(expr, empty());
+        // The body of a big operator is a product: an operator typed at either edge of it reads
+        // outside, as the same text does (`ⅆ[x] □ + b`, `ⅆ[x] b + □`).
+        if (BIG_OPS.has(expr.type) && i === childRefs(expr).findIndex((ref) => ref.length === 1 && ref[0] === "body")) {
+          leftEdit = plus({ ...expr, body: empty() }, value);
+          rightEdit = plus(expr, empty());
+        }
         const binaryGap = (expr === fraction || expr === power) ? juxt(juxt(a, empty()), b) : null;
         const mergedCall = { ...call, args: [{ type: "Expr", expr: ident("bc") }] };
         const back = left && unwrap && i === 0 ? a
@@ -2267,9 +2296,12 @@ describe("clicks and the wire form", () => {
     expect(back.expr.bounds.glyph).toBe("define");
   });
 
-  it("rejects an incomplete definition with a user message", () => {
+  it("keeps a definition whose left side cannot be defined, as written", () => {
     const s = run("en-US", [typed("a+b:", "en-US")]);
-    expect(() => toWire(s.root)).toThrow(WireError);
+    const wire = toWire(s.root) as { type: string; target: { type: string; expr: { type: string } } };
+    expect(wire.type).toBe("Define");
+    expect(wire.target.type).toBe("Invalid");
+    expect(wire.target.expr.type).toBe("Add");
     expect(isEmptyStatement(initialState().root)).toBe(true);
   });
 });

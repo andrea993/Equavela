@@ -144,6 +144,7 @@ export function paletteSections(kind: PaletteKind, prefix = ""): PaletteSection[
         ]),
         section("layout", "Expression layout", [
           command("( )", "Parentheses", "openParen", "brackets"), command(",", "Comma", "comma", "separator"),
+          command("a␣b", "Space (for writing only)", "gap", "blank gap quad spacing"),
           command("+↵", "Addition with equation break", "addBreak"),
           command("−↵", "Subtraction with equation break", "subBreak"),
           command("·↵", "Multiplication with equation break", "mulBreak"),

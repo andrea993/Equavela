@@ -421,6 +421,7 @@ fn load_reference(
 fn defined_names(kind: &StatementKind, names: &mut BTreeSet<String>) {
     fn target(kind: &TargetKind, names: &mut BTreeSet<String>) {
         match kind {
+            TargetKind::Invalid { .. } => {}
             TargetKind::Ident { name } => {
                 names.insert(segments_key(&name.segments));
             }

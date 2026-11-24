@@ -466,6 +466,12 @@ pub enum ExprKind {
         left: Box<Expr>,
         right: Box<Expr>,
     },
+    /// `a ␣ b`: a blank space between two parts of a formula, for writing only (`∀ ␣ θ`); a
+    /// region that holds one is not evaluated.
+    Gap {
+        left: Box<Expr>,
+        right: Box<Expr>,
+    },
 
     /// `√x` (index `None`) or `√[n](x)`.
     Root {
@@ -626,10 +632,11 @@ pub enum BinaryOp {
     And,
     Or,
     Xor,
+    Gap,
 }
 
 impl BinaryOp {
-    pub const ALL: [BinaryOp; 21] = [
+    pub const ALL: [BinaryOp; 22] = [
         BinaryOp::Add,
         BinaryOp::Sub,
         BinaryOp::Mul,
@@ -651,6 +658,7 @@ impl BinaryOp {
         BinaryOp::And,
         BinaryOp::Or,
         BinaryOp::Xor,
+        BinaryOp::Gap,
     ];
 
     /// Operators that may carry an equation break (N8).
@@ -728,6 +736,7 @@ impl ExprKind {
             BinaryOp::And => K::And { left, right },
             BinaryOp::Or => K::Or { left, right },
             BinaryOp::Xor => K::Xor { left, right },
+            BinaryOp::Gap => K::Gap { left, right },
         }
     }
 
@@ -797,6 +806,7 @@ impl ExprKind {
             K::And { left, right } => (BinaryOp::And, left, right, false),
             K::Or { left, right } => (BinaryOp::Or, left, right, false),
             K::Xor { left, right } => (BinaryOp::Xor, left, right, false),
+            K::Gap { left, right } => (BinaryOp::Gap, left, right, false),
             _ => return None,
         })
     }
@@ -825,6 +835,7 @@ impl ExprKind {
             K::And { left, right } => (BinaryOp::And, left, right),
             K::Or { left, right } => (BinaryOp::Or, left, right),
             K::Xor { left, right } => (BinaryOp::Xor, left, right),
+            K::Gap { left, right } => (BinaryOp::Gap, left, right),
             _ => return None,
         })
     }
@@ -884,6 +895,7 @@ impl Target {
             TargetKind::FunctionHead { name, params } => {
                 empty(&name.name) || params.iter().any(|p| empty(&p.name))
             }
+            TargetKind::Invalid { .. } => false,
         }
     }
 }
@@ -924,6 +936,11 @@ pub enum TargetKind {
     FunctionHead {
         name: Ident,
         params: Vec<Ident>,
+    },
+    /// A left side of `:=` or `≡` that cannot be defined (`a ␣ b := 1`, `x + 1 := 3`): kept as
+    /// written, so the region is stored and shown, and its calculation is an error.
+    Invalid {
+        expr: Box<Expr>,
     },
 }
 

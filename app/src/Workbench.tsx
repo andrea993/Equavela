@@ -440,6 +440,11 @@ export default function Workbench({ backend }: { backend: Backend }) {
   const crosshairHold = useRef<{ direction: Direction; repeats: number } | null>(null);
   const replayQueue = useRef<KeyboardEvent[]>([]);
   const replayed = useRef(new WeakSet<Event>());
+  // The action a key press started while it is still running: a held key's repeats wait for it.
+  const repeatBusy = useRef<Promise<unknown> | null>(null);
+  // Repeats of a held Enter on the sheet that came while a line insertion was running: inserted
+  // together as soon as it ends, so the sheet keeps pace with the key.
+  const pendingLines = useRef(0);
   // Keys still queued for replay when the window goes away are dropped: replaying them later would send
   // them to whatever listens on `window` then (another worksheet view, the next test).
   const mounted = useRef(true);
@@ -2008,6 +2013,16 @@ export default function Workbench({ backend }: { backend: Backend }) {
   // Every key goes through the keymap: to the math editor while a region is edited,
   // otherwise to the sheet (a printable character starts a math region at the crosshair).
   useEffect(() => {
+    const busy = (action: Promise<unknown>) => {
+      const tracked: Promise<unknown> = action.finally(() => {
+        if (repeatBusy.current !== tracked) return;
+        repeatBusy.current = null;
+        const lines = pendingLines.current;
+        pendingLines.current = 0;
+        if (lines > 0) busy(actions.insertLine(lines));
+      });
+      repeatBusy.current = tracked;
+    };
     const onKey = (event: KeyboardEvent) => {
       if ((event.target as HTMLElement | null)?.closest?.(".terminal-host")) return;
       if (event.key === "Escape" && event.defaultPrevented) return;
@@ -2031,6 +2046,20 @@ export default function Workbench({ backend }: { backend: Backend }) {
         if (action?.kind === "command" && FIELD_COMMANDS.has(action.cmd)) {
           event.preventDefault();
           void windowCommand(action.cmd);
+        }
+        return;
+      }
+      // A held key repeats faster than an edit reaches the backend and is drawn: a repeat is dropped
+      // while the action of the previous press is still running, so the key acts for as long as it
+      // is held and stops when it is released, instead of working through a backlog of repeats.
+      if (event.repeat && repeatBusy.current) {
+        event.preventDefault();
+        // A held Enter on the sheet counts its repeats instead: they become one insertion of that
+        // many lines when the running one ends, so it is as fast as the key and stops with it.
+        const onSheet = !(editing && editing.docId === active?.id);
+        const sheetAction = onSheet ? resolve(fromDom(event), "sheet") : null;
+        if (sheetAction?.kind === "command" && sheetAction.cmd === "insertLine") {
+          pendingLines.current += 1;
         }
         return;
       }
@@ -2093,7 +2122,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
         // Backspace or Delete on an empty expression removes the region (a new one is simply dropped).
         if ((event.key === "Backspace" || event.key === "Delete") && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && isEmptyStatement(editor.root)) {
           event.preventDefault();
-          void actions.commitEdit();
+          busy(actions.commitEdit());
           return;
         }
         // a Space after one plain word in a new region makes a text box of the word.
@@ -2111,13 +2140,13 @@ export default function Workbench({ backend }: { backend: Backend }) {
         const arrow = ARROW_DIRECTIONS[event.key];
         if (arrow && !event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && result.handled && sameCursor(editor, result.state)) {
           event.preventDefault();
-          void actions.leaveEditing(arrow);
+          busy(actions.leaveEditing(arrow));
           return;
         }
         // Ctrl+Z with nothing to undo in a region the paste opened undoes the paste.
         if (result.action?.kind === "command" && result.action.cmd === "undo" && editor.past.length === 0 && editing.pasted) {
           event.preventDefault();
-          void windowCommand("undo");
+          busy(windowCommand("undo"));
           return;
         }
         const isPaste = result.action?.kind === "command" && result.action.cmd === "paste";
@@ -2128,7 +2157,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
           actions.updateEditor(result.state);
         }
         else if (result.action?.kind === "command") {
-          void windowCommand(result.action.cmd, isPaste ? readClipboardFromGesture() : undefined);
+          busy(windowCommand(result.action.cmd, isPaste ? readClipboardFromGesture() : undefined));
         }
         return;
       }
@@ -2140,12 +2169,12 @@ export default function Workbench({ backend }: { backend: Backend }) {
           const math = resolve(ev, "math");
           if (math && math.kind === "command" && math.cmd !== "insertSearch") {
             event.preventDefault();
-            void actions.beginNew().then((editor) => {
+            busy(actions.beginNew().then((editor) => {
               if (!editor) return;
               const next = handleKey(editor, ev).state;
               liveEditor.current = next;
               actions.updateEditor(next);
-            });
+            }));
           }
         }
         return;
@@ -2161,19 +2190,19 @@ export default function Workbench({ backend }: { backend: Backend }) {
         return;
       }
       if (action.kind === "command" && action.cmd === "paste") {
-        void windowCommand("paste", readClipboardFromGesture());
+        busy(windowCommand("paste", readClipboardFromGesture()));
         return;
       }
       event.preventDefault();
       if (action.kind === "char") {
-        void actions.beginNew().then((editor) => {
+        busy(actions.beginNew().then((editor) => {
           if (!editor) return;
           const next = handleKey(editor, ev).state;
           liveEditor.current = next;
           actions.updateEditor(next);
-        });
+        }));
       } else {
-        void windowCommand(action.cmd);
+        busy(windowCommand(action.cmd));
       }
     };
     window.addEventListener("keydown", onKey);

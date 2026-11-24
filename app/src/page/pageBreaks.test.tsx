@@ -172,6 +172,30 @@ describe("Add Space and Remove Space", () => {
     expect(crosshair()).toBeLessThanOrEqual(top("m1"));
   });
 
+  it("a held Enter keeps pace with the key and stops when it is released", async () => {
+    const backend = createMockBackend();
+    const moveRegions = vi.spyOn(backend, "moveRegions");
+    render(<App backend={backend} />);
+    await waitFor(() => expect(region("m1")).not.toBeNull());
+    await clickAboveTheMath();
+    const before = top("m1");
+    moveRegions.mockClear();
+    // One press and twenty auto-repeats, all before the first move has reached the backend.
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "Enter", code: "Enter" });
+      for (let i = 0; i < 20; i++) fireEvent.keyDown(window, { key: "Enter", code: "Enter", repeat: true });
+    });
+    // Every repeat counts, but the twenty that came during the first move go in one move.
+    await waitFor(() => expect(top("m1")).toBe(before + 21 * ptToPx(WORKSHEET_LINE_PT)), { timeout: 5000 });
+    // Two moves: the first line, then the twenty repeats together.
+    const moves = () => new Set(moveRegions.mock.calls.map((call) => JSON.stringify(call[1]))).size;
+    expect(moves()).toBe(2);
+    // Released: nothing is left to do.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(top("m1")).toBe(before + 21 * ptToPx(WORKSHEET_LINE_PT));
+    expect(moves()).toBe(2);
+  });
+
   it("Remove Space closes one line of the blank space below the caret line", async () => {
     await openDemo();
     await clickAboveTheMath();

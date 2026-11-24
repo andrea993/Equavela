@@ -28,9 +28,13 @@ regions:
         s ← 0
   - id: r5
     page: 1
+    at: [35.43, 320.43]
+    math: "1 := 2"
+  - id: r6
+    page: 1
     at: [35.43, 440.43]
     math: "ok"
-  - id: r6
+  - id: r7
     page: 1
     at: [35.43, 500.43]
     text:

@@ -1281,6 +1281,7 @@ fn statement_defined_names(statement: &Statement, names: &mut HashSet<Name>) {
 
 fn target_names(target: &Target) -> Vec<(Name, Label)> {
     match &target.kind {
+        TargetKind::Invalid { .. } => Vec::new(),
         TargetKind::Ident { name } => vec![(name.clone(), Label::Var)],
         TargetKind::FunctionHead { name, .. } => vec![(name.name.clone(), Label::Fn)],
         TargetKind::Paren { target }

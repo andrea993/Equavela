@@ -180,7 +180,12 @@ fn empty_quoted_name() {
 
 #[test]
 fn invalid_definition_target() {
-    check("2 := x", 1, 3, "invalid left side of a definition");
+    // Kept as written: the calculation of the region reports the left side.
+    let statement = parse_statement("2 := x").expect("an invalid left side still parses");
+    assert!(
+        format!("{statement:?}").contains("Invalid"),
+        "{statement:?}"
+    );
 }
 
 #[test]
@@ -284,7 +289,11 @@ fn a_bad_local_definition_target_is_reported() {
 /// the statement is reported as a bad definition target and not silently accepted.
 #[test]
 fn a_nested_destructuring_cell_must_be_a_target() {
-    check("[[1, 2]] := v", 1, 10, "invalid left side of a definition");
+    let statement = parse_statement("[[1, 2]] := v").expect("an invalid left side still parses");
+    assert!(
+        format!("{statement:?}").contains("Invalid"),
+        "{statement:?}"
+    );
     let e = parse_statement("S(M) := program\n  [[f(x)]] ← M").unwrap_err();
     assert!(e.message.contains("invalid target of `←`"), "{e:?}");
     assert_eq!(e.line, 2);

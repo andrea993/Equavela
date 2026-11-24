@@ -1,4 +1,4 @@
-total 17 imported 6 page-breaks 0
+total 17 imported 7 page-breaks 0
 issue inline-math-not-placed 0 the number of inline math regions differs from the math slots in the text; none was placed
 issue picture-not-imported 0 an image inside the text is not imported
 issue plot-not-imported 2 `empty` plots are not imported
@@ -7,7 +7,6 @@ issue picture-not-imported 6 the image part is missing or unreadable
 issue ole-not-imported 7 OLE objects are not imported
 issue table-not-imported 8 tables are not imported
 issue region-unknown 9 unknown region content `gadget`
-issue math-unparsable 11 `1 := 2` is not valid worksheet math: line 1, column 3: invalid left side of a definition (expected a name, an indexed name, a destructuring matrix or a function head)
 issue matrix-size-mismatch 12 a matrix has a different number of elements than rows times columns
 issue math-empty 13 the math region is empty
 issue text-unreadable 14 the text part of the region is missing or unreadable

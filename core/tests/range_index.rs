@@ -81,18 +81,18 @@ fn a_range_may_be_a_function_argument() {
 }
 
 #[test]
-fn a_range_in_an_assignment_target_is_refused() {
+fn a_range_in_an_assignment_target_is_an_invalid_left_side() {
+    // The region is kept as written; its calculation names the range (codegen tests).
     for src in [
         "v[0..3] := [1; 2; 3; 4]",
         "M⟪0..1⟫ := [1, 2]",
         "M⟨0..1⟩ := [1; 2]",
     ] {
-        let error = parse_statement(src).unwrap_err();
+        let statement = parse_statement(src).unwrap_or_else(|e| panic!("{src}: {e}"));
         assert!(
-            error
-                .to_string()
-                .contains("a range is not allowed in an assignment target"),
-            "{src}: {error}"
+            sx_statement(&statement).contains("invalid"),
+            "{src}: {}",
+            sx_statement(&statement)
         );
     }
 }

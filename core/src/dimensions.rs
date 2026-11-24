@@ -699,7 +699,7 @@ impl<'a> Analyzer<'a> {
                 );
                 scalar_dimensionless()
             }
-            K::And { left, right } | K::Or { left, right } | K::Xor { left, right } => {
+            K::And { left, right } | K::Or { left, right } | K::Xor { left, right } | K::Gap { left, right } => {
                 for operand in [left.as_ref(), right.as_ref()] {
                     let fact = self.infer_expr(region_id, operand, locals, call_stack);
                     self.expect_dimensionless(
@@ -1387,6 +1387,7 @@ fn determinant_dimension(fact: DimensionFact) -> DimensionFact {
 
 fn target_facts(target: &Target, fact: &DimensionFact) -> Vec<(Name, DimensionFact)> {
     match &target.kind {
+        TargetKind::Invalid { .. } => Vec::new(),
         TargetKind::Ident { name } => vec![(name.clone(), fact.clone())],
         TargetKind::Paren { target } => target_facts(target, fact),
         // The transpose of the value: its shape is not followed.

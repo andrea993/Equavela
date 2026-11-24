@@ -19,6 +19,8 @@ export const GLYPH = {
   and: "∧",
   or: "∨",
   xor: "⊕",
+  /** A blank space between two parts of a formula: drawn empty; `␣` in the text. */
+  gap: "\u2002",
   not: "¬",
   minus: "−",
   times: "·",
@@ -74,6 +76,7 @@ export function level(type: string): number {
   switch (type) {
     case "Or":
     case "Xor":
+    case "Gap":
       return 3;
     case "And":
       return 4;
