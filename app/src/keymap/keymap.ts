@@ -177,15 +177,17 @@ export function resolve(ev: KeyInput, ctx: KeyContext): Action | null {
 }
 
 /**
- * The shortcut of `cmd`, for tooltips and the command palette: the US Ctrl combination, else the
- * character that triggers it in a math region, else a named key (`F5`, `Ctrl+Shift+Enter`). Null
- * when the command has none.
+ * The shortcut of `cmd`, for tooltips and the command palette: its US Ctrl combinations, every one
+ * of them joined with " or " (a command may have a letter chord beside a chord the system takes),
+ * else the character that triggers it in a math region, else a named key (`F5`,
+ * `Ctrl+Shift+Enter`). Null when the command has none.
  */
 export function shortcutLabel(cmd: string): string | null {
-  const shared = KEYMAP.keys.find((b) => b.code && b.cmd === cmd);
-  if (shared) return namedShortcutLabel(shared);
-  const chord = KEYMAP.ctrl.find((b) => b.cmd === cmd);
-  if (chord) return chord.label;
+  const chords = [
+    ...KEYMAP.keys.filter((b) => b.code && b.cmd === cmd).map(namedShortcutLabel),
+    ...KEYMAP.ctrl.filter((b) => b.cmd === cmd).map((b) => b.label),
+  ];
+  if (chords.length > 0) return [...new Set(chords)].join(" or ");
   const char = Object.entries(KEYMAP.chars).find(([, command]) => command === cmd);
   if (char) return char[0];
   const key = KEYMAP.keys.find((b) => b.cmd === cmd);
