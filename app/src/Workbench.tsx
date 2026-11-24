@@ -50,7 +50,7 @@ import {
 import { calculationSettingEdits, calculationSettingsOf, clearCalculationSettings } from "./calculation/settings";
 import { clearLabelStyle, labelStyleEdits, labelStylesOf } from "./math/labels";
 import { guardWindowClose, type CloseGuard } from "./windowClose";
-import { kernelOf, useWorkbench, type DocState, type MathHit } from "./workbench/useWorkbench";
+import { activityOf, kernelOf, useWorkbench, type DocState, type MathHit } from "./workbench/useWorkbench";
 import { runningRegionOf } from "./workbench/runningRegion";
 import type { Inspection, RegionEntry, RegionKey, ViewRegion } from "./equavelaApi";
 import SidePanel, { PANEL_TABS, type PanelTab } from "./components/SidePanel";
@@ -2631,7 +2631,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
         onCopyPath={(path) => void writeClipboard(path)}
         moduleNames={moduleNames}
         />
-      <EngineStartNotice kernel={kernelOf(state, active)} />
+      <EngineStartNotice kernel={kernelOf(state, active)} activity={activityOf(state, active)} />
       {state.message && <MessageBar text={state.message} level={state.messageLevel} onDismiss={actions.dismissMessage} />}
       {contextMenu && (
         <ContextMenu

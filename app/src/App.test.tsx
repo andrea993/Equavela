@@ -69,6 +69,22 @@ describe("first-run progress notice", () => {
     expect(screen.queryByTestId("engine-notice")).toBeNull();
   });
 
+  it("asks to wait while a running kernel installs, compiles or prepares the symbolic engine", () => {
+    vi.useFakeTimers();
+    const view = render(<EngineStartNotice kernel={ready} activity={{ kind: "packages", message: null }} />);
+    act(() => void vi.advanceTimersByTime(3000));
+    expect(screen.getByTestId("engine-notice").textContent).toContain("Installing Julia packages… 3 s");
+    view.rerender(<EngineStartNotice kernel={ready} activity={{ kind: "compiling", message: "Plots, DataFrames" }} />);
+    act(() => void vi.advanceTimersByTime(1000));
+    expect(screen.getByTestId("engine-notice").textContent).toContain("Compiling Julia packages… 1 s");
+    expect(screen.getByTestId("engine-notice").textContent).toContain("compiling Plots, DataFrames the first time");
+    view.rerender(<EngineStartNotice kernel={ready} activity={{ kind: "symbolic", message: null }} />);
+    act(() => void vi.advanceTimersByTime(2000));
+    expect(screen.getByTestId("engine-notice").textContent).toContain("Preparing the symbolic engine… 2 s");
+    view.rerender(<EngineStartNotice kernel={ready} activity={null} />);
+    expect(screen.queryByTestId("engine-notice")).toBeNull();
+  });
+
   it("a fast start never shows it, and a crash removes it", () => {
     vi.useFakeTimers();
     const view = render(<EngineStartNotice kernel={{ status: "starting" }} />);

@@ -324,6 +324,19 @@ function terminal_prepare_request(params, context)
     return result
 end
 
+"""The packages a worksheet loads that are neither loaded nor precompiled: loading them compiles them."""
+function _packages_to_compile(packages)
+    names = String[]
+    for name in packages
+        Base.isidentifier(name) || continue
+        id = Base.identify_package(String(name))
+        id === nothing && continue
+        haskey(Base.loaded_modules, id) && continue
+        Base.isprecompiled(id) || push!(names, String(name))
+    end
+    return names
+end
+
 function _import_package(mod::Module, name::AbstractString)
     entry = Dict{String,Any}("name" => String(name), "error" => nothing)
     try
@@ -459,6 +472,8 @@ function evaluate_request(params, context)
                 environment_result["error"] = sprint(showerror, exception)
             end
         end
+        compiling = _packages_to_compile(packages)
+        isempty(compiling) || activity!(context, "compiling"; message=join(compiling, ", "))
         package_results = [_import_package(mod, package) for package in packages]
         module_results = [_include_module(mod, path) for path in modules]
         descriptors = Dict{String,Any}[]
@@ -671,6 +686,7 @@ function install_packages_request(params, context)
     names = String[String(p) for p in packages]
     log = IOBuffer()
     try
+        activity!(context, "packages")
         Pkg = Base.require(PKG_ID)
         Base.invokelatest(_install_in, Pkg, dir, names, log)
         use_environment(dir)
@@ -725,6 +741,7 @@ function develop_packages_request(params, context)
     end
     log = IOBuffer()
     try
+        activity!(context, "packages")
         Pkg = Base.require(PKG_ID)
         Base.invokelatest(_develop_in, Pkg, dir, folders, log)
     catch exception
@@ -770,6 +787,7 @@ function remove_packages_request(params, context)
     names = String[String(p) for p in packages]
     log = IOBuffer()
     try
+        activity!(context, "packages")
         Pkg = Base.require(PKG_ID)
         Base.invokelatest(_remove_in, Pkg, dir, names, log)
     catch exception
@@ -817,6 +835,7 @@ function manage_environment_request(params, context)
         throw(KernelFailure(-32602, "environment directory has no Project.toml: $dir"))
     log = IOBuffer()
     try
+        activity!(context, "packages")
         Pkg = Base.require(PKG_ID)
         Base.invokelatest(_manage_environment_in, Pkg, dir, String(operation), log)
     catch exception
@@ -884,6 +903,7 @@ function set_compatibility_request(params, context)
         throw(KernelFailure(-32602, "environment directory has no Project.toml: $dir"))
     log = IOBuffer()
     try
+        activity!(context, "packages")
         Pkg = Base.require(PKG_ID)
         Base.invokelatest(_set_compatibility_in, Pkg, dir, String(package), String(compatibility), log)
     catch exception

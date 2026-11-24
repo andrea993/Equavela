@@ -39,8 +39,8 @@ use serde_json::Value;
 
 use crate::codegen::GeneratedWorksheet;
 use crate::kernel::{
-    BinaryDescriptor, FrameHeader, ProgressParams, ProtocolError, RpcId, RpcMessage, INTERRUPTED,
-    PROTOCOL_VERSION,
+    ActivityParams, BinaryDescriptor, FrameHeader, ProgressParams, ProtocolError, RpcId,
+    RpcMessage, INTERRUPTED, PROTOCOL_VERSION,
 };
 use crate::kernel_interrupt::send_soft_interrupt;
 use crate::kernel_value::{KernelValue, ValueError};
@@ -320,6 +320,9 @@ struct Active {
 
 /// Supervises one kernel process. All methods take `&self`; requests are serialized, while
 /// [`interrupt_request`](Self::interrupt_request) may be called from another thread.
+/// Receives the slow work the kernel announces (`Some`) and its end (`None`).
+pub type ActivityObserver = Arc<dyn Fn(Option<&ActivityParams>) + Send + Sync>;
+
 pub struct KernelManager {
     config: KernelConfig,
     inner: Mutex<Inner>,
@@ -327,6 +330,7 @@ pub struct KernelManager {
     next_id: AtomicU64,
     generation: AtomicU64,
     terminal: Mutex<Option<Arc<Terminal>>>,
+    activity: Mutex<Option<ActivityObserver>>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -346,6 +350,20 @@ impl KernelManager {
             next_id: AtomicU64::new(1),
             generation: AtomicU64::new(0),
             terminal: Mutex::new(None),
+            activity: Mutex::new(None),
+        }
+    }
+
+    /// Sets who hears about the slow work of requests (`kernel/activity`): it is called with the
+    /// activity when the kernel announces one and with `None` when that request ends.
+    pub fn on_activity(&self, observer: ActivityObserver) {
+        *lock(&self.activity) = Some(observer);
+    }
+
+    fn announce_activity(&self, activity: Option<&ActivityParams>) {
+        let observer = lock(&self.activity).clone();
+        if let Some(observer) = observer {
+            observer(activity);
         }
     }
 
@@ -1074,8 +1092,12 @@ impl KernelManager {
             interrupted_at: None,
             timed_out: false,
         });
-        let outcome = self.wait_for_response(running, id, timeout, progress);
+        let mut announced = false;
+        let outcome = self.wait_for_response(running, id, timeout, progress, &mut announced);
         *lock(&self.active) = None;
+        if announced {
+            self.announce_activity(None);
+        }
         outcome
     }
 
@@ -1085,6 +1107,7 @@ impl KernelManager {
         id: &RpcId,
         timeout: Option<Duration>,
         progress: &mut dyn FnMut(&ProgressParams),
+        announced: &mut bool,
     ) -> Result<KernelResponse, (KernelError, bool)> {
         let deadline = timeout.map(|timeout| Instant::now() + timeout);
         loop {
@@ -1097,6 +1120,15 @@ impl KernelManager {
                             }) {
                                 if params.request_id == *id {
                                     progress(&params);
+                                }
+                            }
+                        } else if notification.method == "kernel/activity" {
+                            if let Some(params) = notification.params.and_then(|value| {
+                                serde_json::from_value::<ActivityParams>(value).ok()
+                            }) {
+                                if params.request_id == *id {
+                                    *announced = true;
+                                    self.announce_activity(Some(&params));
                                 }
                             }
                         }
