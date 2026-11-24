@@ -29,7 +29,7 @@ It brings live mathematics, explanatory text, physical units, matrices, and visu
 
 - **Rust:** Stable toolchain (`rustup`)
 - **Node.js:** LTS with `pnpm`
-- **Julia:** Version 1.11+
+- **Julia:** Version 1.13 or later (via [juliaup](https://github.com/JuliaLang/juliaup))
 
 ### Building from Source
 

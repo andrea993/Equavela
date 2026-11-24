@@ -44,7 +44,7 @@ WAV = "1.2.0"
 XLSX = "0.13.3"
 XML = "0.4.8"
 ZipArchives = "2.6.1"
-julia = "1.11"
+julia = "1.13"
 
 [extras]
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"

@@ -1825,7 +1825,45 @@ function warm_up!()
     sp.limit(sp.sin(x) / x, x, 0)
     sp.factor(x^4 - 1)
     to_expr(ctx, sp.diff(expression, x))
+    # Whole requests of the usual shapes, so the Julia code of the request path (AST to SymPy,
+    # the keywords, SymPy to AST) is compiled before the first region asks for it.
+    for request in _warm_up_requests()
+        try
+            evaluate(request)
+        catch
+        end
+    end
     return nothing
+end
+
+function _warm_up_requests()
+    name(text) = Dict{String,Any}("segments" => Any[Dict{String,Any}("text" => text, "subscript" => false)], "label" => nothing)
+    var(text) = Dict{String,Any}("type" => "Ident", "name" => name(text))
+    num(text) = Dict{String,Any}("type" => "Num", "text" => text)
+    bin(kind, a, b) = Dict{String,Any}("type" => kind, "left" => a, "right" => b, "split" => false)
+    call(f, args...) = Dict{String,Any}("type" => "Call", "callee" => var(f),
+        "args" => Any[Dict{String,Any}("type" => "Expr", "expr" => a) for a in args])
+    keyword(k, args...) = Dict{String,Any}("keyword" => k, "args" => Any[args...])
+    request(e, keywords...; definitions=Any[]) =
+        Dict{String,Any}("expr" => e, "keywords" => Any[keywords...], "definitions" => definitions)
+    x = var("x")
+    poly = bin("Sub", bin("Add", bin("Pow", x, num("2")), bin("Mul", num("3"), x)), num("4"))
+    trig = bin("Mul", call("sin", x), bin("Div", num("1"), bin("Add", x, num("1.5"))))
+    f = Dict{String,Any}("name" => name("f"), "params" => Any[name("t")],
+        "body" => bin("Pow", var("t"), num("3")), "keywords" => Any[])
+    return [
+        request(poly),
+        request(poly, keyword("simplify")),
+        request(poly, keyword("expand")),
+        request(poly, keyword("factor")),
+        request(bin("Eq", poly, num("0")), keyword("solve", x)),
+        request(trig, keyword("substitute", bin("Eq", x, num("2"))), keyword("float", num("6"))),
+        request(call("exp", x), keyword("series", x, num("4"))),
+        request(Dict{String,Any}("type" => "Deriv", "var" => Dict{String,Any}("name" => name("x")), "order" => nothing, "body" => trig)),
+        request(Dict{String,Any}("type" => "Integral", "var" => Dict{String,Any}("name" => name("x")), "bounds" => nothing, "body" => poly)),
+        request(Dict{String,Any}("type" => "Matrix", "rows" => 2, "cols" => 2, "cells" => Any[x, num("1"), num("2"), x])),
+        request(call("f", x); definitions=Any[f]),
+    ]
 end
 
 _install_builtins!()
