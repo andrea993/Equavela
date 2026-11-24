@@ -161,7 +161,10 @@ end
 # ---- algorithms and options -----------------------------------------------------------------
 
 const FIND_ALGORITHMS = ("auto", "levenberg-marquardt", "trust-region", "newton")
-const OPTIMIZE_ALGORITHMS = ("auto", "slsqp", "mma", "ccsaq", "lbfgs", "cobyla", "nelder-mead", "penalty")
+const OPTIMIZE_ALGORITHMS = ("auto", "slsqp", "mma", "ccsaq", "lbfgs", "cobyla", "nelder-mead", "penalty",
+    "isres", "direct-l", "crs2", "mlsl")
+"The global algorithms: they search the whole box of the bounds, then a local one refines."
+const GLOBAL_ALGORITHMS = ("isres", "direct-l", "crs2", "mlsl")
 
 "The algorithm and the stopping rules of one solve (the region's `numeric` choices)."
 struct SolverOptions
@@ -360,15 +363,60 @@ function _nlopt_sides(constraints, unknowns, z)
 end
 
 const _NLOPT = Dict("slsqp" => :LD_SLSQP, "mma" => :LD_MMA, "ccsaq" => :LD_CCSAQ, "lbfgs" => :LD_LBFGS,
-    "cobyla" => :LN_COBYLA, "nelder-mead" => :LN_NELDERMEAD)
-const _TAKES_EQUATIONS = ("slsqp", "cobyla", "penalty")
-const _TAKES_INEQUALITIES = ("slsqp", "mma", "ccsaq", "cobyla", "penalty")
+    "cobyla" => :LN_COBYLA, "nelder-mead" => :LN_NELDERMEAD, "isres" => :GN_ISRES,
+    "direct-l" => :GN_DIRECT_L, "crs2" => :GN_CRS2_LM, "mlsl" => :G_MLSL_LDS)
+const _TAKES_EQUATIONS = ("slsqp", "cobyla", "penalty", "isres")
+const _TAKES_INEQUALITIES = ("slsqp", "mma", "ccsaq", "cobyla", "penalty", "isres")
+# The bound constraints (`x ≥ 0`) are bounds for these, so a block of bounds only takes them all.
 
-function _nlopt(objective, constraints, unknowns, z0, sign, algorithm, options::SolverOptions)
+"""
+The bounds of the flat unknowns from the `bounds` argument: per unknown `nothing` or the values
+that bound it (the tightest wins), in the unit of the guess. Missing bounds are infinite.
+"""
+function _flat_bounds(bounds, unknowns, name)
+    n = sum(k -> k.rows * k.cols, unknowns)
+    lower, upper = fill(-Inf, n), fill(Inf, n)
+    bounds === nothing && return lower, upper
+    lows, highs = bounds[1], bounds[2]
+    for (i, k) in enumerate(unknowns)
+        for (side, values, pick) in ((lower, lows[i], max), (upper, highs[i], min))
+            values === nothing && continue
+            for value in values
+                parts = value isa AbstractArray ? vec(collect(value)) : fill(value, k.rows * k.cols)
+                length(parts) == k.rows * k.cols || eqerror("$name: a bound has another size than its unknown")
+                for (j, b) in enumerate(parts)
+                    b = eqnum(b)
+                    b = if k.unit === nothing
+                        b isa Unitful.AbstractQuantity && eqerror("$name: a bound has a unit its unknown has not")
+                        b
+                    else
+                        b isa Unitful.AbstractQuantity || iszero(b) || eqerror("$name: a bound needs the unit of its unknown")
+                        b isa Unitful.AbstractQuantity ? ustrip(uconvert(k.unit, b)) : b
+                    end
+                    (b isa Real) || eqerror("$name: a bound must be a real number")
+                    side[k.offset+j] = pick(side[k.offset+j], Float64(b))
+                end
+            end
+        end
+    end
+    lower, upper
+end
+
+
+
+function _nlopt(objective, constraints, unknowns, z0, sign, algorithm, options::SolverOptions, lower, upper)
     n = length(z0)
     F = z -> sign * _objective(objective, unknowns, z)
     eq0, in0 = _nlopt_sides(constraints, unknowns, z0)
     opt = NLopt.Opt(_NLOPT[algorithm], n)
+    any(isfinite, lower) && NLopt.lower_bounds!(opt, lower)
+    any(isfinite, upper) && NLopt.upper_bounds!(opt, upper)
+    if algorithm == "mlsl"
+        local_opt = NLopt.Opt(:LD_LBFGS, n)
+        NLopt.xtol_rel!(local_opt, options.x_tolerance)
+        NLopt.ftol_rel!(local_opt, options.f_tolerance)
+        NLopt.local_optimizer!(opt, local_opt)
+    end
     NLopt.maxeval!(opt, options.max_evaluations)
     isfinite(options.max_time) && NLopt.maxtime!(opt, options.max_time)
     NLopt.xtol_rel!(opt, options.x_tolerance)
@@ -395,7 +443,7 @@ function _nlopt(objective, constraints, unknowns, z0, sign, algorithm, options::
             length(grad) > 0 && (grad .= transpose(solver_jacobian(cin, z, r, method)))
         end, fill(tolerance, length(in0)))
     end
-    _, z, reason = NLopt.optimize(opt, copy(z0))
+    _, z, reason = NLopt.optimize(opt, clamp.(z0, lower, upper))
     z, reason
 end
 
@@ -455,7 +503,7 @@ function _algorithms_for(has_equations, has_inequalities, has_ne)
         (!has_inequalities || a in _TAKES_INEQUALITIES), collect(OPTIMIZE_ALGORITHMS))
 end
 
-function _optimize(objective, constraints, guesses, sign, name; options...)
+function _optimize(objective, constraints, guesses, sign, name; bounds=nothing, options...)
     objective isa Function || eqerror("$name needs the function to optimize")
     _check_constraints(constraints, name)
     settings = solver_options(name, OPTIMIZE_ALGORITHMS; options...)
@@ -464,20 +512,45 @@ function _optimize(objective, constraints, guesses, sign, name; options...)
     has_eq = any(c -> c.op === :eq, constraints)
     has_in = any(c -> c.op in (:lt, :le, :gt, :ge), constraints)
     met(z) = all(v -> abs(v) <= ctol(), _violations(constraints, unknowns, z))
+    lower, upper = _flat_bounds(bounds, unknowns, name)
     algorithm = settings.algorithm
     if algorithm != "auto"
         allowed = _algorithms_for(has_eq, has_in, has_ne)
-        algorithm in allowed || eqerror(
+        algorithm in allowed || algorithm in GLOBAL_ALGORITHMS || eqerror(
             "$name: $algorithm cannot take the constraints of this block; use $(join(allowed, ", "))")
+        if algorithm in GLOBAL_ALGORITHMS
+            all(isfinite, lower) && all(isfinite, upper) || eqerror(
+                "$name: $algorithm searches a box: bound every unknown above and below with constraints such as x ≥ 0 and x ≤ 10")
+            # Constraints other than the bounds: ISRES takes them, the others cannot.
+            only_bounds = bounds !== nothing && length(bounds) >= 3 && Set(bounds[3]) == Set(1:length(constraints))
+            algorithm == "isres" || only_bounds || eqerror(
+                "$name: $algorithm takes bounds only; use isres for the other constraints of this block")
+        end
     end
     candidates = algorithm != "auto" ? [algorithm] : has_ne ? ["penalty"] : ["slsqp", "cobyla"]
     stopped = nothing
     for candidate in candidates
         z, reason = if candidate == "penalty"
-            _penalty(objective, constraints, unknowns, copy(z0), sign, settings), :SUCCESS
+            _penalty(objective, constraints, unknowns, clamp.(z0, lower, upper), sign, settings), :SUCCESS
         else
             try
-                _nlopt(objective, constraints, unknowns, z0, sign, candidate, settings)
+                # The box algorithms take the bounds only: the block's constraints are those bounds.
+                box_only = candidate in GLOBAL_ALGORITHMS && candidate != "isres"
+                z, reason = _nlopt(objective, box_only ? EqConstraint[] : constraints, unknowns, z0, sign, candidate,
+                    settings, lower, upper)
+                if candidate in GLOBAL_ALGORITHMS && all(isfinite, z)
+                    # The global search ends near the best point; a local method makes it exact.
+                    local_method = has_eq || has_in ? "slsqp" : "lbfgs"
+                    try
+                        polished, _ = _nlopt(objective, constraints, unknowns, z, sign, local_method, settings, lower, upper)
+                        all(isfinite, polished) && met(polished) &&
+                            sign * _objective(objective, unknowns, polished) <= sign * _objective(objective, unknowns, z) &&
+                            (z = polished)
+                    catch error
+                        error isa EqError && rethrow()
+                    end
+                end
+                z, reason
             catch error
                 (error isa EqError || length(candidates) == 1) && rethrow()
                 continue

@@ -110,3 +110,21 @@ end
     @test_throws EqError eq_jacob(f, [1.0 2.0])
     @test_throws EqError eq_jacob(x -> 1.0, x)
 end
+
+@testset "derivative: automatic differentiation and finite differences" begin
+    # Exact through the worksheet operators.
+    @test eq_derivative(x -> eq_sin(x), 1.0) == cos(1.0)
+    @test eq_derivative(x -> eq_pow(x, 3.0), 2.0, 2) == 12.0
+    @test eq_derivative(x -> eq_mul(eq_exp(x), eq_pow(x, 2.0)), 0.5) ≈ exp(0.5) * (0.25 + 1.0) rtol = 1e-15
+    # A derivative in the exponent keeps its logarithm.
+    @test eq_derivative(a -> eq_pow(2.0, a), 3.0) ≈ 8 * log(2.0) rtol = 1e-14
+    # Finite differences on request, to the requested accuracy.
+    fd = eq_derivative(x -> eq_sin(x), 1.0; derivatives="finite-differences")
+    @test fd ≈ cos(1.0) rtol = 1e-10
+    @test eq_derivative(x -> eq_sin(x), 1.0; derivatives="finite-differences", tolerance=1e-3) ≈ cos(1.0) rtol = 1e-6
+    # A function that refuses dual numbers falls back to finite differences.
+    floats_only = x -> sin(Float64(x))
+    @test eq_derivative(floats_only, 1.0) ≈ cos(1.0) rtol = 1e-10
+    @test_throws EqError eq_derivative(x -> x, 1.0; derivatives="magic")
+    @test_throws EqError eq_derivative(x -> x, 1.0; derivatives="finite-differences", tolerance=-1)
+end

@@ -11,7 +11,7 @@ type Json = { [key: string]: unknown };
 const SOLVING: readonly SolvingFunction[] = ["find", "minerr", "minimize", "maximize"];
 
 export const FIND_ALGORITHMS = ["auto", "levenberg-marquardt", "trust-region", "newton"] as const;
-export const OPTIMIZE_ALGORITHMS = ["auto", "slsqp", "mma", "ccsaq", "lbfgs", "cobyla", "nelder-mead", "penalty"] as const;
+export const OPTIMIZE_ALGORITHMS = ["auto", "slsqp", "mma", "ccsaq", "lbfgs", "cobyla", "nelder-mead", "penalty", "isres", "direct-l", "crs2", "mlsl"] as const;
 
 export function algorithmsOf(fn: SolvingFunction): readonly string[] {
   return fn === "find" || fn === "minerr" ? FIND_ALGORITHMS : OPTIMIZE_ALGORITHMS;

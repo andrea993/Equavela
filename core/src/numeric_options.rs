@@ -17,6 +17,10 @@ pub const OPTIMIZE_ALGORITHMS: &[&str] = &[
     "cobyla",
     "nelder-mead",
     "penalty",
+    "isres",
+    "direct-l",
+    "crs2",
+    "mlsl",
 ];
 /// The derivative methods.
 pub const DERIVATIVE_METHODS: &[&str] = &["auto", "finite-differences"];

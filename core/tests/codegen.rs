@@ -2683,7 +2683,7 @@ fn numeric_choices_become_keyword_arguments_of_the_call_they_apply_to() {
     let value = solve.value.unwrap_or_default() + &solve.code;
     assert!(
         value.contains(
-            r#"; algorithm="slsqp", derivatives="finite-differences", max_evaluations=500)"#
+            r#"; algorithm="slsqp", derivatives="finite-differences", max_evaluations=500, bounds=(Any[(1.0,)], Any[nothing], Int[1]))"#
         ),
         "{value}"
     );
@@ -2692,4 +2692,36 @@ fn numeric_choices_become_keyword_arguments_of_the_call_they_apply_to() {
         "{derivative}"
     );
     assert!(!plain.contains("; "), "{plain}");
+}
+
+#[test]
+fn constraints_on_one_unknown_are_also_its_bounds() {
+    let mut numeric = equavela_core::fasthash::HashMap::default();
+    numeric.insert(
+        "r1".to_owned(),
+        [("algorithm".to_owned(), "direct-l".to_owned())]
+            .into_iter()
+            .collect(),
+    );
+    let mut generator = Generator::new(GenOptions {
+        numeric: std::sync::Arc::new(numeric),
+        ..GenOptions::default()
+    });
+    let call = parse_statement("Minimize(f, x, y) =").unwrap();
+    let block = equavela_core::ast::Statement {
+        span: call.span,
+        kind: equavela_core::ast::StatementKind::Solve {
+            constraints: ["x >= -5", "x <= 5", "2 > y", "x + y >= 1"]
+                .iter()
+                .map(|text| equavela_core::parse_expression(text).unwrap())
+                .collect(),
+            call: Box::new(call),
+        },
+    };
+    let generated = generator.region("r1", &block);
+    let code = generated.value.unwrap_or_default() + &generated.code;
+    assert!(
+        code.contains(r#"; algorithm="direct-l", bounds=(Any[(-5.0,), nothing], Any[(5.0,), (2.0,)], Int[1, 2, 3]))"#),
+        "{code}"
+    );
 }

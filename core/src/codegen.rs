@@ -938,12 +938,43 @@ fn call(function: &str, args: &[String]) -> String {
     format!("{function}({})", args.join(", "))
 }
 
-/// Adds keyword arguments (`; name=value, ...`) before the closing parenthesis of a call.
+/// Adds keyword arguments (`; name=value, ...`) before the closing parenthesis of a call; a call
+/// that has some already gets the new ones after them.
 fn with_keywords(call: String, keywords: &str) -> String {
     match call.strip_suffix(')') {
-        Some(head) if !keywords.is_empty() => format!("{head}{keywords})"),
+        Some(head) if !keywords.is_empty() => {
+            if head.contains("; ") && keywords.starts_with("; ") && call_has_keywords(head) {
+                format!("{head}, {})", &keywords[2..])
+            } else {
+                format!("{head}{keywords})")
+            }
+        }
         _ => call,
     }
+}
+
+/// Whether the outermost call of `head` (a call without its closing parenthesis) already has a
+/// keyword section: a `;` at parenthesis depth 1, outside strings.
+fn call_has_keywords(head: &str) -> bool {
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut previous = ' ';
+    for c in head.chars() {
+        match c {
+            '"' if previous != '\\' => in_string = !in_string,
+            '(' | '[' | '{' if !in_string => depth += 1,
+            ')' | ']' | '}' if !in_string => depth -= 1,
+            ';' if !in_string && depth == 1 => return true,
+            _ => {}
+        }
+        previous = c;
+    }
+    false
+}
+
+/// The constraint expressions of the open solve block.
+fn constraints_ast(block: &Option<Vec<Expr>>) -> Vec<Expr> {
+    block.clone().unwrap_or_default()
 }
 
 /// Create a fresh function each time this region runs. Defining a method directly on the
@@ -2198,6 +2229,76 @@ impl Generator {
         )))
     }
 
+    /// The `bounds` keyword argument of an optimisation (`; bounds=([lo...], [hi...], [k...])`):
+    /// per unknown `nothing` or the tuple of the values that bound it, then the positions of the
+    /// constraints that are bounds; empty when no constraint bounds an unknown.
+    fn unknown_bounds(
+        &mut self,
+        unknowns: &[Ident],
+        constraints: &[Expr],
+    ) -> Result<String, CodegenError> {
+        let mut lower: Vec<Vec<String>> = vec![Vec::new(); unknowns.len()];
+        let mut upper: Vec<Vec<String>> = vec![Vec::new(); unknowns.len()];
+        let free = |expr: &Expr| {
+            !unknowns
+                .iter()
+                .any(|u| crate::graph::expr_mentions(expr, &u.name))
+        };
+        let index = |expr: &Expr| match &expr.kind {
+            ExprKind::Ident { name } => unknowns.iter().position(|u| &u.name == name),
+            _ => None,
+        };
+        // The one-based positions of the constraints that are bounds.
+        let mut positions = Vec::new();
+        for (position, constraint) in constraints.iter().enumerate() {
+            // (unknown on the left is below the other side, the two sides)
+            let (below, left, right) = match &constraint.kind {
+                ExprKind::Lt { left, right } | ExprKind::Le { left, right } => (true, left, right),
+                ExprKind::Gt { left, right } | ExprKind::Ge { left, right } => (false, left, right),
+                _ => continue,
+            };
+            if let (Some(i), true) = (index(left), free(right)) {
+                let value = self.expression(right)?;
+                if below {
+                    upper[i].push(value)
+                } else {
+                    lower[i].push(value)
+                }
+                positions.push((position + 1).to_string());
+            } else if let (Some(i), true) = (index(right), free(left)) {
+                let value = self.expression(left)?;
+                if below {
+                    lower[i].push(value)
+                } else {
+                    upper[i].push(value)
+                }
+                positions.push((position + 1).to_string());
+            }
+        }
+        if lower.iter().chain(&upper).all(Vec::is_empty) {
+            return Ok(String::new());
+        }
+        let side = |values: &[Vec<String>]| {
+            let entries: Vec<String> = values
+                .iter()
+                .map(|v| {
+                    if v.is_empty() {
+                        "nothing".to_owned()
+                    } else {
+                        format!("({},)", v.join(", "))
+                    }
+                })
+                .collect();
+            format!("Any[{}]", entries.join(", "))
+        };
+        Ok(format!(
+            "; bounds=({}, {}, Int[{}])",
+            side(&lower),
+            side(&upper),
+            positions.join(", ")
+        ))
+    }
+
     /// `call` with the region's solver choices as keyword arguments.
     fn with_solver_keywords(&self, call: String) -> String {
         with_keywords(call, &self.region_solver_keywords)
@@ -2295,6 +2396,14 @@ impl Generator {
             .collect();
         let constraints = format!("[{}]", lines.join(", "));
         let guesses = format!("[{}]", guesses.join(", "));
+        // A constraint that compares one unknown with an expression free of the unknowns
+        // (`x ≥ 0`, `10 > x`) is also a bound of that unknown: the optimisation algorithms take
+        // them as bounds, and the global ones need them.
+        let bounds = if objective.is_some() {
+            self.unknown_bounds(&unknowns, &constraints_ast(&self.region_solve))?
+        } else {
+            String::new()
+        };
         match objective {
             None => Ok(self.with_solver_keywords(call(function.helper(), &[constraints, guesses]))),
             Some(objective) => {
@@ -2316,10 +2425,11 @@ impl Generator {
                     }
                     _ => self.with_binder(&locals, |g| g.expression(objective))?,
                 };
-                Ok(self.with_solver_keywords(call(
+                let code = self.with_solver_keywords(call(
                     function.helper(),
                     &[format!("{params} -> {body}"), constraints, guesses],
-                )))
+                ));
+                Ok(with_keywords(code, &bounds))
             }
         }
     }
