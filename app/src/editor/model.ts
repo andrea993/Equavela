@@ -515,7 +515,6 @@ function insertBinary(s: EditorState, type: string, split = false): EditorState 
   const target = before ?? wrapTarget(s);
   const operand = get(s.root, target);
   if (!isExpr(operand) || nameOnlySlot(s.root, target)) return s;
-  if (operand.type === "Placeholder") return replaceAt(s, target, binary(type, ph(), ph(), split), [0]);
 
   const hole = ph();
   const missing: ChainToken = { kind: "atom", node: hole };
