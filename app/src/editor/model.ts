@@ -368,6 +368,9 @@ export function typeChar(s: EditorState, ch: string): EditorState {
   const n = get(s.root, s.focus);
   // Inside a string every character is text.
   if (n.type === "Str" && s.caret && !s.explicit) return insertText(s, n, ch);
+  // The apostrophe joins a name after its first character (`x'`, `x''`); it never starts one.
+  // The prime derivative is the operator `′` (Ctrl+').
+  if (ch === "'") return n.type === "Ident" && s.caret && !s.explicit && s.caret.offset > 0 ? insertText(s, n, ch) : s;
   const isDigit = DIGIT.test(ch);
   const isLetter = isNameChar(ch);
   const isDegree = ch === "°";

@@ -173,8 +173,8 @@ fn is_letter(c: char) -> bool {
     c.is_alphabetic() && !c.is_numeric() && c != '\u{1D40}' && c != '\u{2146}'
 }
 
-/// `plain-part` of math-syntax 3.2: a letter or `∞`, then letters, digits, `∞` and a `.` that is
-/// followed by one of them.
+/// `plain-part` of math-syntax 3.2: a letter or `∞`, then letters, digits, `∞`, apostrophes and a
+/// `.` that is followed by one of them.
 fn plain_base(s: &str) -> bool {
     let chars: Vec<char> = s.chars().collect();
     let Some(first) = chars.first() else {
@@ -187,6 +187,7 @@ fn plain_base(s: &str) -> bool {
         is_letter(*c)
             || c.is_ascii_digit()
             || *c == '∞'
+            || (*c == '\'' && i > 0)
             || (*c == '.'
                 && i > 0
                 && chars
@@ -209,6 +210,7 @@ fn plain_sub(s: &str) -> bool {
             || c.is_ascii_digit()
             || *c == '∞'
             || *c == '_'
+            || (*c == '\'' && i > 0)
             || (*c == '.'
                 && i > 0
                 && chars

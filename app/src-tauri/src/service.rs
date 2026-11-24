@@ -1544,6 +1544,7 @@ impl Service {
             environment: None,
             page: Default::default(),
             result_formats: Default::default(),
+            numeric_options: Default::default(),
             math_breaks: Default::default(),
             resources: Default::default(),
             assets: Default::default(),
@@ -1760,6 +1761,7 @@ impl Service {
                     environment: None,
                     page: Default::default(),
                     result_formats: Default::default(),
+                    numeric_options: Default::default(),
                     math_breaks: Default::default(),
                     resources: Default::default(),
                     assets: Default::default(),
@@ -3306,6 +3308,7 @@ impl Service {
                 environment: None,
                 page: Default::default(),
                 result_formats: Default::default(),
+                numeric_options: Default::default(),
                 math_breaks: Default::default(),
                 resources: Default::default(),
                 assets: Default::default(),
@@ -4678,6 +4681,34 @@ impl Service {
             &session,
             None,
             Some("Result format".into()),
+        ))
+    }
+
+    /// Sets (or with `None` clears) the numeric choices of a math region: the solver algorithm
+    /// and options, the derivative method. One undo step; it recalculates.
+    pub fn set_numeric_options(
+        &self,
+        id: &str,
+        region_id: &str,
+        options: Option<BTreeMap<String, String>>,
+    ) -> Result<EditResult, CommandError> {
+        let worksheet = self.worksheet(id)?;
+        let _project_guard = self.guard_worksheet(id, &worksheet)?;
+        let mut session = lock(&worksheet.session);
+        let root = session.root().clone();
+        session.apply_edit(
+            &root,
+            "Numeric method",
+            EditCommand::SetNumericOptions {
+                region_id: region_id.to_owned(),
+                options,
+            },
+        )?;
+        Ok(Self::edit_result(
+            &worksheet,
+            &session,
+            None,
+            Some("Numeric method".into()),
         ))
     }
 
@@ -9582,6 +9613,7 @@ mod tests {
                     statement: Arc::new(parse_statement(text).unwrap()),
                     breaks: Vec::new(),
                     format: None,
+                    numeric: None,
                 },
             })
         };

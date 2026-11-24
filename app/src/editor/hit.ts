@@ -1,7 +1,7 @@
 // Mouse hit-testing on rendered math: the deepest addressable node under the
 // pointer, the side of it that was clicked and, inside a name or number, the character.
 
-import { leafTextSpans, unionRect } from "./EditorOverlay";
+import { leafTextSpans, textPoint, unionRect } from "./EditorOverlay";
 import { textGapOffsets } from "./gaps";
 import type { Caret, Side } from "./model";
 import type { Path } from "./tree";
@@ -16,18 +16,19 @@ export function parsePath(key: string | null): Path | null {
 }
 
 function caretOffset(span: HTMLElement, clientX: number): number {
-  const text = span.firstChild;
-  const value = text?.textContent;
-  if (!text || !value) return 0;
+  const value = span.textContent;
+  if (!value) return 0;
   // jsdom has no layout for ranges; the start of the piece is the best answer there.
   if (typeof Range.prototype.getBoundingClientRect !== "function") return 0;
   // Nearest character boundary, measured with ranges.
   let best = 0;
   let bestDistance = Infinity;
   for (const i of textGapOffsets(value)) {
+    const point = textPoint(span, i);
+    if (!point) return 0;
     const range = document.createRange();
-    range.setStart(text, i);
-    range.setEnd(text, i);
+    range.setStart(point.node, point.offset);
+    range.setEnd(point.node, point.offset);
     const x = range.getBoundingClientRect().left;
     const distance = Math.abs(x - clientX);
     if (distance < bestDistance) {

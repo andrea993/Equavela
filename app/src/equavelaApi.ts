@@ -326,7 +326,7 @@ export type MathBreak = {
  * serde form); the renderer in `math/` draws it.
  */
 export type ViewContent =
-  | { kind: "math"; text: string; statement: unknown; breaks?: MathBreak[]; format?: Record<string, string> }
+  | { kind: "math"; text: string; statement: unknown; breaks?: MathBreak[]; format?: Record<string, string>; numeric?: Record<string, string> }
   | { kind: "julia"; block: JuliaBlock }
   | { kind: "include"; path: string }
   | { kind: "text"; text: string; width: number | null; full_width?: boolean; background?: string; language?: string; paragraphs: RichText }
@@ -1046,6 +1046,9 @@ export const equavelaApi = {
   /** Sets the width in points of a text region (`null` resets it); one undo step. */
   setResultFormat: (worksheet: string, regionId: string, format: Record<string, string> | null) =>
     invoke<EditResultDelta>("set_result_format", { worksheet, regionId, format }),
+  /** Sets (or with `null` clears) the numeric choices of a math region; one undo step. */
+  setNumericOptions: (worksheet: string, regionId: string, options: Record<string, string> | null) =>
+    invoke<EditResultDelta>("set_numeric_options", { worksheet, regionId, options }),
   /**
    * Sets the math font of the math regions: one command for all of them, so one undo
    * step, labelled `Math font` or, for a reset, `Reset math style`.

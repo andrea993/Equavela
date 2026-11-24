@@ -50,6 +50,7 @@ fn document(path: &str, hash: &str, regions: Vec<DocumentRegion>) -> ProjectDocu
         environment: None,
         page: Default::default(),
         result_formats: Default::default(),
+        numeric_options: Default::default(),
         math_breaks: Default::default(),
         resources: Default::default(),
         assets: Default::default(),

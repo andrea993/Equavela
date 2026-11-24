@@ -2,6 +2,7 @@
 // that change a region (Plot, Area). Pure: the ribbon and the command palette both use them.
 
 import type { PlotSpec, ViewRegion } from "../equavelaApi";
+import { hasDerivative, solvingFunction, type NumericOptions, type SolvingFunction } from "./numeric";
 import { removeTrace, setPresentation, setTraceKind, toggleY2Scale, usesRightAxis, withNewTrace } from "../plot/edit";
 
 export type RibbonContext =
@@ -9,7 +10,9 @@ export type RibbonContext =
   | { kind: "matrix" }
   | { kind: "plot"; regionId: string; plot: PlotSpec; selectedTraceId: string | null }
   | { kind: "area"; regionId: string; collapsed: boolean }
-  | { kind: "image"; regionId: string };
+  | { kind: "image"; regionId: string }
+  | { kind: "solver"; regionId: string; fn: SolvingFunction; numeric: NumericOptions }
+  | { kind: "derivative"; regionId: string; numeric: NumericOptions };
 
 export type ContextKind = RibbonContext["kind"];
 
@@ -27,9 +30,15 @@ export function ribbonContext(input: {
   regions: readonly ViewRegion[];
   /** The selected trace id of each plot region. */
   plotTraceSelections: Readonly<Record<string, string>>;
+  /** The math region being edited, when a math editor is open. */
+  mathRegionId?: string | null;
 }): RibbonContext | null {
   if (input.textEditing) return { kind: "text" };
-  if (input.mathEditing) return input.inMatrix || input.matrixResult ? { kind: "matrix" } : null;
+  if (input.mathEditing) {
+    if (input.inMatrix || input.matrixResult) return { kind: "matrix" };
+    const edited = input.regions.find((r) => r.id === input.mathRegionId);
+    return edited ? numericContext(edited) : null;
+  }
   // Elements of a matrix result selected without the region: the Matrix tab on that result.
   // With no region selected, `matrixResult` comes from that selection only.
   if (input.selection.length === 0 && input.matrixResult) return { kind: "matrix" };
@@ -37,7 +46,7 @@ export function ribbonContext(input: {
   const region = input.regions.find((r) => r.id === input.selection[0]);
   // A selected math region whose result is a matrix shows the Matrix tab too: the tab then
   // carries the display commands only, so the selection is a target of its own.
-  if (region?.kind === "math") return input.matrixResult ? { kind: "matrix" } : null;
+  if (region?.kind === "math") return input.matrixResult ? { kind: "matrix" } : numericContext(region);
   if (region?.kind === "plot") {
     return {
       kind: "plot",
@@ -49,6 +58,15 @@ export function ribbonContext(input: {
   if (region?.kind === "area") return { kind: "area", regionId: region.id, collapsed: region.collapsed };
   if (region?.kind === "image") return { kind: "image", regionId: region.id };
   return null;
+}
+
+/** The Solver tab of a solving region, the Differentiation tab of a region with derivatives. */
+function numericContext(region: ViewRegion): RibbonContext | null {
+  if (region.kind !== "math") return null;
+  const numeric = region.numeric ?? {};
+  const fn = solvingFunction(region.statement);
+  if (fn) return { kind: "solver", regionId: region.id, fn, numeric };
+  return hasDerivative(region.statement) ? { kind: "derivative", regionId: region.id, numeric } : null;
 }
 
 export const PLOT_COMMANDS = [

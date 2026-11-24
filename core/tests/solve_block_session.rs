@@ -236,3 +236,83 @@ fn odesolve_blocks_calculate_through_the_kernel() {
     assert!((real(&session, &root, "value3") - (-1f64).exp()).abs() < 1e-8);
     assert!((real(&session, &root, "value4") - 1f64.sin()).abs() < 1e-8);
 }
+
+const GLOBAL_SHEET: &str = r#"format: equavela-worksheet/3
+regions:
+  - id: f
+    at: [0, 10]
+    math: "f(x, y) := x^2 + y^2 + 10·(2 - cos(2·π·x) - cos(2·π·y))"
+  - id: x
+    at: [0, 20]
+    math: "x := 3.1"
+  - id: y
+    at: [0, 30]
+    math: "y := 2.9"
+  - id: given
+    at: [0, 40]
+    math: "Given"
+  - id: c1
+    at: [0, 50]
+    math: "x >= -5"
+  - id: c2
+    at: [0, 60]
+    math: "x <= 5"
+  - id: c3
+    at: [0, 70]
+    math: "y >= -5"
+  - id: c4
+    at: [0, 80]
+    math: "y <= 5"
+  - id: local
+    at: [0, 90]
+    math: "p := Minimize(f, x, y)"
+  - id: given2
+    at: [0, 100]
+    math: "Given"
+  - id: d1
+    at: [0, 110]
+    math: "x >= -5"
+  - id: d2
+    at: [0, 120]
+    math: "x <= 5"
+  - id: d3
+    at: [0, 130]
+    math: "y >= -5"
+  - id: d4
+    at: [0, 140]
+    math: "y <= 5"
+  - id: global
+    at: [0, 150]
+    math: "q := Minimize(f, x, y)"
+    numeric:
+      algorithm: direct-l
+  - id: px
+    at: [0, 160]
+    math: "p[0] ="
+  - id: qx
+    at: [0, 170]
+    math: "q[0] ="
+"#;
+
+#[test]
+fn a_global_algorithm_chosen_for_the_region_finds_the_minimum_in_the_box() {
+    let Some(kernel) = kernel() else { return };
+    let id = DocumentId::new("/global.eqv").unwrap();
+    let loaded = load_project_text(id, GLOBAL_SHEET).unwrap();
+    let root = loaded.root.clone();
+    let mut session = WorksheetSession::new(
+        kernel,
+        "global",
+        loaded.project,
+        loaded.root,
+        loaded.texts,
+        GenOptions::default(),
+    )
+    .unwrap();
+    session
+        .recalculate(RecalcMode::Changed, &mut |_| {})
+        .unwrap();
+    // The local default stays near the guess; DIRECT-L finds the minimum at the origin.
+    assert!(real(&session, &root, "px") > 2.5);
+    assert!(real(&session, &root, "qx").abs() < 1e-6);
+}

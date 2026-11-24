@@ -1375,3 +1375,24 @@ fn an_imported_svd_keeps_its_order() {
     equavela_core::worksheet_file::load_project_text(id, &imported.text)
         .expect("the worksheet reader accepts the imported algorithm");
 }
+
+/// A name typed with apostrophes (`x'`, `x''`) is a name of its own, written without quotes.
+#[test]
+fn a_name_with_apostrophes_is_imported_as_a_name() {
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    writer
+        .start_file("mathcad/worksheet.xml", SimpleFileOptions::default())
+        .unwrap();
+    writer
+        .write_all(
+            br#"<worksheet xmlns="http://schemas.mathsoft.com/worksheet50" xmlns:ml="http://schemas.mathsoft.com/math50"><regions>
+<region region-id="1" actualWidth="47.7" actualHeight="25.6" top="0" left="0"><math><ml:define><ml:id>x'</ml:id><ml:real>1</ml:real></ml:define></math></region>
+<region region-id="2" actualWidth="47.7" actualHeight="25.6" top="40" left="0"><math><ml:define><ml:id>x''</ml:id><ml:apply><ml:plus/><ml:id>x'</ml:id><ml:real>2</ml:real></ml:apply></ml:define></math></region>
+</regions></worksheet>"#,
+        )
+        .unwrap();
+    let bytes = writer.finish().unwrap().into_inner();
+    let imported = import_mcdx_bytes(&bytes, "primes.mcdx").expect("the fixture imports");
+    assert!(imported.text.contains("x' := 1"), "{}", imported.text);
+    assert!(imported.text.contains("x'' := x' + 2"), "{}", imported.text);
+}

@@ -281,6 +281,7 @@ export interface Backend {
   setPageSetup(worksheet: string, page: PageSetup): Promise<EditResult>;
   /** Result-format override of a math region; `null` or an empty map clears it. */
   setResultFormat(worksheet: string, regionId: string, format: Record<string, string> | null): Promise<EditResult>;
+  setNumericOptions(worksheet: string, regionId: string, options: Record<string, string> | null): Promise<EditResult>;
   /**
    * The math font of the given math regions: each region and the
    * display override it should have afterwards. One undo step for the whole command.
@@ -603,6 +604,8 @@ export function createTauriBackend(): Backend {
     setPageSetup: (worksheet, page) => edit(worksheet, equavelaApi.setPageSetup(worksheet, page)),
     setResultFormat: (worksheet, regionId, format) =>
       edit(worksheet, equavelaApi.setResultFormat(worksheet, regionId, format)),
+    setNumericOptions: (worksheet, regionId, options) =>
+      edit(worksheet, equavelaApi.setNumericOptions(worksheet, regionId, options)),
     setMathFont: (worksheet, edits, reset) => edit(worksheet, equavelaApi.setMathFont(worksheet, edits, reset)),
     setResultDefaults: (worksheet, values) =>
       edit(worksheet, equavelaApi.setResultDefaults(worksheet, values)),

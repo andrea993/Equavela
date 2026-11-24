@@ -2548,6 +2548,17 @@ textarea {
   font-size: 12px;
 }
 
+/* The numeric choices of a region: the description of the algorithm and the number fields. */
+.numeric-description {
+  max-width: 230px;
+}
+.numeric-field {
+  width: 7em;
+}
+.numeric-field.invalid {
+  outline: 1px solid var(--error);
+}
+
 .ribbon-presentation {
   margin-right: 6px;
 }

@@ -863,7 +863,7 @@ struct OdeFunction <: Function
     derivative::Function
 end
 (f::OdeFunction)(x) = f.value(x)
-function eq_derivative(f::OdeFunction, x, order=1.0)
+function eq_derivative(f::OdeFunction, x, order=1.0; derivatives=nothing, tolerance=nothing)
     n = eqnum(order)
     (n isa Real && isinteger(n) && n >= 0) || eqerror("the order of a derivative must be a non-negative integer")
     f.derivative(eqnum(x), Int(n))

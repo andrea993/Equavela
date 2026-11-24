@@ -1444,6 +1444,7 @@ fn set_plot_is_validated_and_undone_by_its_inverse() {
         environment: None,
         page: Default::default(),
         result_formats: Default::default(),
+        numeric_options: Default::default(),
         math_breaks: Default::default(),
         resources: Default::default(),
         assets: Default::default(),
@@ -2332,4 +2333,87 @@ fn set_include_path_rereads_the_target_and_undoes() {
         .is_err());
     assert_eq!(include_path(&session), "new.eqv");
     std::fs::remove_dir_all(&dir).ok();
+}
+
+fn numeric_of(
+    session: &WorksheetSession,
+    id: &str,
+) -> Option<std::collections::BTreeMap<String, String>> {
+    let view = session.view(&root()).unwrap();
+    let region = view.regions.iter().find(|r| r.id == id).unwrap().clone();
+    match &region.content {
+        ViewContent::Math { numeric, .. } => numeric.clone(),
+        _ => panic!("math expected"),
+    }
+}
+
+#[test]
+fn numeric_choices_are_a_region_property_with_undo_redo_and_survive_removal() {
+    let mut session = session();
+    let choices = format(&[("algorithm", "slsqp"), ("max-evaluations", "500")]);
+    session
+        .apply_edit(
+            &root(),
+            "Solver",
+            EditCommand::SetNumericOptions {
+                region_id: "r3".into(),
+                options: choices.clone(),
+            },
+        )
+        .unwrap();
+    assert_eq!(numeric_of(&session, "r3"), choices);
+    session.undo().unwrap().unwrap();
+    assert_eq!(numeric_of(&session, "r3"), None);
+    session.redo().unwrap().unwrap();
+    assert_eq!(numeric_of(&session, "r3"), choices);
+    // Removing the region and undoing brings the choices back.
+    session
+        .apply_edit(
+            &root(),
+            "Delete",
+            EditCommand::Remove {
+                region_id: "r3".into(),
+            },
+        )
+        .unwrap();
+    session.undo().unwrap().unwrap();
+    assert_eq!(numeric_of(&session, "r3"), choices);
+    // An unknown value is refused.
+    let bad = session.apply_edit(
+        &root(),
+        "Solver",
+        EditCommand::SetNumericOptions {
+            region_id: "r3".into(),
+            options: format(&[("algorithm", "simplex")]),
+        },
+    );
+    assert!(bad.is_err());
+}
+
+#[test]
+fn numeric_choices_round_trip_through_the_file_and_reject_unknown_values() {
+    let sheet = SHEET.replace(
+        "    math: \"b := a + 1\"\n",
+        "    math: \"b := a + 1\"\n    numeric:\n      derivative-tolerance: \"1e-6\"\n      derivatives: finite-differences\n",
+    );
+    let loaded = parse_document(root(), &sheet).unwrap();
+    assert_eq!(
+        loaded.document.numeric_options.get("r3"),
+        format(&[
+            ("derivative-tolerance", "1e-6"),
+            ("derivatives", "finite-differences")
+        ])
+        .as_ref()
+    );
+    let written = write_document(&loaded.document).unwrap();
+    assert!(written.contains("    numeric:\n      derivative-tolerance: \"1e-6\"\n      derivatives: finite-differences\n"), "{written}");
+    let bad = SHEET.replace(
+        "    math: \"b := a + 1\"\n",
+        "    math: \"b := a + 1\"\n    numeric:\n      algorithm: magic\n",
+    );
+    let error = parse_document(root(), &bad).unwrap_err().to_string();
+    assert!(
+        error.contains("numeric choices") && error.contains("magic"),
+        "{error}"
+    );
 }

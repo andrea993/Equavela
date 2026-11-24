@@ -82,6 +82,12 @@ pub enum EditCommand {
         region_id: String,
         format: Option<BTreeMap<String, String>>,
     },
+    /// Sets or clears (`None`, or an empty map) the numeric choices of a math region: the solver
+    /// algorithm and options, the derivative method. They change values.
+    SetNumericOptions {
+        region_id: String,
+        options: Option<BTreeMap<String, String>>,
+    },
     /// Sets (`Some`) or removes (`None`) entries of the worksheet `settings:` mapping: the
     /// worksheet-wide result format of `the specification`, keys of the
     /// `format.*` display settings. Only display settings are accepted: a calculation setting
@@ -194,6 +200,8 @@ pub enum EditError {
     NoSuchRegion(String),
     #[error("`{0}` is not a math region")]
     NotMath(String),
+    #[error("invalid numeric choices: {0}")]
+    InvalidNumeric(String),
     #[error("`{0}` is not a text region")]
     NotText(String),
     #[error("`{0}` is not a plot region")]
@@ -309,22 +317,29 @@ fn apply_command(
             let region = Arc::unwrap_or_clone(document.regions.remove(index));
             let math_text = texts.remove(&region_id);
             let format = document.result_formats.remove(&region_id);
+            let numeric = document.numeric_options.remove(&region_id);
             let insert = EditCommand::Insert {
                 region: StoredRegion { region, math_text },
                 index,
             };
-            Ok(match format {
-                // the override comes back with the region
-                Some(format) => EditCommand::Batch {
-                    commands: vec![
-                        insert,
-                        EditCommand::SetResultFormat {
-                            region_id,
-                            format: Some(format),
-                        },
-                    ],
-                },
-                None => insert,
+            // The region's override and numeric choices come back with it.
+            let mut commands = vec![insert];
+            if let Some(format) = format {
+                commands.push(EditCommand::SetResultFormat {
+                    region_id: region_id.clone(),
+                    format: Some(format),
+                });
+            }
+            if let Some(options) = numeric {
+                commands.push(EditCommand::SetNumericOptions {
+                    region_id,
+                    options: Some(options),
+                });
+            }
+            Ok(if commands.len() == 1 {
+                commands.remove(0)
+            } else {
+                EditCommand::Batch { commands }
             })
         }
         EditCommand::Move {
@@ -635,6 +650,24 @@ fn apply_command(
             Ok(EditCommand::SetResultFormat {
                 region_id,
                 format: previous,
+            })
+        }
+        EditCommand::SetNumericOptions { region_id, options } => {
+            let index = position(document, &region_id)?;
+            if !matches!(*document.regions[index], DocumentRegion::Math(_)) {
+                return Err(EditError::NotMath(region_id));
+            }
+            let options = options.filter(|map| !map.is_empty());
+            if let Some(options) = &options {
+                crate::numeric_options::validate(options).map_err(EditError::InvalidNumeric)?;
+            }
+            let previous = match options {
+                Some(options) => document.numeric_options.insert(region_id.clone(), options),
+                None => document.numeric_options.remove(&region_id),
+            };
+            Ok(EditCommand::SetNumericOptions {
+                region_id,
+                options: previous,
             })
         }
         EditCommand::SetResultDefaults { values } => {

@@ -92,6 +92,9 @@ pub struct GenOptions {
     /// The project's references: a name under one of their aliases that does not resolve gets
     /// the reference's message.
     pub references: std::sync::Arc<crate::project_reference::References>,
+    /// The numeric choices of math regions (solver algorithm and options, derivative method),
+    /// keyed by the id of the region in the generated worksheet.
+    pub numeric: std::sync::Arc<HashMap<String, std::collections::BTreeMap<String, String>>>,
 }
 
 /// Where a program statement came from: the id that `eq_locate` attaches to an error.
@@ -136,6 +139,9 @@ pub struct SymbolicTarget {
     pub ident: String,
     /// The parameters of a function definition (`None` for a variable).
     pub params: Option<Vec<Name>>,
+    /// A variable whose value is a function of `params` (the closed-form solution of an
+    /// `odesolve` block, `y := odesolve(y(t), b) →`): bound as an anonymous function.
+    pub value_function: bool,
 }
 
 /// A unit override as generated code plus the text the UI shows after the result.
@@ -932,6 +938,45 @@ fn call(function: &str, args: &[String]) -> String {
     format!("{function}({})", args.join(", "))
 }
 
+/// Adds keyword arguments (`; name=value, ...`) before the closing parenthesis of a call; a call
+/// that has some already gets the new ones after them.
+fn with_keywords(call: String, keywords: &str) -> String {
+    match call.strip_suffix(')') {
+        Some(head) if !keywords.is_empty() => {
+            if head.contains("; ") && keywords.starts_with("; ") && call_has_keywords(head) {
+                format!("{head}, {})", &keywords[2..])
+            } else {
+                format!("{head}{keywords})")
+            }
+        }
+        _ => call,
+    }
+}
+
+/// Whether the outermost call of `head` (a call without its closing parenthesis) already has a
+/// keyword section: a `;` at parenthesis depth 1, outside strings.
+fn call_has_keywords(head: &str) -> bool {
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut previous = ' ';
+    for c in head.chars() {
+        match c {
+            '"' if previous != '\\' => in_string = !in_string,
+            '(' | '[' | '{' if !in_string => depth += 1,
+            ')' | ']' | '}' if !in_string => depth -= 1,
+            ';' if !in_string && depth == 1 => return true,
+            _ => {}
+        }
+        previous = c;
+    }
+    false
+}
+
+/// The constraint expressions of the open solve block.
+fn constraints_ast(block: &Option<Vec<Expr>>) -> Vec<Expr> {
+    block.clone().unwrap_or_default()
+}
+
 /// Create a fresh function each time this region runs. Defining a method directly on the
 /// worksheet binding would keep Julia's previous methods when the parameter count changes.
 fn worksheet_function(ident: &str, definition: &str) -> String {
@@ -1048,6 +1093,9 @@ pub struct Generator {
     region_display_unit: Option<DisplayUnitCode>,
     /// The definition by a symbolic result of the region being generated.
     region_symbolic_target: Option<SymbolicTarget>,
+    /// The keyword arguments of the region's solving call and of its numeric derivatives.
+    region_solver_keywords: String,
+    region_derivative_keywords: String,
     /// The constraint lines of the solve block being generated, if any: the solving call
     /// (`Find`, `Minerr`, `Minimize`, `Maximize`) compiles them.
     region_solve: Option<Vec<Expr>>,
@@ -2036,7 +2084,7 @@ impl Generator {
             if exprs.len() == 3 {
                 parts.push(self.expression(exprs[2])?);
             }
-            return Ok(call("eq_jacob", &parts));
+            return Ok(self.with_derivative_keywords(call("eq_jacob", &parts)));
         }
         let ExprKind::Ident { name } = &exprs[1].kind else {
             return Ok(self.error_node(
@@ -2051,7 +2099,7 @@ impl Generator {
         if exprs.len() == 3 {
             parts.push(self.expression(exprs[2])?);
         }
-        Ok(call("eq_jacob", &parts))
+        Ok(self.with_derivative_keywords(call("eq_jacob", &parts)))
     }
 
     /// `root` (a worksheet that defines its own `root` shadows this form). A call named
@@ -2141,7 +2189,7 @@ impl Generator {
         if let Some(order) = order {
             parts.push(self.expression(order)?);
         }
-        Ok(call("eq_derivative", &parts))
+        Ok(self.with_derivative_keywords(call("eq_derivative", &parts)))
     }
 
     /// `f′(x)`, `f′′(x)`: `eq_derivative(f, x, order)` with `f` a worksheet function,
@@ -2175,10 +2223,90 @@ impl Generator {
             }
         };
         let argument = self.arguments(args)?.remove(0);
-        Ok(call(
+        Ok(self.with_derivative_keywords(call(
             "eq_derivative",
             &[callable, argument, format!("{order}.0")],
+        )))
+    }
+
+    /// The `bounds` keyword argument of an optimisation (`; bounds=([lo...], [hi...], [k...])`):
+    /// per unknown `nothing` or the tuple of the values that bound it, then the positions of the
+    /// constraints that are bounds; empty when no constraint bounds an unknown.
+    fn unknown_bounds(
+        &mut self,
+        unknowns: &[Ident],
+        constraints: &[Expr],
+    ) -> Result<String, CodegenError> {
+        let mut lower: Vec<Vec<String>> = vec![Vec::new(); unknowns.len()];
+        let mut upper: Vec<Vec<String>> = vec![Vec::new(); unknowns.len()];
+        let free = |expr: &Expr| {
+            !unknowns
+                .iter()
+                .any(|u| crate::graph::expr_mentions(expr, &u.name))
+        };
+        let index = |expr: &Expr| match &expr.kind {
+            ExprKind::Ident { name } => unknowns.iter().position(|u| &u.name == name),
+            _ => None,
+        };
+        // The one-based positions of the constraints that are bounds.
+        let mut positions = Vec::new();
+        for (position, constraint) in constraints.iter().enumerate() {
+            // (unknown on the left is below the other side, the two sides)
+            let (below, left, right) = match &constraint.kind {
+                ExprKind::Lt { left, right } | ExprKind::Le { left, right } => (true, left, right),
+                ExprKind::Gt { left, right } | ExprKind::Ge { left, right } => (false, left, right),
+                _ => continue,
+            };
+            if let (Some(i), true) = (index(left), free(right)) {
+                let value = self.expression(right)?;
+                if below {
+                    upper[i].push(value)
+                } else {
+                    lower[i].push(value)
+                }
+                positions.push((position + 1).to_string());
+            } else if let (Some(i), true) = (index(right), free(left)) {
+                let value = self.expression(left)?;
+                if below {
+                    lower[i].push(value)
+                } else {
+                    upper[i].push(value)
+                }
+                positions.push((position + 1).to_string());
+            }
+        }
+        if lower.iter().chain(&upper).all(Vec::is_empty) {
+            return Ok(String::new());
+        }
+        let side = |values: &[Vec<String>]| {
+            let entries: Vec<String> = values
+                .iter()
+                .map(|v| {
+                    if v.is_empty() {
+                        "nothing".to_owned()
+                    } else {
+                        format!("({},)", v.join(", "))
+                    }
+                })
+                .collect();
+            format!("Any[{}]", entries.join(", "))
+        };
+        Ok(format!(
+            "; bounds=({}, {}, Int[{}])",
+            side(&lower),
+            side(&upper),
+            positions.join(", ")
         ))
+    }
+
+    /// `call` with the region's solver choices as keyword arguments.
+    fn with_solver_keywords(&self, call: String) -> String {
+        with_keywords(call, &self.region_solver_keywords)
+    }
+
+    /// `call` with the region's derivative method as keyword arguments.
+    fn with_derivative_keywords(&self, call: String) -> String {
+        with_keywords(call, &self.region_derivative_keywords)
     }
 
     /// The solving call of a solve block:
@@ -2268,8 +2396,16 @@ impl Generator {
             .collect();
         let constraints = format!("[{}]", lines.join(", "));
         let guesses = format!("[{}]", guesses.join(", "));
+        // A constraint that compares one unknown with an expression free of the unknowns
+        // (`x ≥ 0`, `10 > x`) is also a bound of that unknown: the optimisation algorithms take
+        // them as bounds, and the global ones need them.
+        let bounds = if objective.is_some() {
+            self.unknown_bounds(&unknowns, &constraints_ast(&self.region_solve))?
+        } else {
+            String::new()
+        };
         match objective {
-            None => Ok(call(function.helper(), &[constraints, guesses])),
+            None => Ok(self.with_solver_keywords(call(function.helper(), &[constraints, guesses]))),
             Some(objective) => {
                 // `Minimize(f, x, y)` with `f` a function name calls `f(x, y)`.
                 let body = match &objective.kind {
@@ -2289,10 +2425,11 @@ impl Generator {
                     }
                     _ => self.with_binder(&locals, |g| g.expression(objective))?,
                 };
-                Ok(call(
+                let code = self.with_solver_keywords(call(
                     function.helper(),
                     &[format!("{params} -> {body}"), constraints, guesses],
-                ))
+                ));
+                Ok(with_keywords(code, &bounds))
             }
         }
     }
@@ -2962,6 +3099,13 @@ impl Generator {
         self.region_packages.clear();
         self.region_display_unit = None;
         self.region_symbolic_target = None;
+        let numeric = self.options.numeric.get(id);
+        self.region_solver_keywords = numeric
+            .map(crate::numeric_options::solver_keywords)
+            .unwrap_or_default();
+        self.region_derivative_keywords = numeric
+            .map(crate::numeric_options::derivative_keywords)
+            .unwrap_or_default();
         self.unit_context = false;
         self.used_ranges.clear();
         self.frames.clear();
@@ -3300,6 +3444,7 @@ impl Generator {
                 self.region_symbolic_target = Some(SymbolicTarget {
                     ident: ident.clone(),
                     params: Some(params.iter().map(|p| p.name.clone()).collect()),
+                    value_function: false,
                 });
                 let error = symbolic_definition_error();
                 format!("{ident}({list}) = {error}")
@@ -3358,9 +3503,12 @@ impl Generator {
                 false,
             )?;
             if let (TargetKind::Ident { .. }, [ident]) = (&target.kind, defined.as_slice()) {
+                // The closed-form solution of an `odesolve` block is a function of its variable.
+                let variable = self.region_solve.as_ref().and(odesolve_variable_of(rhs));
                 self.region_symbolic_target = Some(SymbolicTarget {
                     ident: ident.clone(),
-                    params: None,
+                    value_function: variable.is_some(),
+                    params: variable.map(|name| vec![name]),
                 });
             }
         } else if let Some(iterated) = self.iterated(target) {
@@ -3783,6 +3931,36 @@ fn scan_statements(body: &[Stmt], scan: &mut Scan) {
 /// expression, in a scope that holds only the function's parameters, so a name that is
 /// still free in the result is an undefined name when the code runs. A result that cannot
 /// be generated keeps the name an evaluation error with the reason.
+/// The variable of `odesolve(y(t), b)` or `odesolve([x(t); y(t)], b)`.
+fn odesolve_variable_of(expr: &Expr) -> Option<Name> {
+    let ExprKind::Call { callee, args } = &expr.kind else {
+        return None;
+    };
+    let ExprKind::Ident { name } = &callee.kind else {
+        return None;
+    };
+    if !crate::syntax::print_name(name).eq_ignore_ascii_case("odesolve") {
+        return None;
+    }
+    let Some(Arg::Expr { expr: functions }) = args.first() else {
+        return None;
+    };
+    let first = match &functions.kind {
+        ExprKind::Matrix { cells, .. } => cells.first()?,
+        _ => functions,
+    };
+    let ExprKind::Call { args, .. } = &first.kind else {
+        return None;
+    };
+    match args.first()? {
+        Arg::Expr { expr } => match &expr.kind {
+            ExprKind::Ident { name } => Some(name.clone()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 pub fn symbolic_definition_code(target: &SymbolicTarget, result: &Expr) -> String {
     let mut generator = Generator::default();
     let ident = &target.ident;
@@ -3792,7 +3970,13 @@ pub fn symbolic_definition_code(target: &SymbolicTarget, result: &Expr) -> Strin
             let list = idents.join(", ");
             generator
                 .with_binder(&idents, |g| g.expression(result))
-                .map(|body| format!("{ident}({list}) = {body}"))
+                .map(|body| {
+                    if target.value_function {
+                        format!("{ident} = ({list}) -> {body}")
+                    } else {
+                        format!("{ident}({list}) = {body}")
+                    }
+                })
         }
         None => generator
             .definition_value(result)
@@ -3810,12 +3994,16 @@ pub fn symbolic_definition_code(target: &SymbolicTarget, result: &Expr) -> Strin
                     .map(local_ident)
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("{ident}({list}) = eq_error({message})")
+                if target.value_function {
+                    format!("{ident} = ({list}) -> eq_error({message})")
+                } else {
+                    format!("{ident}({list}) = eq_error({message})")
+                }
             }
             None => format!("{ident} = eq_error({message})"),
         }
     });
-    if target.params.is_some() {
+    if target.params.is_some() && !target.value_function {
         worksheet_function(ident, &code)
     } else {
         code

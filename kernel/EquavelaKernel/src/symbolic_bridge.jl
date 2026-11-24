@@ -610,8 +610,15 @@ function prime_call(ctx::Context, e)
         derived = sp.Lambda(pytuple((variable,)), sp.diff(lambda.expr, variable, order))
         return derived(args...)
     end
-    builtin = get(BUILTINS, key, nothing)
-    builtin === nothing && unsupported("the derivative of the function $key")
+    builtin = haskey(ctx.vars, key) ? nothing : get(BUILTINS, key, nothing)
+    if builtin === nothing
+        haskey(ctx.vars, key) && unsupported("the derivative of the function $key")
+        # An undefined function (the unknown of a differential equation): `y′(t)` is the
+        # derivative of `y(t)`, and `y′(0)` its value at 0.
+        length(args) == 1 || unsupported("the derivative of a function of several variables")
+        dummy = sp.Dummy("x")
+        return sp.diff(sp.Function(key)(dummy), dummy, order).subs(dummy, args[1])
+    end
     dummy = sp.Dummy("x")
     derived = sp.Lambda(pytuple((dummy,)), sp.diff(builtin(dummy), dummy, order))
     return derived(args...)
@@ -1020,6 +1027,25 @@ function keyword_variable_names(keyword)
     return names
 end
 
+# The unknown functions of `dsolve, y(t)` and their variable: free names, whatever the worksheet defines.
+function dsolve_names(keyword)
+    names = String[]
+    for arg in keyword["args"]
+        a = arg
+        while a["type"] == "Paren"
+            a = a["expr"]
+        end
+        for call in (a["type"] == "Matrix" ? a["cells"] : [a])
+            call["type"] == "Call" && call["callee"]["type"] == "Ident" || continue
+            push!(names, name_key(call["callee"]["name"]))
+            for x in call["args"]
+                x["type"] == "Expr" && x["expr"]["type"] == "Ident" && push!(names, name_key(x["expr"]["name"]))
+            end
+        end
+    end
+    return names
+end
+
 function keyword_name(keyword)
     name = String(keyword["keyword"])
     isempty(name) && invalid("the expression is incomplete (an empty symbolic keyword)")
@@ -1092,6 +1118,65 @@ function equations_of(value)
         return sympy_list(value.args)
     end
     return Py[value]
+end
+
+# A condition on a derivative, `y′(0)`, is the derivative in the variable of the equation taken at
+# the point, as SymPy reads initial conditions.
+function condition_in(lhs, variable)
+    pytruth(pyisinstance(lhs, sp.Subs)) || return lhs
+    derivative = lhs.expr
+    pytruth(pyisinstance(derivative, sp.Derivative)) || return lhs
+    f = derivative.expr.func
+    return sp.diff(f(variable), variable, derivative.derivative_count).subs(variable, lhs.point[0])
+end
+
+# `dsolve, y(t)` or `dsolve, [x(t); y(t)]`: the closed-form solution of the ordinary differential
+# equations of `value`. An equation that holds the variable is a differential equation; one that
+# does not is a condition (`y(0) == 1`, `y′(0) == 0`). The result is the expression of the unknown
+# function (a column when there are several solutions) or the column of the unknown functions.
+function dsolve_keyword(ctx::Context, value, args)
+    length(args) == 1 || invalid("dsolve takes the unknown functions with their variable, as in y(t)")
+    target = tosympy(ctx, args[1])
+    functions = _is_matrix(target) ? equations_of(target) : Py[target]
+    for f in functions
+        ok = pytruth(pyhasattr(f, "func")) && pytruth(pyisinstance(f.func, sp.core.function.UndefinedFunction)) && length(f.args) == 1 &&
+            pytruth(f.args[0].is_Symbol)
+        ok || invalid("dsolve: name each unknown function with its variable, as in y(t)")
+    end
+    variable = functions[1].args[0]
+    all(f -> pytruth(f.args[0] == variable), functions) ||
+        invalid("dsolve: every unknown function must depend on the same variable")
+    odes = Py[]
+    ics = pydict()
+    for equation in equations_of(value)
+        pytruth(pyhasattr(equation, "is_Relational") && equation.is_Relational) && pytruth(equation.func == sp.Eq) ||
+            invalid("dsolve: every equation and condition uses the bold equal sign")
+        if pytruth(equation.has(variable))
+            push!(odes, equation)
+        else
+            ics[condition_in(equation.lhs, variable)] = equation.rhs
+        end
+    end
+    isempty(odes) && invalid("dsolve needs a differential equation in $(pyconvert(String, pystr(variable)))")
+    solution = try
+        sp.dsolve(length(odes) == 1 ? odes[1] : pylist(odes), length(functions) == 1 ? functions[1] : pylist(functions); ics=ics)
+    catch error
+        error isa PythonCall.PyException || rethrow()
+        throw(SymbolicError("symbolic", "no closed-form solution found: $(pyconvert(String, pystr(error.v)))"))
+    end
+    solutions = pyisinstance(solution, pybuiltins.list) ? sympy_list(solution) : Py[solution]
+    if length(functions) == 1
+        values = Py[s.rhs for s in solutions]
+        return length(values) == 1 ? values[1] : sp.ImmutableMatrix(pylist([pylist([v]) for v in values]))
+    end
+    byfunction = Dict{String,Py}(pyconvert(String, pystr(s.lhs)) => s.rhs for s in solutions)
+    values = Py[]
+    for f in functions
+        name = pyconvert(String, pystr(f))
+        haskey(byfunction, name) || throw(SymbolicError("symbolic", "no closed-form solution found for $name"))
+        push!(values, byfunction[name])
+    end
+    return sp.ImmutableMatrix(pylist([pylist([v]) for v in values]))
 end
 
 function solve_keyword(ctx::Context, value, args; selected_only=false)
@@ -1622,6 +1707,8 @@ function run_keywords(ctx::Context, value, keywords)
             factor_keyword(ctx, value, args)
         elseif name == "solve" || name == "worksheet_solve_for"
             solve_keyword(ctx, value, args; selected_only=name == "worksheet_solve_for")
+        elseif name == "dsolve"
+            dsolve_keyword(ctx, value, args)
         elseif name == "substitute"
             substitute_keyword(ctx, value, args)
         elseif name == "series"
@@ -1698,6 +1785,7 @@ function evaluate(request)
         register_assumptions!(ctx, keywords)
         for keyword in keywords
             keyword_name(keyword) in VARIABLE_KEYWORDS && append!(ctx.free, keyword_variable_names(keyword))
+            keyword_name(keyword) == "dsolve" && append!(ctx.free, dsolve_names(keyword))
         end
         for definition in get(request, "definitions", Any[])
             bind_definition!(ctx, definition)

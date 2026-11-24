@@ -351,7 +351,7 @@ export type CommandScope = {
   fileTab: "text" | "image" | null;
   project: boolean;
   /** The ribbon's contextual object (the plot, image, matrix, area or text being edited). */
-  object: "text" | "matrix" | "plot" | "area" | "image" | null;
+  object: "text" | "matrix" | "plot" | "area" | "image" | "solver" | "derivative" | null;
   /** The kind of the one selected region, if exactly one is selected. */
   selectedKind: string | null;
   mathEditing: boolean;

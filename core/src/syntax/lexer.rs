@@ -123,10 +123,13 @@ fn is_name_start_char(c: char) -> bool {
     is_letter(c) || c.is_ascii_digit() || c == '∞' || c == '°'
 }
 
-/// `namechar` at position `k` of `chars` (the `.` rule needs the next character).
+/// `namechar` at position `k` of `chars` (the `.` rule needs the next character). The
+/// apostrophe never starts a part, so it is a `namechar` only after the first character:
+/// `x'` and `x''` are names, the prime derivative is `′`.
 pub(crate) fn is_namechar_at(chars: &[char], k: usize) -> bool {
     match chars.get(k) {
         Some(&c) if is_name_start_char(c) => true,
+        Some('\'') => true,
         Some('.') => matches!(chars.get(k + 1), Some(&n) if is_name_start_char(n)),
         _ => false,
     }

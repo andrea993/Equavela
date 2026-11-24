@@ -120,3 +120,64 @@ end
         @test eq_find(contradictory, [0.3]) ≈ 0.5 atol = 1e-6
     end
 end
+
+@testset "Find and Minerr: the algorithms" begin
+    circle = [eq((x, y) -> eq_add(eq_pow(x, 2.0), eq_pow(y, 2.0)), (x, y) -> 4.0), eq((x, y) -> eq_sub(x, y), (x, y) -> 0.0)]
+    for algorithm in ("auto", "levenberg-marquardt", "trust-region", "newton")
+        r = eq_find(circle, [1.0, 0.5]; algorithm)
+        @test r[1] ≈ sqrt(2.0) atol = 1e-8
+        @test r[2] ≈ sqrt(2.0) atol = 1e-8
+    end
+    # Finite differences give the same solution.
+    @test eq_find(circle, [1.0, 0.5]; derivatives="finite-differences")[1] ≈ sqrt(2.0) atol = 1e-8
+    # The square methods refuse inequalities and non-square systems.
+    with_inequality = [circle[1], eq_constraint(:gt, (x, y) -> x, (x, y) -> 0.0)]
+    @test_throws EqError eq_find(with_inequality, [1.0, 0.5]; algorithm="newton")
+    @test_throws EqError eq_find(circle, [1.0, 0.5]; algorithm="simplex")
+    @test_throws EqError eq_find(circle, [1.0, 0.5]; max_evaluations=0)
+end
+
+@testset "Minimize: the algorithms, the stopping rules and the bounds" begin
+    objective = (x, y) -> eq_add(eq_pow(eq_sub(x, 1.0), 2.0), eq_pow(eq_sub(y, 2.0), 2.0))
+    below = [eq_constraint(:le, (x, y) -> eq_add(x, y), (x, y) -> 1.0)]
+    for algorithm in ("auto", "slsqp", "mma", "ccsaq", "cobyla", "penalty")
+        r = eq_minimize(objective, below, [0.0, 0.0]; algorithm)
+        @test r[1] ≈ 0.0 atol = 1e-3
+        @test r[2] ≈ 1.0 atol = 1e-3
+    end
+    for algorithm in ("lbfgs", "nelder-mead")
+        r = eq_minimize(objective, EqRuntime.EqConstraint[], [0.0, 0.0]; algorithm)
+        @test r[1] ≈ 1.0 atol = 1e-6
+        @test r[2] ≈ 2.0 atol = 1e-6
+        # They take no constraint.
+        @test_throws EqError eq_minimize(objective, below, [0.0, 0.0]; algorithm)
+    end
+    # Equations: MMA takes inequalities only.
+    on_line = [eq((x, y) -> eq_add(x, y), (x, y) -> 1.0)]
+    @test_throws EqError eq_minimize(objective, on_line, [0.0, 0.0]; algorithm="mma")
+    @test eq_minimize(objective, on_line, [0.0, 0.0]; algorithm="slsqp")[2] ≈ 1.0 atol = 1e-6
+    # Many local minima: a local method stays near the guess, the global ones find the box minimum.
+    two_pi = 2pi
+    rastrigin = (x, y) -> eq_add(eq_add(eq_pow(x, 2.0), eq_pow(y, 2.0)),
+        eq_mul(10.0, eq_sub(2.0, eq_add(eq_cos(eq_mul(two_pi, x)), eq_cos(eq_mul(two_pi, y))))))
+    box = [eq_constraint(:ge, (x, y) -> x, (x, y) -> -5.0), eq_constraint(:le, (x, y) -> x, (x, y) -> 5.0),
+        eq_constraint(:ge, (x, y) -> y, (x, y) -> -5.0), eq_constraint(:le, (x, y) -> y, (x, y) -> 5.0)]
+    bounds = (Any[(-5.0,), (-5.0,)], Any[(5.0,), (5.0,)], [1, 2, 3, 4])
+    @test eq_minimize(rastrigin, box, [3.1, 2.9]; bounds)[1] > 2.5
+    for algorithm in ("direct-l", "crs2", "mlsl", "isres")
+        r = eq_minimize(rastrigin, box, [3.1, 2.9]; algorithm, bounds, max_evaluations=20000)
+        @test abs(r[1]) < 1e-6 && abs(r[2]) < 1e-6
+    end
+    # A global method needs every unknown bounded, and only ISRES takes other constraints.
+    @test_throws EqError eq_minimize(rastrigin, box[1:2], [3.1, 2.9]; algorithm="direct-l",
+        bounds=(Any[(-5.0,), nothing], Any[(5.0,), nothing], [1, 2]))
+    @test_throws EqError eq_minimize(rastrigin, vcat(box, below), [3.1, 2.9]; algorithm="crs2", bounds)
+    # The evaluation limit stops the search with a message that names it.
+    err = try
+        eq_minimize(objective, on_line, [50.0, -70.0]; algorithm="cobyla", max_evaluations=3)
+        nothing
+    catch e
+        e
+    end
+    @test err isa EqError && occursin("maximum number of evaluations", sprint(showerror, err))
+end

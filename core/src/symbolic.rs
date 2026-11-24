@@ -200,6 +200,37 @@ fn keywords_of(groups: &[KeywordGroup]) -> Vec<SymbolicKeyword> {
 
 /// A direct Find call with a symbolic tail, as the closing statement of a Given block.
 pub(crate) fn symbolic_find_args(statement: &Statement) -> Option<&[Arg]> {
+    symbolic_solving_call(statement, "find")
+}
+
+/// An `odesolve(y(t), b)` call with a symbolic tail closing a block: the unknown functions,
+/// solved in closed form (the end point only matters to the numeric solver).
+pub(crate) fn symbolic_odesolve_functions(statement: &Statement) -> Option<&Expr> {
+    match symbolic_solving_call(statement, "odesolve")?.first()? {
+        Arg::Expr { expr } => Some(expr),
+        _ => None,
+    }
+}
+
+/// The variable of the unknown functions of a symbolic `odesolve` (`t` of `y(t)`).
+fn odesolve_variable(functions: &Expr) -> Option<Name> {
+    let first = match &functions.kind {
+        ExprKind::Matrix { cells, .. } => cells.first()?,
+        _ => functions,
+    };
+    let ExprKind::Call { args, .. } = &first.kind else {
+        return None;
+    };
+    match args.first()? {
+        Arg::Expr { expr } => match &expr.kind {
+            ExprKind::Ident { name } => Some(name.clone()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn symbolic_solving_call<'a>(statement: &'a Statement, function: &str) -> Option<&'a [Arg]> {
     let expr = match &statement.kind {
         StatementKind::Symbolic { expr, .. } => expr,
         StatementKind::Define {
@@ -216,7 +247,7 @@ pub(crate) fn symbolic_find_args(statement: &Statement) -> Option<&[Arg]> {
         return None;
     };
     crate::syntax::print_name(name)
-        .eq_ignore_ascii_case("find")
+        .eq_ignore_ascii_case(function)
         .then_some(args)
 }
 
@@ -239,6 +270,25 @@ fn statement_symbolic(statement: &Statement) -> Option<(Expr, Vec<SymbolicKeywor
                 _ => Vec::new(),
             };
             Some((rhs.clone(), keywords_of(keywords), free))
+        }
+        StatementKind::Solve { constraints, call }
+            if symbolic_odesolve_functions(call).is_some() =>
+        {
+            let functions = symbolic_odesolve_functions(call)?.clone();
+            let (_, mut keywords, free) = statement_symbolic(call)?;
+            keywords.insert(
+                0,
+                SymbolicKeyword {
+                    keyword: "dsolve".into(),
+                    args: vec![functions],
+                },
+            );
+            let system = Expr::synth(ExprKind::Matrix {
+                rows: constraints.len(),
+                cols: 1,
+                cells: constraints.clone(),
+            });
+            Some((system, keywords, free))
         }
         StatementKind::Solve { constraints, call } => {
             let args = symbolic_find_args(call)?;
@@ -295,6 +345,14 @@ fn statement_definition(statement: &Statement) -> Option<SymbolicDefinition> {
             let (body, keywords, _) = statement_symbolic(statement)?;
             definition.body = body;
             definition.keywords = keywords;
+            // `y := odesolve(y(t), b) →` defines the solution as a function of the variable.
+            if definition.params.is_none() {
+                if let Some(variable) =
+                    symbolic_odesolve_functions(call).and_then(odesolve_variable)
+                {
+                    definition.params = Some(vec![variable]);
+                }
+            }
             return Some(definition);
         }
         StatementKind::GlobalDefine { target, rhs } => (target, rhs, Vec::new()),

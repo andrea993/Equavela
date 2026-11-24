@@ -912,6 +912,14 @@ export function useWorkbench(backend: Backend) {
     [backend, edit],
   );
 
+  /** Sets (or with null clears) the numeric choices of a math region. One undo step. */
+  const setNumericOptions = useCallback(
+    async (id: string, regionId: string, options: Record<string, string> | null) => {
+      await edit(id, () => backend.setNumericOptions(id, regionId, options));
+    },
+    [backend, edit],
+  );
+
   /** Sets (or with null clears) the result-format override of a math region. One undo step. */
   const setResultFormat = useCallback(
     async (id: string, regionId: string, format: Record<string, string> | null) => {
@@ -3509,6 +3517,7 @@ export function useWorkbench(backend: Backend) {
     originalImageSize,
     replaceImageWithDialog,
     setResultFormat,
+    setNumericOptions,
     setMathFont,
     setResultDefaults,
     setLabelStyles,

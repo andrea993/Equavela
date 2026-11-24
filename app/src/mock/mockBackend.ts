@@ -2143,6 +2143,17 @@ export function createMockBackend(options: MockOptions = {}): MockBackend {
       else delete region.format;
       return finish(doc, "Result format");
     },
+    setNumericOptions: async (id, regionId, options) => {
+      const doc = document(id);
+      if (doc.running) throw { kind: "busy", message: "a calculation is running" };
+      const region = doc.view.regions.find((r) => r.id === regionId);
+      if (!region) throw { kind: "edit", message: `there is no region \`${regionId}\` in the document` };
+      if (region.kind !== "math") throw { kind: "edit", message: `\`${regionId}\` is not a math region` };
+      record(doc, "Numeric method");
+      if (options && Object.keys(options).length > 0) region.numeric = options;
+      else delete region.numeric;
+      return finish(doc, "Numeric method");
+    },
     setMathFont: async (id, edits, reset) => {
       const doc = document(id);
       if (doc.running) throw { kind: "busy", message: "a calculation is running" };
