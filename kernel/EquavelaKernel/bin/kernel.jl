@@ -1,4 +1,12 @@
 # Entry point. Launch with `julia --startup-file=no --project=kernel/EquavelaKernel`.
+include(joinpath(@__DIR__, "julia_version.jl"))
+let message = julia_version_error()
+    if message !== nothing
+        println(stderr, "ERROR: ", message)
+        exit(1)
+    end
+end
+
 using EquavelaKernel
 using EqRuntime
 

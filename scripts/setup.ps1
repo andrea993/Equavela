@@ -51,6 +51,14 @@ if ((Test-Path $vswhere) -and (& $vswhere -products * -requires Microsoft.Visual
 }
 
 if (Get-Command julia -ErrorAction SilentlyContinue) {
+    # The kernel runs on Julia 1.13 or later only.
+    $juliaVersion = (& julia --startup-file=no -e 'print(VERSION.major, ".", VERSION.minor)' 2>$null)
+    if ($juliaVersion -and ([version]$juliaVersion -lt [version]'1.13')) {
+        Write-Host "[missing] julia    version $juliaVersion is too old, 1.13 or later is needed. Run: juliaup update" -ForegroundColor Yellow
+        $missing += 'julia-1.13'
+    } else {
+        Write-Host "[ok]      julia    version $juliaVersion (1.13 or later)"
+    }
     Write-Host "Instantiating Julia environments..."
     julia --project=kernel/EqRuntime -e "using Pkg; Pkg.instantiate()"
     julia --project=kernel/EquavelaKernel -e "using Pkg; Pkg.instantiate()"

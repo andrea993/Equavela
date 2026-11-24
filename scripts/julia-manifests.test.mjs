@@ -1,6 +1,7 @@
 // Every Julia manifest of the kernel environments must hold the dependencies their Project.toml files
-// declare. Julia 1.12 reads Manifest-v1.12.toml and Julia 1.13 reads Manifest.toml; when only one is
-// re-resolved, the other loads an EqRuntime without its new packages and the kernel fails to start.
+// declare, and there is one manifest per environment: the kernel runs on one Julia version, which
+// reads Manifest.toml. A version-specific Manifest-v1.x.toml would win over it and fall behind when
+// a dependency changes, and the kernel would then fail to start on that Julia version.
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -99,4 +100,11 @@ for (const manifest of manifestsOf(join(kernel, "EqRuntime"))) {
 test("the kernel environments have manifests to check", () => {
   assert.ok(existsSync(join(kernel, "EquavelaKernel", "Manifest.toml")));
   assert.ok(manifestsOf(join(kernel, "EquavelaKernel")).length >= 1);
+});
+
+test("each kernel environment has only Manifest.toml, no version-specific manifest", () => {
+  for (const env of ["EqRuntime", "EquavelaKernel"]) {
+    const names = manifestsOf(join(kernel, env)).map((path) => path.slice(path.lastIndexOf(env) + env.length + 1));
+    assert.deepEqual(names, ["Manifest.toml"], `kernel/${env}`);
+  }
 });
