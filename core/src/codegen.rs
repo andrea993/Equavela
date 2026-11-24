@@ -107,6 +107,19 @@ pub struct StatementLocation {
 
 /// The message of a definition whose left side cannot be defined.
 const INVALID_TARGET: &str = "The left side of a definition must be a name, an indexed name, a function name with parameters, or a matrix of names.";
+const RANGE_IN_TARGET: &str = "A range is not allowed on the left side of a definition.";
+
+/// The error of a left side that cannot be defined: a range used as an index is named.
+fn invalid_target(expr: &Expr, span: Span) -> CodegenError {
+    let ranged = match &expr.kind {
+        ExprKind::Index { indices, .. } => indices.iter().any(|i| matches!(i.kind, ExprKind::Range { .. })),
+        ExprKind::Column { index, .. } | ExprKind::Row { index, .. } => {
+            matches!(index.kind, ExprKind::Range { .. })
+        }
+        _ => false,
+    };
+    CodegenError::new(if ranged { RANGE_IN_TARGET } else { INVALID_TARGET }, span)
+}
 
 /// The Julia for one region.
 #[derive(Debug, Clone, PartialEq)]
@@ -2951,7 +2964,7 @@ impl Generator {
         last: bool,
     ) -> Result<(), CodegenError> {
         match &target.kind {
-            TargetKind::Invalid { .. } => Err(CodegenError::new(INVALID_TARGET, target.span)),
+            TargetKind::Invalid { expr } => Err(invalid_target(expr, target.span)),
             TargetKind::Transpose { target } => {
                 self.assign_local(target, format!("eq_transpose({value})"), out, last)
             }
@@ -3639,7 +3652,7 @@ impl Generator {
         range: bool,
     ) -> Result<(), CodegenError> {
         match &target.kind {
-            TargetKind::Invalid { .. } => Err(CodegenError::new(INVALID_TARGET, target.span)),
+            TargetKind::Invalid { expr } => Err(invalid_target(expr, target.span)),
             TargetKind::Transpose { target } => self.sheet_assign(
                 target,
                 format!("eq_transpose({value})"),
