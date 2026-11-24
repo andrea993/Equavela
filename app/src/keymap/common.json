@@ -26,6 +26,7 @@
   "keys": [
     { "key": " ", "ctx": "math", "cmd": "grow" },
     { "key": " ", "ctrl": true, "shift": true, "ctx": "math", "cmd": "insertSearch" },
+    { "key": " ", "ctrl": true, "ctx": "math", "cmd": "gap" },
     { "key": "A", "code": "KeyA", "ctrl": true, "shift": true, "ctx": "math", "cmd": "sum" },
     { "key": " ", "shift": true, "ctx": "matrix", "cmd": "addColumn" },
     { "key": "Enter", "ctx": "math", "cmd": "exitRegion" },

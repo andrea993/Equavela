@@ -928,7 +928,8 @@ fn collect_expr(expr: &Expr, locals: &HashSet<NameKey>, out: &mut Vec<Occurrence
         | K::In { left, right }
         | K::And { left, right }
         | K::Or { left, right }
-        | K::Xor { left, right } => {
+        | K::Xor { left, right }
+        | K::Gap { left, right } => {
             collect_expr(left, locals, out);
             collect_expr(right, locals, out);
         }
@@ -1173,6 +1174,7 @@ where
 fn collect_target_reads(target: &Target, locals: &HashSet<NameKey>, out: &mut Vec<Occurrence>) {
     match &target.kind {
         TargetKind::Ident { .. } | TargetKind::FunctionHead { .. } => {}
+        TargetKind::Invalid { expr } => collect_expr(expr, locals, out),
         TargetKind::Index { base, indices } => {
             record_target_base(base, locals, out);
             for index in indices {
@@ -1306,6 +1308,7 @@ fn target_defined_names(target: &Target, out: &mut Vec<DefinedName>) {
         return;
     }
     match &target.kind {
+        TargetKind::Invalid { .. } => {}
         TargetKind::Ident { name } => out.push(DefinedName {
             name: name.clone(),
             contextual_label: Label::Var,
@@ -1341,7 +1344,7 @@ fn target_defined_names_into_set(target: &Target, names: &mut HashSet<NameKey>) 
 fn target_root_name(target: &Target) -> Option<&Name> {
     match &target.kind {
         TargetKind::Ident { name } if !target.has_placeholder() => Some(name),
-        TargetKind::Ident { .. } => None,
+        TargetKind::Ident { .. } | TargetKind::Invalid { .. } => None,
         TargetKind::Index { base, .. }
         | TargetKind::Column { base, .. }
         | TargetKind::Row { base, .. } => target_root_name(base),

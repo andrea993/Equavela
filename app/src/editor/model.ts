@@ -20,6 +20,7 @@ import { toggleGreek } from "./greek";
 import { UNIT_NAMES } from "../math/units";
 import {
   BINARY_LEVEL,
+  BIG_OPS,
   allPaths,
   samePath,
   SPLITTABLE,
@@ -336,7 +337,8 @@ function operandTarget(s: EditorState, p: number): Path {
     const climb =
       (lv !== undefined && i === 1 && lv >= p) ||
       (parent.type === "Neg" && 10 >= p) ||
-      (parent.type === "Not" && 5 >= p);
+      (parent.type === "Not" && 5 >= p) ||
+      (BIG_OPS.has(parent.type) && i === prefixOperand(parent).index && BIG_BODY_LEVEL > p);
     if (!climb) break;
     path = parentPath(path);
   }
@@ -350,7 +352,7 @@ const DIGIT = /^[0-9.]$/;
 // subscript is Ctrl+-.
 const LETTER = /^[\p{L}∞_]$/u;
 /** Non-ASCII symbols with an operator meaning: never part of a name. */
-const OPERATOR_GLYPHS = "∗⊛∇‰‖°×·÷√∛∜∑∏∫∂ⅆ≤≥≠¬∧∨⊕←→≡∈∠′″…⋯⋮⋱";
+const OPERATOR_GLYPHS = "∗⊛∇‰‖°×·÷√∛∜∑∏∫∂ⅆ≤≥≠¬∧∨⊕␣←→≡∈∠′″…⋯⋮⋱";
 
 /**
  * Whether a character joins a name as a letter does: a letter, `∞`,
@@ -1399,6 +1401,21 @@ type ChainToken =
 
 /** The precedence of a prefix operator. */
 const PREFIX_LEVEL: Record<string, number> = { Neg: 10, Not: 5 };
+/**
+ * The level a prefix operator reads its operand at. The body of `∑ ∏ ∫ ⅆ ∂ ∇ lim` is a product
+ * (math-syntax `BigBody`), so a `+`, a comparison or `∧` typed at its end belongs outside, as the
+ * same text reads.
+ */
+const BIG_BODY_LEVEL = 8;
+function prefixLevel(n: Node): number | undefined {
+  return PREFIX_LEVEL[n.type] ?? (BIG_OPS.has(n.type) ? BIG_BODY_LEVEL : undefined);
+}
+/** The field and child index of a prefix operator's operand: `expr` of `-` and `¬`, the body of a big operator. */
+function prefixOperand(n: Node): { key: string; index: number } {
+  if (PREFIX_LEVEL[n.type] !== undefined) return { key: "expr", index: 0 };
+  const index = childRefs(n).findIndex((ref) => ref.length === 1 && ref[0] === "body");
+  return { key: "body", index };
+}
 /** The precedence of `^`; its exponent is a box and never joins the chain. */
 const POW_LEVEL = 12;
 const POSTFIX_LEVEL = 13;
@@ -1406,7 +1423,8 @@ const POSTFIX_CHAIN = new Set(["Index", "Column", "Row", "Factorial", "Percent",
 
 /** Whether the child `index` of `parent` is read with its operator chain (not a box of its own). */
 function inChain(parent: Node, index: number): boolean {
-  return BINARY_LEVEL[parent.type] !== undefined || PREFIX_LEVEL[parent.type] !== undefined ||
+  return BINARY_LEVEL[parent.type] !== undefined ||
+    (prefixLevel(parent) !== undefined && index === prefixOperand(parent).index) ||
     (index === 0 && (parent.type === "Pow" || POSTFIX_CHAIN.has(parent.type)));
 }
 
@@ -1428,9 +1446,10 @@ function chainTokens(n: Node, out: ChainToken[] = [], at: Path = [], splice?: { 
   } else if (POSTFIX_CHAIN.has(n.type)) {
     chainTokens(children(n)[0], out, [...at, 0], splice);
     out.push({ kind: "postfix", node: n, level: POSTFIX_LEVEL });
-  } else if (PREFIX_LEVEL[n.type] !== undefined) {
-    out.push({ kind: "prefix", node: n, level: PREFIX_LEVEL[n.type] });
-    chainTokens(n.expr, out, [...at, 0], splice);
+  } else if (prefixLevel(n) !== undefined) {
+    const { key, index } = prefixOperand(n);
+    out.push({ kind: "prefix", node: n, level: prefixLevel(n)! });
+    chainTokens(n[key], out, [...at, index], splice);
   } else {
     out.push({ kind: "atom", node: n });
   }
@@ -1457,8 +1476,9 @@ function regroup(tokens: ChainToken[]): Node {
   const operand = (): Node => {
     const token = tokens[at++];
     if (token.kind === "prefix") {
-      const expr = parse(token.level);
-      return token.node.expr === expr ? token.node : { ...token.node, expr };
+      const { key } = prefixOperand(token.node);
+      const operand = parse(token.level);
+      return token.node[key] === operand ? token.node : { ...token.node, [key]: operand };
     }
     return token.kind === "atom" ? token.node : ph();
   };
@@ -2704,7 +2724,7 @@ export type Command =
   | "define" | "globalDefine" | "evaluate" | "symbolic"
   | "add" | "sub" | "mul" | "inlineDiv" | "cross" | "conv" | "circConv" | "polar" | "frac" | "pow"
   | "factorial" | "percent" | "permille" | "transpose" | "primeDeriv" | "abs" | "norm" | "conj" | "realPart" | "imagPart" | "vectorize" | "sqrt"
-  | "less" | "greater" | "lessEq" | "greaterEq" | "notEq" | "range" | "scale" | "boolEq" | "element" | "and" | "or" | "not" | "xor"
+  | "less" | "greater" | "lessEq" | "greaterEq" | "notEq" | "range" | "scale" | "boolEq" | "element" | "and" | "or" | "not" | "xor" | "gap"
   | "addBreak" | "subBreak" | "mulBreak" | "inlineDivBreak" | "toggleBreak" | "toggleBoundGlyph"
   | "insertLineBreak"
   | "bracket" | "matrix" | "column" | "row"
@@ -2723,7 +2743,7 @@ export type Command =
 export const MODEL_COMMANDS = new Set<string>([
   "define", "globalDefine", "evaluate", "symbolic", "add", "sub", "mul", "inlineDiv", "cross", "conv", "circConv", "polar", "frac", "pow",
   "factorial", "percent", "permille", "transpose", "primeDeriv", "abs", "norm", "conj", "realPart", "imagPart", "vectorize", "sqrt", "less", "greater",
-  "lessEq", "greaterEq", "notEq", "range", "scale", "boolEq", "element", "and", "or", "not", "xor", "addBreak", "subBreak", "mulBreak",
+  "lessEq", "greaterEq", "notEq", "range", "scale", "boolEq", "element", "and", "or", "not", "xor", "gap", "addBreak", "subBreak", "mulBreak",
   "inlineDivBreak", "toggleBreak", "insertLineBreak", "toggleBoundGlyph", "bracket", "matrix", "column", "row", "sum", "prod", "integral", "deriv",
   "partial", "gradient", "limit", "infinity", "openParen", "closeParen", "comma", "string", "endString", "greek",
   "literalSubscript", "label", "unitLabel", "grow", "growLeft", "growRight", "flipSide", "left", "right", "up", "down", "wordLeft",
@@ -2837,6 +2857,7 @@ function runRaw(s: EditorState, cmd: Command): EditorState {
     case "and": return insertBinary(s, "And");
     case "or": return insertBinary(s, "Or");
     case "xor": return insertBinary(s, "Xor");
+    case "gap": return insertBinary(s, "Gap");
     case "not": return wrapWith(s, (x) => ({ type: "Not", expr: x }));
     case "pow": return fillOperatorGap(s, "Pow") ?? wrapBox(s, (x) => ({ type: "Pow", left: x, right: ph() }), 1);
     case "frac": return fillOperatorGap(s, "Div") ?? wrapBox(s, (x) => ({ type: "Div", left: x, right: ph() }), 1);

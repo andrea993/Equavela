@@ -330,6 +330,7 @@ fn collect_bound_names(statement: &Statement, out: &mut HashSet<String>) {
 
 fn collect_target_names(target: &Target, out: &mut HashSet<String>) {
     match &target.kind {
+        TargetKind::Invalid { .. } => {}
         TargetKind::Ident { name } => {
             if let Some(text) = plain_unlabelled(name) {
                 out.insert(text.to_owned());
@@ -560,6 +561,7 @@ pub(crate) fn children(expr: &ExprKind) -> Vec<&Expr> {
         | ExprKind::And { left, right }
         | ExprKind::Or { left, right }
         | ExprKind::Xor { left, right }
+        | ExprKind::Gap { left, right }
         | ExprKind::Column {
             base: left,
             index: right,
@@ -633,7 +635,8 @@ fn label_statement(statement: &mut Statement, ctx: &LabelCtx) {
 /// The index expressions of a target are value positions; the names of the target are not.
 fn label_target_indices(target: &mut Target, ctx: &LabelCtx) {
     match &mut target.kind {
-        TargetKind::Ident { .. } | TargetKind::FunctionHead { .. } => {}
+        TargetKind::Ident { .. } | TargetKind::FunctionHead { .. } | TargetKind::Invalid { .. } => {
+        }
         TargetKind::Destructure { cells, .. } => {
             for cell in cells {
                 label_target_indices(cell, ctx);
@@ -799,6 +802,7 @@ fn label_expr(expr: &mut Expr, ctx: &LabelCtx) {
                 | ExprKind::And { left, right }
                 | ExprKind::Or { left, right }
                 | ExprKind::Xor { left, right }
+                | ExprKind::Gap { left, right }
                 | ExprKind::Column {
                     base: left,
                     index: right,

@@ -756,6 +756,8 @@ function exprContent(expr: Expr, path: Path | undefined): ReactNode {
       return binary(expr, path, <Op glyph={GLYPH.or} className="binary" />, 3);
     case "Xor":
       return binary(expr, path, <Op glyph={GLYPH.xor} className="binary" />, 3);
+    case "Gap":
+      return binary(expr, path, <Op glyph={GLYPH.gap} className="gap" />, 3);
 
     case "Root":
       return (
@@ -1062,6 +1064,9 @@ export function TargetView({ target, path }: { target: Target; path?: Path }): R
           </span>
         </N>
       );
+    // A left side that cannot be defined: drawn as the expression it is.
+    case "Invalid":
+      return <MathExpr expr={target.expr} path={at(path, 0)} />;
     case "FunctionHead":
       return (
         <N path={path} node={target}>

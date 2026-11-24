@@ -80,6 +80,7 @@ pub fn sx_target(t: &Target) -> String {
         }
         TargetKind::Row { base, index } => format!("(row {} {})", sx_target(base), sx_expr(index)),
         TargetKind::Paren { target } => format!("(paren {})", sx_target(target)),
+        TargetKind::Invalid { expr } => format!("(invalid {})", sx_expr(expr)),
         TargetKind::Transpose { target } => format!("(transpose {})", sx_target(target)),
         TargetKind::Destructure { rows, cols, cells } => {
             let mut parts = vec!["destructure".to_string(), format!("{rows}×{cols}")];
@@ -154,6 +155,7 @@ pub fn sx_expr(e: &Expr) -> String {
             BinaryOp::And => "∧",
             BinaryOp::Or => "∨",
             BinaryOp::Xor => "⊕",
+            BinaryOp::Gap => "␣",
         };
         let head = if split {
             format!("{head}↵")

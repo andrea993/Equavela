@@ -809,3 +809,7 @@ br.eq-break {
 .region:not(.editing) .matrix.table .cell.table-unit .ph {
   visibility: hidden;
 }
+/* A blank space between two parts of a formula (`␣`): empty on the page and in the PDF. */
+.op.gap {
+  white-space: pre;
+}

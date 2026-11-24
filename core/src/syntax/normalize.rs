@@ -115,6 +115,7 @@ fn normalize_stmt(s: &mut Stmt) {
 /// Normalizes a target in place.
 pub fn normalize_target(t: &mut Target) {
     match &mut t.kind {
+        TargetKind::Invalid { expr } => normalize_expr(expr),
         TargetKind::Ident { name } => normalize_name(name),
         TargetKind::Index { base, indices } => {
             normalize_target(base);
@@ -242,7 +243,7 @@ pub fn normalize_expr(e: &mut Expr) {
         normalize_expr(l);
         normalize_expr(r);
         let (lp, rp) = match op {
-            BinaryOp::Or | BinaryOp::Xor => (Some(Pos::OrLeft), Some(Pos::OrRight)),
+            BinaryOp::Or | BinaryOp::Xor | BinaryOp::Gap => (Some(Pos::OrLeft), Some(Pos::OrRight)),
             BinaryOp::And => (Some(Pos::AndLeft), Some(Pos::AndRight)),
             BinaryOp::Eq
             | BinaryOp::Ne

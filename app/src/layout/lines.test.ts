@@ -3,6 +3,7 @@ import type { PageSetup } from "../equavelaApi";
 import {
   areaBodyAt,
   insertWorksheetLine,
+  insertWorksheetLines,
   insertWorksheetLineInArea,
   lineInsertionPoint,
   removeWorksheetLineAboveInArea,
@@ -24,6 +25,25 @@ const setup: PageSetup = {
 const at = (id: string, page: number, y: number): LineRegion => ({ id, page, y });
 const moved = (result: ReturnType<typeof insertWorksheetLine>, id: string) =>
   result.moves.find((move) => move.id === id);
+
+describe("inserting several worksheet lines at once (a held Enter)", () => {
+  it("gives the same places as as many single Enters, across a page break too", () => {
+    const regions = [at("a", 1, 600), at("b", 1, 740), at("c", 1, 768), at("d", 2, 72)];
+    for (const count of [1, 3, 12, 40]) {
+      let current: LineRegion[] = regions;
+      let point = { page: 1, y: 120 };
+      for (let i = 0; i < count; i++) {
+        const one = insertWorksheetLine(setup, current, point);
+        current = current.map((region) => one.moves.find((move) => move.id === region.id) ?? region);
+        point = one.crosshair;
+      }
+      const many = insertWorksheetLines(setup, regions, { page: 1, y: 120 }, count);
+      const after = regions.map((region) => many.moves.find((move) => move.id === region.id) ?? region);
+      expect(after).toEqual(current);
+      expect(many.crosshair).toEqual(point);
+    }
+  });
+});
 
 describe("inserting a worksheet line at the crosshair", () => {
   it("moves the regions at or below the crosshair down one line and leaves the ones above", () => {
@@ -74,12 +94,55 @@ describe("inserting a worksheet line at the crosshair", () => {
     expect(result.crosshair).toEqual({ page: 1, y: 600 + WORKSHEET_LINE_PT });
   });
 
-  it("uses the whole page as the frame in the draft view, where the margins do not constrain", () => {
-    const result = insertWorksheetLine(setup, [at("region", 1, 21)], { page: 1, y: 9 }, "draft");
-    expect(moved(result, "region")).toEqual({ id: "region", page: 1, y: 21 + WORKSHEET_LINE_PT });
-    expect(result.crosshair).toEqual({ page: 1, y: 9 + WORKSHEET_LINE_PT });
-    // Past the paper height the draft continues on the next page, as the arrows do.
-    expect(insertWorksheetLine(setup, [], { page: 1, y: 830 }, "draft").crosshair.page).toBe(2);
+  it("never moves content into a margin, in the draft view too", () => {
+    // A region on the last line of the printable area goes on to the next page, not into the margin.
+    for (const view of ["page", "draft"] as const) {
+      const result = insertWorksheetLine(setup, [at("last", 1, 756)], { page: 1, y: 600 }, view);
+      expect(moved(result, "last")?.page).toBe(2);
+      expect(moved(result, "last")?.y).toBeCloseTo(72, 0);
+    }
+    // A region placed in a margin on purpose stays where it is.
+    const result = insertWorksheetLine(setup, [at("note", 1, 21), at("footer", 1, 800), at("body", 1, 300)], { page: 1, y: 100 }, "draft");
+    expect(moved(result, "note")).toBeUndefined();
+    expect(moved(result, "footer")).toBeUndefined();
+    expect(moved(result, "body")).toEqual({ id: "body", page: 1, y: 300 + WORKSHEET_LINE_PT });
+  });
+
+  it("moves a region whole to the next page when its bottom would reach into the margin", () => {
+    // 60 pt tall, ending at 759: one line more and it would end at 774, past the bottom margin (769.89).
+    const regions: LineRegion[] = [{ id: "tall", page: 1, y: 699, h: 60 }, { id: "after", page: 1, y: 762, h: 6 }];
+    const result = insertWorksheetLine(setup, regions, { page: 1, y: 600 });
+    expect(moved(result, "tall")).toEqual({ id: "tall", page: 2, y: 72 });
+    // What follows keeps its distance below it.
+    expect(moved(result, "after")?.page).toBe(2);
+    expect(moved(result, "after")!.y).toBeCloseTo(72 + 63, 0);
+    // Enter pushes it to the next page; Delete pulls it back onto page 1, never bouncing.
+    const back = removeWorksheetLine(setup, [{ id: "tall", page: 2, y: 72, h: 60 }], { page: 1, y: 600 });
+    const place = back.moves.find((move) => move.id === "tall")!;
+    expect(place.page).toBe(1);
+    expect(place.y + 60).toBeLessThanOrEqual(setup.height - setup.margins.bottom);
+    expect(place.y).toBeGreaterThan(690);
+    // and each further Delete pulls it up one line.
+    const again = removeWorksheetLine(setup, [{ ...place, h: 60 }], { page: 1, y: 600 });
+    expect(again.moves.find((move) => move.id === "tall")).toEqual({ id: "tall", page: 1, y: place.y - WORKSHEET_LINE_PT });
+    // A tall image pulled up from the top of its page goes on up onto the page above, as low as it
+    // fits whole, even above the crosshair; what follows it only moves by the line.
+    const image: LineRegion[] = [{ id: "image", page: 2, y: 72, h: 500 }, { id: "below", page: 2, y: 600, h: 20 }];
+    const pulled = removeWorksheetLine(setup, image, { page: 1, y: 600 });
+    const imageAt = pulled.moves.find((move) => move.id === "image")!;
+    expect(imageAt.page).toBe(1);
+    expect(imageAt.y + 500).toBeLessThanOrEqual(setup.height - setup.margins.bottom);
+    expect(imageAt.y).toBeLessThan(600);
+    expect(pulled.moves.find((move) => move.id === "below")).toEqual({ id: "below", page: 2, y: 600 - WORKSHEET_LINE_PT });
+    // Above the crosshair now, the next Delete leaves it where it is.
+    const next = removeWorksheetLine(setup, [{ ...imageAt, h: 500 }, { id: "below", page: 2, y: 585, h: 20 }], { page: 1, y: 600 });
+    expect(next.moves.find((move) => move.id === "image")).toBeUndefined();
+    // A region only reaching into the top margin flows with the rest, so nothing passes it.
+    const reaching = removeWorksheetLine(setup, [{ id: "big", page: 1, y: 60, h: 200 }, { id: "after", page: 1, y: 300, h: 20 }], { page: 1, y: 40 });
+    expect(reaching.moves.find((move) => move.id === "big")).toBeDefined();
+    // A region taller than the printable area starts at a top anyway.
+    const huge = insertWorksheetLine(setup, [{ id: "huge", page: 1, y: 72, h: 900 }], { page: 1, y: 72 });
+    expect(moved(huge, "huge")).toEqual({ id: "huge", page: 1, y: 72 + WORKSHEET_LINE_PT });
   });
 });
 
@@ -211,9 +274,8 @@ describe("removing a page break", () => {
     // One whole worksheet line below the page's top margin is no longer "directly below" the break.
     expect(pageBreakAtKey(setup, breaks, { page: 2, y: 72 + WORKSHEET_LINE_PT }, "Backspace")).toBeNull();
     expect(pageBreakAtKey(setup, breaks, { page: 1, y: 72 }, "Backspace")).toBeNull();
-    // The draft view's frame starts at the page edge.
-    expect(pageBreakAtKey(setup, breaks, { page: 2, y: 0 }, "Backspace", "draft")).toEqual({ page: 1, y: 300 });
-    expect(pageBreakAtKey(setup, breaks, { page: 2, y: 72 }, "Backspace", "draft")).toBeNull();
+    // The draft view flows through the printable area as the page view does.
+    expect(pageBreakAtKey(setup, breaks, { page: 2, y: 72 }, "Backspace", "draft")).toEqual({ page: 1, y: 300 });
   });
 
 });

@@ -29,6 +29,8 @@ jobs:
         os: [windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Tauri system libraries (Linux)
         if: runner.os == 'Linux'
         run: |

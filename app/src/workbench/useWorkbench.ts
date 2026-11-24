@@ -16,7 +16,7 @@ import { crosshairBeside, LINE_ABOVE_CROSSHAIR_PT, moveCrosshair as stepCrosshai
 import {
   addPageBreakShift,
   areaBodyAt,
-  insertWorksheetLine,
+  insertWorksheetLines,
   insertWorksheetLineInArea,
   lineInsertionPoint,
   type LineInsertion,
@@ -111,9 +111,12 @@ function lineAreasOf(doc: DocState): { id: string; page: number; y: number; heig
     .map((region) => ({ id: region.id, page: region.page, y: region.y, height: region.kind === "area" ? region.height : 0 }));
 }
 
-/** The stored places the flow arithmetic of the sheet works on (`layout/lines.ts`). */
-function flowRegionsOf(doc: DocState): { id: string; page: number; y: number }[] {
-  return doc.view.regions.map((region) => ({ id: region.id, page: region.page, y: region.y }));
+/**
+ * The stored places the flow arithmetic of the sheet works on (`layout/lines.ts`), with the drawn
+ * height of each region when it is known, so a moved region never reaches into the bottom margin.
+ */
+function flowRegionsOf(doc: DocState, heights?: ReadonlyMap<string, number>): { id: string; page: number; y: number; h?: number }[] {
+  return doc.view.regions.map((region) => ({ id: region.id, page: region.page, y: region.y, h: heights?.get(region.id) }));
 }
 
 /** Where a click landed in a math region (for placing the caret). */
@@ -640,6 +643,9 @@ export function useWorkbench(backend: Backend) {
   const stateRef = useRef(state);
   /** Drawn rectangles (points) of the active worksheet, reported by the page view (reflow). */
   const layoutRef = useRef<FlowRect[]>([]);
+  /** The drawn height of each region, in points, as the line commands need it. */
+  const drawnHeights = (): Map<string, number> =>
+    new Map(layoutRef.current.flatMap((rect) => (rect.id === undefined ? [] : [[rect.id, rect.h] as const])));
   const pageCountRef = useRef(1);
   stateRef.current = state;
   // Promises waiting for the next commit of the window, resolved after it renders (`rendered`).
@@ -1550,8 +1556,9 @@ export function useWorkbench(backend: Backend) {
   /**
    * Commits the region being edited: one committed edit is one undo step in the document
    * (Rust side); the editor's own history is dropped. An emptied region is deleted (a new
-   * one is simply not created). Resolves to false when the math was refused: the editor
-   * stays open with the reason.
+   * one is simply not created). Leaving a region is never refused: math that cannot be stored
+   * (a definition's left side that cannot be defined is stored, and reported by the calculation)
+   * is undone — the region keeps what it had, a new one is not created — and the message says why.
    */
   const commitEditNow = useCallback(async (after?: Crosshair): Promise<boolean> => {
     if (stateRef.current.textEditing) return commitText(after);
@@ -1591,9 +1598,9 @@ export function useWorkbench(backend: Backend) {
       wire = commitWire(root, editing.original, stored);
     } catch (error) {
       if (!(error instanceof WireError)) throw error;
-      dispatch({ type: "editing", editing: { ...editing, rejected: error.message } });
-      dispatch({ type: "message", text: S.editor.rejected(error.message) });
-      return false;
+      close();
+      dispatch({ type: "message", text: S.editor.notStored(error.message), level: "warning" });
+      return true;
     }
     const regionId = editing.regionId;
     const result = await edit(
@@ -1606,10 +1613,11 @@ export function useWorkbench(backend: Backend) {
       S.editor.rejected,
     );
     if (!result) {
-      // Never empty: an empty reason would read as "not rejected" and Escape would commit again.
+      // Refused by the document: the region keeps what it had, and the message says why.
       const reason = lastFailure.current || S.messages.commandFailed("");
-      if (stateRef.current.editing) dispatch({ type: "editing", editing: { ...stateRef.current.editing, rejected: reason } });
-      return false;
+      close();
+      dispatch({ type: "message", text: S.editor.notStored(reason), level: "warning" });
+      return true;
     }
     close();
     if (!regionId && !after) {
@@ -1897,7 +1905,7 @@ export function useWorkbench(backend: Backend) {
    * One line, not an empty region: typing afterwards starts a math region there, as anywhere else on
    * the sheet.
    */
-  const insertLine = useCallback(() => inLineOrder(async () => {
+  const insertLine = useCallback((count = 1) => inLineOrder(async () => {
     if ((stateRef.current.editing || stateRef.current.textEditing) && !(await commitEdit())) return;
     const doc = stateRef.current.docs.find((d) => d.id === stateRef.current.activeId);
     if (!doc) return;
@@ -1909,8 +1917,8 @@ export function useWorkbench(backend: Backend) {
     const raw = storedCrosshair(doc);
     const area = areaBodyAt(setup, lineAreasOf(doc), raw, view);
     const insertion: LineInsertion & { area?: { id: string; height: number } } = area
-      ? insertWorksheetLineInArea(setup, flowRegionsOf(doc), area, raw, view)
-      : insertWorksheetLine(setup, flowRegionsOf(doc), storedInsertionPoint(doc), view);
+      ? insertWorksheetLineInArea(setup, flowRegionsOf(doc, drawnHeights()), area, raw, view, count)
+      : insertWorksheetLines(setup, flowRegionsOf(doc, drawnHeights()), storedInsertionPoint(doc), count, view);
     dispatch({ type: "crosshair", id: doc.id, crosshair: { page: insertion.crosshair.page, x, y: insertion.crosshair.y } });
     const resize = areaHeightsOf(insertion.area ?? null);
     if (insertion.moves.length === 0 && !resize) return;
@@ -1952,7 +1960,7 @@ export function useWorkbench(backend: Backend) {
       dispatch({ type: "message", text: S.ribbon.pageBreakExists(at.page), level: "info" });
       return;
     }
-    const shift = addPageBreakShift(doc.view.page, flowRegionsOf(doc), at, stateRef.current.viewMode);
+    const shift = addPageBreakShift(doc.view.page, flowRegionsOf(doc, drawnHeights()), at, stateRef.current.viewMode);
     const y = snapToGrid(at.y);
     await edit(doc.id, () => backend.addPageBreak(doc.id, at.page, y, movesOf(doc, shift.moves)));
   }, [backend, commitEdit, edit]);
@@ -1969,7 +1977,7 @@ export function useWorkbench(backend: Backend) {
     const at = storedInsertionPoint(doc);
     const found = pageBreakAtKey(doc.view.page, doc.view.page_breaks ?? [], at, key, stateRef.current.viewMode);
     if (!found) return false;
-    const shift = removePageBreakShift(doc.view.page, flowRegionsOf(doc), found, stateRef.current.viewMode);
+    const shift = removePageBreakShift(doc.view.page, flowRegionsOf(doc, drawnHeights()), found, stateRef.current.viewMode);
     await edit(doc.id, () => backend.removePageBreak(doc.id, found.page, movesOf(doc, shift.moves)));
     return true;
   }, [backend, edit]);
@@ -1988,8 +1996,8 @@ export function useWorkbench(backend: Backend) {
     const raw = storedCrosshair(doc);
     const area = areaBodyAt(setup, lineAreasOf(doc), raw, view);
     const shift = area
-      ? removeWorksheetLineInArea(setup, flowRegionsOf(doc), area, raw, view)
-      : { ...removeWorksheetLine(setup, flowRegionsOf(doc), storedInsertionPoint(doc), view), area: null };
+      ? removeWorksheetLineInArea(setup, flowRegionsOf(doc, drawnHeights()), area, raw, view)
+      : { ...removeWorksheetLine(setup, flowRegionsOf(doc, drawnHeights()), storedInsertionPoint(doc), view), area: null };
     if (shift.moves.length === 0 && !shift.area) return;
     await edit(doc.id, () => backend.moveRegions(doc.id, movesOf(doc, shift.moves), areaHeightsOf(shift.area)));
   }), [backend, commitEdit, edit, inLineOrder]);

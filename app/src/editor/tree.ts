@@ -40,6 +40,7 @@ export const emptyStatement = (): Node => ({ type: "ExprRegion", expr: ph() });
 export const BINARY_LEVEL: Record<string, number> = {
   Or: 3,
   Xor: 3,
+  Gap: 3,
   And: 4,
   Eq: 6,
   Ne: 6,
@@ -411,6 +412,9 @@ function targetToExpr(t: Node): Node {
       return { type: "Transpose", expr: targetToExpr(t.target) };
     case "Destructure":
       return { type: "Matrix", rows: t.rows, cols: t.cols, cells: t.cells.map(targetToExpr) };
+    // A left side that cannot be defined is edited as the expression it is.
+    case "Invalid":
+      return t.expr;
     case "FunctionHead":
       return {
         type: "Call",
@@ -548,6 +552,20 @@ export function integralWirePath(root: Node, path: Path): Path | null {
     node = children(node)[index];
   }
   return result;
+}
+
+/**
+ * The left side of a region's definition: a target, or, when the expression cannot be defined
+ * (`a ␣ b := 1`, `x + 1 := 3`), the expression kept as written; the region is then stored and
+ * its calculation reports the left side, so leaving it is never refused.
+ */
+function definitionTarget(e: Node): Node {
+  try {
+    return exprToTarget(e, true);
+  } catch (error) {
+    if (!(error instanceof WireError)) throw error;
+    return { type: "Invalid", expr: toWireExpr(e) };
+  }
 }
 
 function exprToTarget(e: Node, functionHead: boolean): Node {
@@ -704,12 +722,12 @@ export function toWire(statement: Node): Node {
     case "Define":
       return {
         type: "Define",
-        target: exprToTarget(statement.target, true),
+        target: definitionTarget(statement.target),
         rhs: toWireExpr(statement.rhs),
         tail: statement.tail ? toWireTail(statement.tail) : null,
       };
     case "GlobalDefine":
-      return { type: "GlobalDefine", target: exprToTarget(statement.target, true), rhs: toWireExpr(statement.rhs) };
+      return { type: "GlobalDefine", target: definitionTarget(statement.target), rhs: toWireExpr(statement.rhs) };
     case "Evaluate":
       return { type: "Evaluate", expr: toWireExpr(statement.expr), unit: statement.unit ? toWireExpr(statement.unit) : null };
     case "Symbolic":
@@ -788,6 +806,7 @@ const HEAD: Record<string, string> = {
   And: "∧",
   Or: "∨",
   Xor: "⊕",
+  Gap: "␣",
   Paren: "paren",
   Neg: "neg",
   Not: "¬",

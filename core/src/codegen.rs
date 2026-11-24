@@ -105,6 +105,9 @@ pub struct StatementLocation {
     pub span: Span,
 }
 
+/// The message of a definition whose left side cannot be defined.
+const INVALID_TARGET: &str = "The left side of a definition must be a name, an indexed name, a function name with parameters, or a matrix of names.";
+
 /// The Julia for one region.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeneratedRegion {
@@ -1563,6 +1566,10 @@ impl Generator {
             K::And { left, right } => self.lazy("eq_and", left, right)?,
             K::Or { left, right } => self.lazy("eq_or", left, right)?,
             K::Xor { left, right } => self.binary("eq_xor", left, right)?,
+            K::Gap { .. } => self.error_node(
+                span,
+                "a space (␣) is for writing only: a formula that holds one is not calculated",
+            ),
             K::Root { index, radicand } => match index {
                 None => format!("eq_sqrt({})", self.expression(radicand)?),
                 Some(index) => {
@@ -2944,6 +2951,7 @@ impl Generator {
         last: bool,
     ) -> Result<(), CodegenError> {
         match &target.kind {
+            TargetKind::Invalid { .. } => Err(CodegenError::new(INVALID_TARGET, target.span)),
             TargetKind::Transpose { target } => {
                 self.assign_local(target, format!("eq_transpose({value})"), out, last)
             }
@@ -3631,6 +3639,7 @@ impl Generator {
         range: bool,
     ) -> Result<(), CodegenError> {
         match &target.kind {
+            TargetKind::Invalid { .. } => Err(CodegenError::new(INVALID_TARGET, target.span)),
             TargetKind::Transpose { target } => self.sheet_assign(
                 target,
                 format!("eq_transpose({value})"),
@@ -3813,6 +3822,7 @@ fn target_roots(target: &Target, out: &mut Vec<(Name, Space)>) {
     match &target.kind {
         TargetKind::Ident { name } => out.push((name.clone(), Space::Var)),
         TargetKind::FunctionHead { name, .. } => out.push((name.name.clone(), Space::Fn)),
+        TargetKind::Invalid { .. } => {}
         TargetKind::Index { base, .. }
         | TargetKind::Column { base, .. }
         | TargetKind::Row { base, .. } => target_roots(base, out),
@@ -3854,6 +3864,7 @@ fn scan_target(target: &Target, indexed: bool, scan: &mut Scan) {
         return;
     }
     match &target.kind {
+        TargetKind::Invalid { .. } => {}
         TargetKind::Ident { name } => {
             let ident = local_ident(name);
             if indexed {

@@ -3631,8 +3631,9 @@ describe("a break-only commit", () => {
     const root = { type: "Define", target: { type: "Num", text: "1" }, rhs: { type: "Num", text: "2" }, tail: null };
     const stored = { type: "Define", target: { type: "Ident" }, rhs: { type: "Ident" }, tail: null };
     expect(commitWire(root as never, JSON.stringify(root), stored)).toBe(stored);
-    // Without a stored statement the unchanged tree is rebuilt, and an invalid one is refused.
-    expect(() => commitWire(root as never, null, stored)).toThrow(/left side/i);
+    // Without a stored statement the unchanged tree is rebuilt: a left side that cannot be
+    // defined is kept as written.
+    expect((commitWire(root as never, null, stored) as { target: { type: string } }).target.type).toBe("Invalid");
   });
 });
 

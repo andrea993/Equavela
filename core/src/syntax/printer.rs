@@ -200,6 +200,7 @@ impl Printer {
 
     fn target(&mut self, t: &Target) {
         match &t.kind {
+            TargetKind::Invalid { expr } => self.expr(expr, Ctx::default()),
             TargetKind::Ident { name } => write_binder(&mut self.out, name),
             TargetKind::Index { base, indices } => {
                 self.target(base);
@@ -549,6 +550,7 @@ impl Printer {
                     BinaryOp::And => " ∧",
                     BinaryOp::Or => " ∨",
                     BinaryOp::Xor => " ⊕",
+                    BinaryOp::Gap => " ␣",
                     BinaryOp::Div | BinaryOp::Pow => unreachable!("handled above"),
                 };
                 self.out.push_str(glyph);
@@ -716,7 +718,8 @@ impl Printer {
             | K::In { .. }
             | K::And { .. }
             | K::Or { .. }
-            | K::Xor { .. } => unreachable!("binary nodes are printed by the guard arm"),
+            | K::Xor { .. }
+            | K::Gap { .. } => unreachable!("binary nodes are printed by the guard arm"),
         }
     }
 

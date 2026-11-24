@@ -123,7 +123,16 @@ fn an_ellipsis_cell_is_only_a_matrix_cell() {
     }
     // The cells of a destructuring definition are names, so an ellipsis is never a target; the
     // message there is the one of the failed left side, not of a cell.
-    assert!(parse_statement("[a, ⋯] := v").is_err());
+    // An ellipsis cannot be defined: the left side is kept as written and cannot be calculated.
+    let equavela_core::ast::StatementKind::Define { target, .. } =
+        parse_statement("[a, ⋯] := v").unwrap().kind
+    else {
+        panic!("not a definition");
+    };
+    assert!(matches!(
+        target.kind,
+        equavela_core::ast::TargetKind::Invalid { .. }
+    ));
     // Away from a cell, by itself, the glyph is unknown input, not an operator.
     assert!(parse_expression("⋯").is_err());
 }

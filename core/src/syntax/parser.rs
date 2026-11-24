@@ -337,6 +337,29 @@ impl<'s> Parser<'s> {
         }
         self.restore(saved);
         let expr = self.expression()?;
+        if matches!(self.peek().tok, Tok::ColonEq | Tok::Equiv) {
+            // A definition whose left side is not something that can be defined: the region is
+            // kept as written and its calculation reports the left side.
+            let target = Target::new(
+                TargetKind::Invalid {
+                    expr: Box::new(expr),
+                },
+                self.span_from(start),
+            );
+            let global = self.bump().tok == Tok::Equiv;
+            let (rhs, block) = self.define_rhs()?;
+            if global {
+                return Ok(Statement::new(
+                    StatementKind::GlobalDefine { target, rhs },
+                    self.span_from(start),
+                ));
+            }
+            let tail = if block { None } else { self.tail()? };
+            return Ok(Statement::new(
+                StatementKind::Define { target, rhs, tail },
+                self.span_from(start),
+            ));
+        }
         let kind = match self.tail()? {
             Some(Tail::Eval { unit }) => StatementKind::Evaluate { expr, unit },
             Some(Tail::Sym { keywords }) => StatementKind::Symbolic { expr, keywords },
@@ -1044,6 +1067,7 @@ impl<'s> Parser<'s> {
             let op = match self.peek().tok {
                 Tok::Or => BinaryOp::Or,
                 Tok::Xor => BinaryOp::Xor,
+                Tok::Gap => BinaryOp::Gap,
                 _ => break,
             };
             self.bump();

@@ -1,5 +1,5 @@
-// The user manual: the static site of the submodule the specification, served by the app
-// at /manual/ (app/scripts/manual-site.mjs). The anchors follow the specification
+// The user manual: the static site of the submodule at docs/manual, served by the app at
+// /manual/ (app/scripts/manual-site.mjs). The anchors follow the manual's generator.
 
 import { invoke } from "@tauri-apps/api/core";
 import type { BuiltinEntry } from "./catalog/builtins";

@@ -13,7 +13,7 @@ pub(crate) fn level(kind: &ExprKind) -> u8 {
         // A local definition binds looser than every operand position allows, so a bare one is
         // wrapped in a `Paren` (N1, N11); the parentheses belong to the form.
         K::InlineDef { .. } => 1,
-        K::Or { .. } | K::Xor { .. } => 3,
+        K::Or { .. } | K::Xor { .. } | K::Gap { .. } => 3,
         K::And { .. } => 4,
         K::Not { .. } => 5,
         K::Eq { .. }

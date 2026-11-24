@@ -147,9 +147,14 @@ fn a_destructuring_matrix_cell_may_be_a_matrix() {
         "(:= (destructure 1×2 (destructure 1×2 a b) (destructure 1×2 c d)) M)"
     );
     // The cells of an inner matrix are names, indexed names, columns and rows; a function head
-    // is not a cell, and a matrix cell is never an expression.
-    assert!(parse_statement("[[f(x)]] := v").is_err());
-    assert!(parse_statement("[[1, 2]] := v").is_err());
+    // is not a cell, and a matrix cell is never an expression: such a left side cannot be
+    // defined, and the region keeps it as written.
+    for text in ["[[f(x)]] := v", "[[1, 2]] := v"] {
+        let StatementKind::Define { target, .. } = parse_statement(text).unwrap().kind else {
+            panic!("{text}: not a definition");
+        };
+        assert!(matches!(target.kind, TargetKind::Invalid { .. }), "{text}");
+    }
 }
 
 ///  (GitHub ): the target of an inline argument definition is a target
@@ -392,4 +397,40 @@ fn an_apostrophe_after_the_first_character_belongs_to_the_name() {
         parse_statement("y := f′(t)").unwrap(),
         parse_statement("y := f'(t)").unwrap()
     );
+}
+
+#[test]
+fn a_space_is_written_with_its_own_glyph_and_binds_loosest() {
+    normalizes("`∀` \\space θ", "`∀` ␣ θ");
+    assert_fixed_point("`∀` ␣ θ ∈ ℝ");
+    assert_fixed_point("f(x) == 0 ␣ `∀` ␣ x > 0");
+    // The space binds as loosely as `∨`: what is on each side stays whole.
+    let StatementKind::ExprRegion { expr } = parse_statement("a + b ␣ c ∈ D").unwrap().kind
+    else {
+        panic!("not an expression region");
+    };
+    let ExprKind::Gap { left, right } = expr.kind else {
+        panic!("not a space");
+    };
+    assert!(matches!(left.kind, ExprKind::Add { .. }));
+    assert!(matches!(right.kind, ExprKind::In { .. }));
+}
+
+#[test]
+fn a_definition_whose_left_side_cannot_be_defined_is_kept_as_written() {
+    for text in ["a ␣ b := 1", "x + 1 := 3", "a·b ≡ 2", "sin(x) + 1 := 0 ="] {
+        assert_fixed_point(text);
+        let statement = parse_statement(text).unwrap();
+        let (StatementKind::Define { target, .. } | StatementKind::GlobalDefine { target, .. }) =
+            statement.kind
+        else {
+            panic!("{text}: not a definition");
+        };
+        assert!(matches!(target.kind, TargetKind::Invalid { .. }), "{text}");
+    }
+    // A target that can be defined is never one.
+    let StatementKind::Define { target, .. } = parse_statement("x := 1").unwrap().kind else {
+        panic!("not a definition");
+    };
+    assert!(matches!(target.kind, TargetKind::Ident { .. }));
 }
