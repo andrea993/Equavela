@@ -347,6 +347,9 @@ pub enum ViewContent {
         /// The region's result-format override, if any.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         format: Option<std::collections::BTreeMap<String, String>>,
+        /// The region's numeric choices (solver algorithm and options, derivative method), if any.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        numeric: Option<std::collections::BTreeMap<String, String>>,
     },
     Julia {
         block: JuliaBlock,
@@ -785,6 +788,8 @@ struct CachedRegion {
     text: Option<String>,
     /// The result-format override the view region shows.
     format: Option<BTreeMap<String, String>>,
+    /// The numeric choices the view region shows.
+    numeric: Option<BTreeMap<String, String>>,
     /// The media of the resource an image view region shows.
     media: Option<crate::image::ImageMedia>,
     /// The presentation-only line breaks of a math region.
@@ -798,11 +803,13 @@ struct CachedRegion {
 
 impl CachedRegion {
     /// Whether rebuilding this region from `source` would produce the same view region.
+    #[allow(clippy::too_many_arguments)]
     fn matches(
         &self,
         source: &Arc<DocumentRegion>,
         text: Option<&str>,
         format: Option<&BTreeMap<String, String>>,
+        numeric: Option<&BTreeMap<String, String>>,
         media: Option<crate::image::ImageMedia>,
         breaks: &[crate::layout::MathBreak],
         left_margin: f64,
@@ -810,6 +817,7 @@ impl CachedRegion {
         Arc::ptr_eq(&self.source, source)
             && self.text.as_deref() == text
             && self.format.as_ref() == format
+            && self.numeric.as_ref() == numeric
             && self.media == media
             && self.breaks.as_slice() == breaks
             // A full-width block and an area start at the left margin, so a new margin moves
@@ -1912,6 +1920,12 @@ impl WorksheetSession {
                 }
                 _ => None,
             };
+            let numeric = match region.as_ref() {
+                DocumentRegion::Math(math) if !doc.numeric_options.is_empty() => {
+                    doc.numeric_options.get(&math.id)
+                }
+                _ => None,
+            };
             let media = match region.as_ref() {
                 DocumentRegion::Image(image) => Some(
                     doc.image_media(&image.resource)
@@ -1928,19 +1942,22 @@ impl WorksheetSession {
                 _ => &[],
             };
             if let Some(entry) = cached.regions.get_mut(&address) {
-                if entry.matches(region, text, format, media, breaks, left_margin) {
+                if entry.matches(region, text, format, numeric, media, breaks, left_margin) {
                     entry.seen = generation;
                     regions.push(Arc::clone(&entry.view));
                     continue;
                 }
             }
-            let view = Arc::new(build_view_region(region, text, format, media, breaks, doc));
+            let view = Arc::new(build_view_region(
+                region, text, format, numeric, media, breaks, doc,
+            ));
             cached.regions.insert(
                 address,
                 CachedRegion {
                     source: Arc::clone(region),
                     text: text.map(str::to_owned),
                     format: format.cloned(),
+                    numeric: numeric.cloned(),
                     media,
                     breaks: breaks.to_vec(),
                     left_margin,
@@ -2942,6 +2959,7 @@ fn build_view_region(
     region: &DocumentRegion,
     math_text: Option<&str>,
     format: Option<&BTreeMap<String, String>>,
+    numeric: Option<&BTreeMap<String, String>>,
     media: Option<crate::image::ImageMedia>,
     breaks: &[crate::layout::MathBreak],
     doc: &crate::project::ProjectDocument,
@@ -2959,6 +2977,7 @@ fn build_view_region(
                     statement: Arc::clone(&math.statement),
                     breaks: breaks.to_vec(),
                     format: format.cloned(),
+                    numeric: numeric.cloned(),
                 },
             },
             math.page,
@@ -3043,6 +3062,24 @@ fn build_view_region(
     }
 }
 
+/// The numeric choices of the regions of every document, keyed by the id of their node in the
+/// generated worksheet (an included document's region has one per inclusion).
+fn numeric_choices(
+    project: &Project,
+    analysis: &crate::project::ProjectAnalysis,
+) -> crate::fasthash::HashMap<String, BTreeMap<String, String>> {
+    let mut choices = crate::fasthash::HashMap::default();
+    for node in analysis.nodes() {
+        let Some(document) = project.document(&node.origin.document) else {
+            continue;
+        };
+        if let Some(options) = document.numeric_options.get(&node.origin.region_id) {
+            choices.insert(crate::project::graph_id(node.id), options.clone());
+        }
+    }
+    choices
+}
+
 fn derive(
     project: &Project,
     root: &DocumentId,
@@ -3054,6 +3091,7 @@ fn derive(
     let graph = analysis.graph();
     let mut options = options.clone();
     options.references = std::sync::Arc::clone(project.references());
+    options.numeric = std::sync::Arc::new(numeric_choices(project, &analysis));
     let generated = generate_worksheet_with(worksheet, graph, options)?;
     let mut keys = HashMap::new();
     let mut by_key = HashMap::new();

@@ -432,9 +432,11 @@ function _scalar_pow(value::Number, exponent::Number)
     iszero(value) && real(exponent) < 0 && eqerror("can't divide by zero")
     if value isa Real && exponent isa Real
         value < 0 && !isinteger(exponent) &&
-            return _clean(complex(Float64(value))^exponent)
-        result = isinteger(exponent) && abs(exponent) < 2^31 ?
-                 Float64(value)^Int(exponent) : Float64(value)^Float64(exponent)
+            return _clean(complex(float(value))^exponent)
+        # `float` keeps a dual number of automatic differentiation; an exponent that is one is
+        # never rounded to an integer, so its derivative is kept.
+        result = isinteger(exponent) && abs(exponent) < 2^31 && exponent isa Union{Integer,AbstractFloat} ?
+                 float(value)^Int(exponent) : float(value)^float(exponent)
         isfinite(result) || !isfinite(value) || !isfinite(exponent) || eqerror(
             "Found a number with a magnitude greater than 10^307 while trying to evaluate this expression.",
         )

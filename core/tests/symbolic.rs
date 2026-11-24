@@ -139,7 +139,10 @@ fn symbolic_odesolve_solves_the_block_in_closed_form() {
     let request = region_request(&sheet, &graph, "r6").unwrap();
     assert_eq!(request.keywords[0].keyword, "dsolve");
     assert_eq!(print_expression(&request.keywords[0].args[0]), "y(t)");
-    assert_eq!(print_expression(&request.expr), "[y′′(t) + y(t) == 0; y(0) == 0; y′(0) == 1]");
+    assert_eq!(
+        print_expression(&request.expr),
+        "[y′′(t) + y(t) == 0; y(0) == 0; y′(0) == 1]"
+    );
     // The unknown function and its variable are local to the block.
     assert!(request.definitions.is_empty(), "{:?}", request.definitions);
     // The solution is a function of the variable.
@@ -301,6 +304,7 @@ fn session(kernel: Arc<KernelManager>, math: &[(&str, &str)]) -> WorksheetSessio
             environment: None,
             page: Default::default(),
             result_formats: Default::default(),
+            numeric_options: Default::default(),
             math_breaks: Default::default(),
             resources: Default::default(),
             assets: Default::default(),
@@ -868,7 +872,9 @@ fn odesolve_with_the_symbolic_arrow_gives_the_closed_form_solution() {
             ("numeric", "Y(1) ="),
         ],
     );
-    session.recalculate(RecalcMode::Changed, &mut |_| {}).unwrap();
+    session
+        .recalculate(RecalcMode::Changed, &mut |_| {})
+        .unwrap();
     let (text, _) = symbolic_result(&session, "solution");
     assert!(equivalent(&kernel, &text, "sin(t)"), "{text}");
     let (text, _) = symbolic_result(&session, "symbolic");

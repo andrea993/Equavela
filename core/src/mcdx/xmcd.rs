@@ -127,6 +127,7 @@ fn import_xmcd_in(bytes: &[u8], name: &str, base: Option<&Path>) -> Result<Impor
         environment: None,
         page,
         result_formats: std::mem::take(&mut report.region_formats),
+        numeric_options: Default::default(),
         math_breaks: Default::default(),
         resources,
         assets: Default::default(),

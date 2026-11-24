@@ -1906,6 +1906,17 @@ fn set_text_background(
     service.set_text_background(&worksheet, &region_id, background)
 }
 
+/// Sets (or with `null` clears) the numeric choices of a math region; one undo step.
+#[tauri::command]
+fn set_numeric_options(
+    service: Shared<'_>,
+    worksheet: String,
+    region_id: String,
+    options: Option<std::collections::BTreeMap<String, String>>,
+) -> Result<EditResult, CommandError> {
+    service.set_numeric_options(&worksheet, &region_id, options)
+}
+
 /// Sets (or with `null` clears) the result-format override of a math region; one undo step.
 #[tauri::command]
 fn set_result_format(
@@ -2465,6 +2476,7 @@ pub fn run() {
             spell_uninstall,
             set_page_setup,
             set_result_format,
+            set_numeric_options,
             set_math_font,
             set_result_defaults,
             set_calculation_settings,

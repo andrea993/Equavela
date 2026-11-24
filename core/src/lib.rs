@@ -28,6 +28,7 @@ pub mod kernel_value;
 pub mod layout;
 pub mod mcdx;
 mod moves;
+pub mod numeric_options;
 pub mod plot;
 pub mod project;
 pub mod project_archive;

@@ -13,9 +13,11 @@
 #   x = a + t/(1-t), x = b - t/(1-t) and x = t/(1-t^2); reversed limits negate. The
 #   integrand may be a real or complex scalar, a matrix (integrated elementwise) or a
 #   quantity.
-# - Derivative: central differences of order n with Ridders' extrapolation (a Neville
-#   tableau in the step size), any non-negative integer order, real or complex scalars
-#   and matrices as values.
+# - Derivative: exact by automatic differentiation (nested ForwardDiff derivatives through
+#   the expression); where the expression does not accept dual numbers, or when the region
+#   asks for it, central differences of order n with Ridders' extrapolation (a Neville
+#   tableau in the step size). Any non-negative integer order, real or complex scalars and
+#   matrices as values.
 
 const _GK_NODES = (
     0.991455371120812639206854697526329, 0.949107912342758524526189684047851,
@@ -212,12 +214,15 @@ const _DERIV_SAFE = 2.0
     eq_derivative(f, x)
     eq_derivative(f, x, n)
 
-Numeric `n`-th derivative (default 1, `n` a non-negative integer) of `f` at `x`: central
-differences of order `n` extrapolated in the step size (Ridders' method). `f` is a
-function of one argument (a lambda of the variable, or a worksheet function for
-`f′(x)`). The result has the unit of `f` divided by the unit of `x` to the power `n`.
+Numeric `n`-th derivative (default 1, `n` a non-negative integer) of `f` at `x`. With
+`derivatives = "auto"` (the default) it is exact, by automatic differentiation through `f`;
+when `f` does not accept dual numbers, and with `derivatives = "finite-differences"`, it is
+central differences of order `n` extrapolated in the step size (Ridders' method), to the
+relative accuracy `tolerance` (by default from `TOL`). `f` is a function of one argument (a
+lambda of the variable, or a worksheet function for `f′(x)`). The result has the unit of `f`
+divided by the unit of `x` to the power `n`.
 """
-function eq_derivative(f, x, order=1.0)
+function eq_derivative(f, x, order=1.0; derivatives=nothing, tolerance=nothing)
     f isa Function || eqerror("derivative needs a function of the variable")
     n = eqnum(order)
     (n isa Real && isinteger(n) && n >= 0) ||
@@ -240,6 +245,10 @@ function eq_derivative(f, x, order=1.0)
         _with_unit(value, unit_total)
     end
     n == 0 && return finish(evaluate(x0))
+    if derivative_method(derivatives) === :auto
+        exact = ad_derivative(evaluate, x0, n)
+        exact === nothing || return finish(exact)
+    end
     scale = iszero(x0) ? 1.0 : abs(x0)
     h = 0.2 * scale / n
     function difference(step)
@@ -250,7 +259,7 @@ function eq_derivative(f, x, order=1.0)
         end
         total / step^n
     end
-    rtol = _calculus_rtol()
+    rtol = tolerance === nothing ? _calculus_rtol() : _derivative_tolerance(tolerance)
     table = Matrix{Any}(undef, _DERIV_NTAB, _DERIV_NTAB)
     table[1, 1] = difference(h)
     best, best_error = table[1, 1], Inf
@@ -277,8 +286,14 @@ end
 eq_derivative(args...) =
     eqerror("derivative takes a function, a point and optionally an order, got $(length(args)) arguments")
 
+function _derivative_tolerance(value)
+    v = eqnum(value)
+    v isa Real && isfinite(v) && v > 0 || eqerror("the derivative tolerance must be a positive number")
+    Float64(v)
+end
+
 """`Jacob(F(x), x, [k])`: partial derivatives of a column-vector expression."""
-function eq_jacob(f, x, k=nothing)
+function eq_jacob(f, x, k=nothing; derivatives=nothing, tolerance=nothing)
     f isa Function || eqerror("Jacob needs a vector function")
     x isa AbstractMatrix && size(x, 2) == 1 && !isempty(x) ||
         eqerror("Jacob: x must be a non-empty column vector")
@@ -297,7 +312,7 @@ function eq_jacob(f, x, k=nothing)
         value isa AbstractMatrix && size(value) == (rows, 1) ||
             eqerror("Jacob: the expression must remain a column vector of the same size")
         value[i, 1]
-    end, x[j, 1]) for i in 1:rows, j in 1:Int(count)]
+    end, x[j, 1]; derivatives, tolerance) for i in 1:rows, j in 1:Int(count)]
     return derivatives
 end
 eq_jacob(args...) = eqerror("Jacob takes an expression, a vector and optionally a variable count")

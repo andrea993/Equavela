@@ -271,7 +271,9 @@ fn statement_symbolic(statement: &Statement) -> Option<(Expr, Vec<SymbolicKeywor
             };
             Some((rhs.clone(), keywords_of(keywords), free))
         }
-        StatementKind::Solve { constraints, call } if symbolic_odesolve_functions(call).is_some() => {
+        StatementKind::Solve { constraints, call }
+            if symbolic_odesolve_functions(call).is_some() =>
+        {
             let functions = symbolic_odesolve_functions(call)?.clone();
             let (_, mut keywords, free) = statement_symbolic(call)?;
             keywords.insert(
@@ -345,7 +347,9 @@ fn statement_definition(statement: &Statement) -> Option<SymbolicDefinition> {
             definition.keywords = keywords;
             // `y := odesolve(y(t), b) →` defines the solution as a function of the variable.
             if definition.params.is_none() {
-                if let Some(variable) = symbolic_odesolve_functions(call).and_then(odesolve_variable) {
+                if let Some(variable) =
+                    symbolic_odesolve_functions(call).and_then(odesolve_variable)
+                {
                     definition.params = Some(vec![variable]);
                 }
             }

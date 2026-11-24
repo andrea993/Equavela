@@ -21,6 +21,7 @@ import {
 } from "../workbench/commandContext";
 import { Group, ToolButton } from "./Chrome";
 import { PlotTab } from "./PlotTab";
+import { DerivativeTab, SolverTab } from "./NumericTab";
 import { RibbonIcon, type RibbonIconName } from "./RibbonIcon";
 
 /** Simple glyph icons (our own, drawn with text so no image assets are needed). */
@@ -44,6 +45,8 @@ export type RibbonProps = {
   viewMode: ViewMode;
   /** the active object, or null. */
   context: RibbonContext | null;
+  /** Sets (or with null clears) the numeric choices of a math region. */
+  onNumericOptions?: (regionId: string, options: Record<string, string> | null) => void;
   matrixControls: { canDeleteRow: boolean; canDeleteColumn: boolean; rows?: number; cols?: number } | null;
   /** The rows and columns of the matrix the tab acts on, shown read-only; null when there is none. */
   matrixShape?: { rows: number; cols: number } | null;
@@ -207,6 +210,14 @@ export function Ribbon(props: RibbonProps) {
               {activeContext === "plot" && props.context?.kind === "plot" && <PlotTab context={props.context} onCommand={props.onCommand} onPlotSpec={props.onPlotSpec} onPlotSelectTrace={props.onPlotSelectTrace} worksheetColors={props.worksheetColors} />}
               {activeContext === "area" && props.context?.kind === "area" && <AreaTab {...props} context={props.context} />}
               {activeContext === "image" && <ImageTab {...props} />}
+              {activeContext === "solver" && props.context?.kind === "solver" && (
+                <SolverTab key={props.context.regionId} fn={props.context.fn} options={props.context.numeric}
+                  onChange={(options) => props.context?.kind === "solver" && props.onNumericOptions?.(props.context.regionId, options)} />
+              )}
+              {activeContext === "derivative" && props.context?.kind === "derivative" && (
+                <DerivativeTab key={props.context.regionId} options={props.context.numeric}
+                  onChange={(options) => props.context?.kind === "derivative" && props.onNumericOptions?.(props.context.regionId, options)} />
+              )}
             </>
           )}
         </RibbonBody>

@@ -92,6 +92,9 @@ pub struct GenOptions {
     /// The project's references: a name under one of their aliases that does not resolve gets
     /// the reference's message.
     pub references: std::sync::Arc<crate::project_reference::References>,
+    /// The numeric choices of math regions (solver algorithm and options, derivative method),
+    /// keyed by the id of the region in the generated worksheet.
+    pub numeric: std::sync::Arc<HashMap<String, std::collections::BTreeMap<String, String>>>,
 }
 
 /// Where a program statement came from: the id that `eq_locate` attaches to an error.
@@ -935,6 +938,14 @@ fn call(function: &str, args: &[String]) -> String {
     format!("{function}({})", args.join(", "))
 }
 
+/// Adds keyword arguments (`; name=value, ...`) before the closing parenthesis of a call.
+fn with_keywords(call: String, keywords: &str) -> String {
+    match call.strip_suffix(')') {
+        Some(head) if !keywords.is_empty() => format!("{head}{keywords})"),
+        _ => call,
+    }
+}
+
 /// Create a fresh function each time this region runs. Defining a method directly on the
 /// worksheet binding would keep Julia's previous methods when the parameter count changes.
 fn worksheet_function(ident: &str, definition: &str) -> String {
@@ -1051,6 +1062,9 @@ pub struct Generator {
     region_display_unit: Option<DisplayUnitCode>,
     /// The definition by a symbolic result of the region being generated.
     region_symbolic_target: Option<SymbolicTarget>,
+    /// The keyword arguments of the region's solving call and of its numeric derivatives.
+    region_solver_keywords: String,
+    region_derivative_keywords: String,
     /// The constraint lines of the solve block being generated, if any: the solving call
     /// (`Find`, `Minerr`, `Minimize`, `Maximize`) compiles them.
     region_solve: Option<Vec<Expr>>,
@@ -2039,7 +2053,7 @@ impl Generator {
             if exprs.len() == 3 {
                 parts.push(self.expression(exprs[2])?);
             }
-            return Ok(call("eq_jacob", &parts));
+            return Ok(self.with_derivative_keywords(call("eq_jacob", &parts)));
         }
         let ExprKind::Ident { name } = &exprs[1].kind else {
             return Ok(self.error_node(
@@ -2054,7 +2068,7 @@ impl Generator {
         if exprs.len() == 3 {
             parts.push(self.expression(exprs[2])?);
         }
-        Ok(call("eq_jacob", &parts))
+        Ok(self.with_derivative_keywords(call("eq_jacob", &parts)))
     }
 
     /// `root` (a worksheet that defines its own `root` shadows this form). A call named
@@ -2144,7 +2158,7 @@ impl Generator {
         if let Some(order) = order {
             parts.push(self.expression(order)?);
         }
-        Ok(call("eq_derivative", &parts))
+        Ok(self.with_derivative_keywords(call("eq_derivative", &parts)))
     }
 
     /// `f′(x)`, `f′′(x)`: `eq_derivative(f, x, order)` with `f` a worksheet function,
@@ -2178,10 +2192,20 @@ impl Generator {
             }
         };
         let argument = self.arguments(args)?.remove(0);
-        Ok(call(
+        Ok(self.with_derivative_keywords(call(
             "eq_derivative",
             &[callable, argument, format!("{order}.0")],
-        ))
+        )))
+    }
+
+    /// `call` with the region's solver choices as keyword arguments.
+    fn with_solver_keywords(&self, call: String) -> String {
+        with_keywords(call, &self.region_solver_keywords)
+    }
+
+    /// `call` with the region's derivative method as keyword arguments.
+    fn with_derivative_keywords(&self, call: String) -> String {
+        with_keywords(call, &self.region_derivative_keywords)
     }
 
     /// The solving call of a solve block:
@@ -2272,7 +2296,7 @@ impl Generator {
         let constraints = format!("[{}]", lines.join(", "));
         let guesses = format!("[{}]", guesses.join(", "));
         match objective {
-            None => Ok(call(function.helper(), &[constraints, guesses])),
+            None => Ok(self.with_solver_keywords(call(function.helper(), &[constraints, guesses]))),
             Some(objective) => {
                 // `Minimize(f, x, y)` with `f` a function name calls `f(x, y)`.
                 let body = match &objective.kind {
@@ -2292,10 +2316,10 @@ impl Generator {
                     }
                     _ => self.with_binder(&locals, |g| g.expression(objective))?,
                 };
-                Ok(call(
+                Ok(self.with_solver_keywords(call(
                     function.helper(),
                     &[format!("{params} -> {body}"), constraints, guesses],
-                ))
+                )))
             }
         }
     }
@@ -2965,6 +2989,13 @@ impl Generator {
         self.region_packages.clear();
         self.region_display_unit = None;
         self.region_symbolic_target = None;
+        let numeric = self.options.numeric.get(id);
+        self.region_solver_keywords = numeric
+            .map(crate::numeric_options::solver_keywords)
+            .unwrap_or_default();
+        self.region_derivative_keywords = numeric
+            .map(crate::numeric_options::derivative_keywords)
+            .unwrap_or_default();
         self.unit_context = false;
         self.used_ranges.clear();
         self.frames.clear();
@@ -3363,10 +3394,7 @@ impl Generator {
             )?;
             if let (TargetKind::Ident { .. }, [ident]) = (&target.kind, defined.as_slice()) {
                 // The closed-form solution of an `odesolve` block is a function of its variable.
-                let variable = self
-                    .region_solve
-                    .as_ref()
-                    .and(odesolve_variable_of(rhs));
+                let variable = self.region_solve.as_ref().and(odesolve_variable_of(rhs));
                 self.region_symbolic_target = Some(SymbolicTarget {
                     ident: ident.clone(),
                     value_function: variable.is_some(),

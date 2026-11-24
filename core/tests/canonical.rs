@@ -388,5 +388,8 @@ fn an_apostrophe_after_the_first_character_belongs_to_the_name() {
     };
     assert_eq!(name.segments[0].text, "x''");
     // The prime derivative is a different glyph: `f′(t)` derives `f`, `f'(t)` calls `f'`.
-    assert_ne!(parse_statement("y := f′(t)").unwrap(), parse_statement("y := f'(t)").unwrap());
+    assert_ne!(
+        parse_statement("y := f′(t)").unwrap(),
+        parse_statement("y := f'(t)").unwrap()
+    );
 }

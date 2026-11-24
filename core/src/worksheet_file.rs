@@ -73,6 +73,12 @@ pub enum LoadError {
         region_id: String,
         message: String,
     },
+    #[error("numeric choices of region `{region_id}` of `{document}`: {message}")]
+    Numeric {
+        document: String,
+        region_id: String,
+        message: String,
+    },
     #[error("region `{region_id}` of `{document}` has no `math`, `include`, `julia`, `text`, `plot`, `image` or `area` field")]
     UnknownRegion { document: String, region_id: String },
     #[error(transparent)]
@@ -691,6 +697,9 @@ struct RawRegion {
     /// Result-format override of a math region: keys of the `format.*` settings.
     #[serde(default)]
     format: Option<std::collections::BTreeMap<String, serde_json::Value>>,
+    /// The numeric choices of a math region (solver algorithm and options, derivative method).
+    #[serde(default)]
+    numeric: Option<std::collections::BTreeMap<String, serde_json::Value>>,
     #[serde(default)]
     include: Option<String>,
     #[serde(default)]
@@ -849,6 +858,7 @@ fn parse_document_with(
     }
     let mut regions = Vec::new();
     let mut result_formats = std::collections::BTreeMap::new();
+    let mut numeric_options = std::collections::BTreeMap::new();
     let mut math_breaks = std::collections::BTreeMap::new();
     let mut texts = HashMap::new();
     for raw_region in raw.regions {
@@ -887,6 +897,26 @@ fn parse_document_with(
                     .collect();
                 if !map.is_empty() {
                     result_formats.insert(raw_region.id.clone(), map);
+                }
+            }
+            if let Some(numeric) = raw_region.numeric {
+                let map: std::collections::BTreeMap<String, String> = numeric
+                    .into_iter()
+                    .map(|(key, value)| {
+                        let text = match value {
+                            serde_json::Value::String(text) => text,
+                            other => other.to_string(),
+                        };
+                        (key, text)
+                    })
+                    .collect();
+                crate::numeric_options::validate(&map).map_err(|message| LoadError::Numeric {
+                    document: name.clone(),
+                    region_id: raw_region.id.clone(),
+                    message,
+                })?;
+                if !map.is_empty() {
+                    numeric_options.insert(raw_region.id.clone(), map);
                 }
             }
             regions.push(DocumentRegion::Math(Box::new(Region {
@@ -1075,6 +1105,7 @@ fn parse_document_with(
         environment: raw.environment,
         page,
         result_formats,
+        numeric_options,
         math_breaks,
         resources,
         assets,

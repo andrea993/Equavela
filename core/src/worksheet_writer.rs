@@ -417,6 +417,19 @@ fn write_math(
             }
         }
     }
+    if let Some(numeric) = document.numeric_options.get(&region.id) {
+        if !numeric.is_empty() {
+            out.push_str("    numeric:\n");
+            for (key, value) in numeric {
+                let rendered = if is_plain_integer(value) {
+                    value.clone()
+                } else {
+                    scalar(value, Style::Plain, false)
+                };
+                let _ = writeln!(out, "      {}: {rendered}", key_text(key));
+            }
+        }
+    }
     Ok(())
 }
 

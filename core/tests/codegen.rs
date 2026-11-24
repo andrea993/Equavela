@@ -2629,7 +2629,10 @@ fn a_name_with_apostrophes_is_a_valid_julia_identifier() {
     let generated = regions(&["x' := 1", "x'' := x' + 2"]);
     let first = &generated[0].code;
     let second = &generated[1].code;
-    assert!(!first.contains('\'') && !second.contains('\''), "{first}\n{second}");
+    assert!(
+        !first.contains('\'') && !second.contains('\''),
+        "{first}\n{second}"
+    );
     let x1 = worksheet_ident(&parse_name("x'"), 1);
     assert!(second.contains(&x1), "{second}");
     let (segments, _) = demangle_ident(&x1).unwrap();
@@ -2644,4 +2647,49 @@ fn parse_name(text: &str) -> equavela_core::ast::Name {
         },
         other => panic!("{other:?}"),
     }
+}
+
+#[test]
+fn numeric_choices_become_keyword_arguments_of_the_call_they_apply_to() {
+    let mut numeric = equavela_core::fasthash::HashMap::default();
+    let choices: std::collections::BTreeMap<String, String> = [
+        ("algorithm", "slsqp"),
+        ("max-evaluations", "500"),
+        ("derivatives", "finite-differences"),
+        ("derivative-tolerance", "1e-6"),
+    ]
+    .iter()
+    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+    .collect();
+    numeric.insert("r1".to_owned(), choices.clone());
+    numeric.insert("r2".to_owned(), choices);
+    let mut generator = Generator::new(GenOptions {
+        numeric: std::sync::Arc::new(numeric),
+        ..GenOptions::default()
+    });
+    let call = parse_statement("Minimize(f, x) =").unwrap();
+    let solve = equavela_core::ast::Statement {
+        span: call.span,
+        kind: equavela_core::ast::StatementKind::Solve {
+            constraints: vec![equavela_core::parse_expression("x >= 1").unwrap()],
+            call: Box::new(call),
+        },
+    };
+    let derivative = parse_statement("g(x) := ⅆ[x] x^3").unwrap();
+    let plain = parse_statement("h(x) := ⅆ[x] x^3").unwrap();
+    let solve = generator.region("r1", &solve);
+    let derivative = generator.region("r2", &derivative).code;
+    let plain = generator.region("r3", &plain).code;
+    let value = solve.value.unwrap_or_default() + &solve.code;
+    assert!(
+        value.contains(
+            r#"; algorithm="slsqp", derivatives="finite-differences", max_evaluations=500)"#
+        ),
+        "{value}"
+    );
+    assert!(
+        derivative.contains(r#"; derivatives="finite-differences", tolerance=1e-6)"#),
+        "{derivative}"
+    );
+    assert!(!plain.contains("; "), "{plain}");
 }

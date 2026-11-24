@@ -163,6 +163,11 @@ pub struct ProjectDocument {
     /// (`format.type`, `format.precision`, ...). A region property, not part of the math.
     #[serde(default)]
     pub result_formats: BTreeMap<String, BTreeMap<String, String>>,
+    /// Numeric method choices by math region id: the solver algorithm and options of a solving
+    /// region, the derivative method of a region with derivatives (`algorithm`, `derivatives`,
+    /// ...). A region property that affects values.
+    #[serde(default)]
+    pub numeric_options: BTreeMap<String, BTreeMap<String, String>>,
     /// The regions of the document, each one shared: cloning a document (an edit does it on
     /// every command) copies the pointers, and an edit replaces only the regions it changes
     ///. The worksheet file is written and read region by region, so the format is the
@@ -1222,7 +1227,7 @@ impl<'a> AnalysisBuilder<'a> {
     }
 }
 
-fn graph_id(id: EvaluationId) -> String {
+pub(crate) fn graph_id(id: EvaluationId) -> String {
     format!("node-{}", id.0)
 }
 

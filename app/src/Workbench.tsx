@@ -2566,7 +2566,9 @@ export default function Workbench({ backend }: { backend: Backend }) {
           selection: active?.selection ?? [],
           regions: active?.view.regions ?? [],
           plotTraceSelections,
+          mathRegionId: editing?.regionId ?? null,
         })}
+        onNumericOptions={(regionId, options) => active && void actions.setNumericOptions(active.id, regionId, options)}
         matrixControls={editing ? matrixControls(editing.editor) : null}
         matrixShape={matrixShape}
         matrixDisplay={matrixDisplay ? { indices: matrixDisplay.indices, nested: matrixDisplay.nested } : null}
@@ -3028,6 +3030,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
               selection: active?.selection ?? [],
               regions: active?.view.regions ?? [],
               plotTraceSelections,
+              mathRegionId: editing?.regionId ?? null,
             })?.kind ?? null,
             selectedKind: !activeProjectFile && active?.selection.length === 1
               ? active.view.regions.find((region) => region.id === active.selection[0])?.kind ?? null

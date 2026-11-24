@@ -8,6 +8,9 @@ module EqRuntime
 using LinearAlgebra
 using Unitful
 using Base.ScopedValues
+import ForwardDiff
+import NLopt
+import NLsolve
 
 export DEFAULT_ORIGIN,
     EncodedValue,
@@ -876,6 +879,7 @@ include("ode.jl")
 include("ods.jl")
 include("file_access.jl")
 include("ods_write.jl")
+include("differentiation.jl")
 include("solve.jl")
 include("solveblock.jl")
 include("calculus.jl")

@@ -231,6 +231,7 @@ pub fn import_mcdx_bytes(bytes: &[u8], name: &str) -> Result<Imported, ImportErr
         environment: None,
         page,
         result_formats: std::mem::take(&mut report.region_formats),
+        numeric_options: Default::default(),
         math_breaks: Default::default(),
         resources,
         assets: Default::default(),

@@ -6,6 +6,9 @@
 # above the block) and, for Minimize/Maximize, the objective as a lambda of the unknowns.
 # Unknowns are real scalars or real vectors/matrices, with or without a unit; the lambdas
 # receive them in the unit of the guess, so worksheet functions see ordinary quantities.
+# The algorithm and the stopping rules come as keyword arguments (`SolverOptions`); residuals
+# and objectives stay generic over `Real`, so derivatives are taken by automatic
+# differentiation (`differentiation.jl`).
 
 "Default the reference application constraint tolerance (the system variable CTOL)."
 const DEFAULT_CTOL = 0.001
@@ -100,15 +103,16 @@ end
 "A number or array in base units as a flat real vector (units dropped)."
 function _flat(value, what)
     parts = value isa AbstractArray ? collect(value) : [value]
-    out = Float64[]
+    out = Any[]
     for e in parts
         e isa Number || eqerror("solve block: $what must be a number or a matrix of numbers")
         e = eqnum(e)
         e isa Unitful.AbstractQuantity && (e = ustrip(upreferred(e)))
         (e isa Real || iszero(imag(e))) || eqerror("solve block: $what is complex")
-        push!(out, Float64(real(e)))
+        # `float` keeps the dual numbers of automatic differentiation.
+        push!(out, float(real(e)))
     end
-    out
+    isempty(out) ? Float64[] : map(identity, out)
 end
 
 "The dimensions of the elements of a number or array (`NoDims` for plain numbers)."
@@ -136,7 +140,7 @@ than `CTOL`.
 """
 function _violations(constraints, unknowns, z)
     vals = _values(unknowns, z)
-    out = Float64[]
+    out = Any[]
     limit = ctol()
     for c in constraints
         l, r = _sides(c, vals)
@@ -150,44 +154,79 @@ function _violations(constraints, unknowns, z)
             push!(out, v)
         end
     end
-    out
+    isempty(out) ? Float64[] : map(identity, out)
 end
 
-# ---- Find and Minerr: Levenberg-Marquardt ---------------------------------------------------
 
-const _LM_ITERATIONS = 400
+# ---- algorithms and options -----------------------------------------------------------------
 
-function _jacobian(f, z, r)
-    n, m = length(z), length(r)
-    J = zeros(m, n)
-    for j in 1:n
-        h = 1.0e-7 * max(1.0, abs(z[j]))
-        zp = copy(z); zp[j] += h
-        J[:, j] = (f(zp) .- r) ./ h
-    end
-    J
+const FIND_ALGORITHMS = ("auto", "levenberg-marquardt", "trust-region", "newton")
+const OPTIMIZE_ALGORITHMS = ("auto", "slsqp", "mma", "ccsaq", "lbfgs", "cobyla", "nelder-mead", "penalty")
+
+"The algorithm and the stopping rules of one solve (the region's `numeric` choices)."
+struct SolverOptions
+    algorithm::String
+    derivatives::Symbol
+    max_evaluations::Int
+    max_time::Float64
+    x_tolerance::Float64
+    f_tolerance::Float64
 end
 
-"Minimises `‖f(z)‖²` from `z`; returns the final point."
-function _levenberg_marquardt(f, z)
+function _positive(value, what; integer=false)
+    v = eqnum(value)
+    v isa Real && isfinite(v) && v > 0 && (!integer || isinteger(v)) ||
+        eqerror("solve block: $what must be a positive $(integer ? "integer" : "number")")
+    integer ? Int(v) : Float64(v)
+end
+
+function solver_options(name, algorithms; algorithm=nothing, derivatives=nothing, max_evaluations=nothing,
+        max_time=nothing, x_tolerance=nothing, f_tolerance=nothing)
+    chosen = algorithm === nothing ? "auto" : String(algorithm)
+    chosen in algorithms || eqerror("$name: unknown algorithm `$chosen`; use one of $(join(algorithms, ", "))")
+    SolverOptions(chosen, derivative_method(derivatives),
+        max_evaluations === nothing ? 10_000 : _positive(max_evaluations, "the maximum number of evaluations"; integer=true),
+        max_time === nothing ? Inf : _positive(max_time, "the maximum time"),
+        x_tolerance === nothing ? 1.0e-10 : _positive(x_tolerance, "the x tolerance"),
+        f_tolerance === nothing ? 1.0e-12 : _positive(f_tolerance, "the f tolerance"))
+end
+
+"Counts the evaluations of a solve and stops it at the limits of its options."
+mutable struct _Budget
+    used::Int
+    limit::Int
+    deadline::Float64
+end
+_Budget(options::SolverOptions) = _Budget(0, options.max_evaluations, time() + options.max_time)
+_spent(b::_Budget) = b.used >= b.limit || time() > b.deadline
+_stop_reason(b::_Budget) = b.used >= b.limit ? "the maximum number of evaluations ($(b.limit))" : "the maximum time"
+
+# ---- Find and Minerr ------------------------------------------------------------------------
+
+"Minimises `‖f(z)‖²` from `z` by Levenberg-Marquardt; returns the final point."
+function _levenberg_marquardt(f, z, options::SolverOptions, budget::_Budget)
     r = f(z)
+    budget.used += 1
     isempty(r) && return z
     cost = sum(abs2, r)
     λ = 1.0e-3
-    for _ in 1:_LM_ITERATIONS
+    while !_spent(budget)
         cost == 0 && break
-        J = _jacobian(f, z, r)
+        J = solver_jacobian(f, z, r, options.derivatives)
+        budget.used += 1
         A = J' * J
         g = J' * r
         improved = false
         for _ in 1:30
+            _spent(budget) && break
             step = -((A + λ * Diagonal(max.(diag(A), 1.0e-12))) \ g)
             trial = z .+ step
             rt = try f(trial) catch; nothing end
+            budget.used += 1
             if rt !== nothing
                 ct = sum(abs2, rt)
                 if ct < cost
-                    small = norm(step) <= 1.0e-14 * (1 + norm(z)) || cost - ct <= 1.0e-18 * cost
+                    small = norm(step) <= options.x_tolerance * (1 + norm(z)) || cost - ct <= 1.0e-18 * cost
                     z, r, cost = trial, rt, ct
                     λ = max(λ / 10, 1.0e-12)
                     improved = true
@@ -200,6 +239,43 @@ function _levenberg_marquardt(f, z)
         improved || break
     end
     z
+end
+
+_square_equations(constraints, unknowns, z) =
+    all(c -> c.op === :eq, constraints) && length(_violations(constraints, unknowns, z)) == length(z)
+
+"`trust-region` or `newton` of NLsolve on a square system of equations."
+function _nlsolve(f, z, method, options::SolverOptions)
+    result = NLsolve.nlsolve(
+        (F, x) -> (F .= f(x)),
+        (J, x) -> (J .= solver_jacobian(f, x, f(x), options.derivatives)),
+        z; method, xtol=options.x_tolerance, ftol=1.0e-14, iterations=options.max_evaluations)
+    result.zero
+end
+
+function _find_point(constraints, unknowns, z0, options::SolverOptions, name)
+    f = z -> _violations(constraints, unknowns, z)
+    algorithm = options.algorithm
+    if algorithm in ("trust-region", "newton")
+        _square_equations(constraints, unknowns, z0) || eqerror(
+            "$name: $algorithm solves square systems of equations only (as many equations as unknowns, no inequalities); use levenberg-marquardt")
+        return _nlsolve(f, z0, algorithm == "newton" ? :newton : :trust_region, options), nothing
+    end
+    budget = _Budget(options)
+    z = _levenberg_marquardt(f, z0, options, budget)
+    stopped = _spent(budget) ? _stop_reason(budget) : nothing
+    if algorithm == "auto" && !all(v -> abs(v) <= ctol(), f(z)) && _square_equations(constraints, unknowns, z0)
+        candidate = try
+            _nlsolve(f, z0, :trust_region, options)
+        catch error
+            error isa EqError && rethrow()
+            nothing
+        end
+        if candidate !== nothing && all(isfinite, candidate) && sum(abs2, f(candidate)) < sum(abs2, f(z))
+            z = candidate
+        end
+    end
+    z, stopped
 end
 
 _check_constraints(constraints, name) =
@@ -220,39 +296,43 @@ function eq_stack_values(vals)
 end
 
 """
-    eq_find(constraints, guesses)
+    eq_find(constraints, guesses; algorithm, derivatives, max_evaluations, max_time, x_tolerance)
 
-the reference application `Find(x, y, ...)` for a Given block. Solves the constraints from the guess values
-by Levenberg-Marquardt on the equation residuals and the inequality violations; succeeds
-when every violation is within `CTOL` (base units). One unknown returns its value, several
-return a column vector. Failure is an `EqError` ("try other guess values").
+the reference application `Find(x, y, ...)` for a Given block. Solves the constraints from the
+guess values with the chosen algorithm (`auto` by default: Levenberg-Marquardt, then the trust
+region method on a square system of equations); succeeds when every violation is within `CTOL`
+(base units). One unknown returns its value, several return a column vector. Failure is an
+`EqError` ("try other guess values").
 """
-function eq_find(constraints, guesses)
+function eq_find(constraints, guesses; options...)
     _check_constraints(constraints, "Find")
+    settings = solver_options("Find", FIND_ALGORITHMS; options...)
     unknowns, z0 = _pack(guesses, "Find")
     isempty(constraints) && eqerror("Find needs at least one constraint after Given")
-    f = z -> _violations(constraints, unknowns, z)
-    z = _levenberg_marquardt(f, z0)
-    all(v -> abs(v) <= ctol(), f(z)) ||
-        eqerror("Find did not converge to a solution; try other guess values or use Minerr")
+    z, stopped = _find_point(constraints, unknowns, z0, settings, "Find")
+    if !all(v -> abs(v) <= ctol(), _violations(constraints, unknowns, z))
+        stopped === nothing || eqerror("Find stopped at $stopped before reaching a solution; raise it or try other guess values")
+        eqerror("Find did not converge to a solution; try other guess values, another algorithm or use Minerr")
+    end
     _result(unknowns, z)
 end
 
 """
-    eq_minerr(constraints, guesses)
+    eq_minerr(constraints, guesses; options...)
 
 the reference application `Minerr(x, ...)`: the same iteration as `eq_find`, but the best approximation is
 returned even when the constraints are not met (the user must check the result).
 """
-function eq_minerr(constraints, guesses)
+function eq_minerr(constraints, guesses; options...)
     _check_constraints(constraints, "Minerr")
+    settings = solver_options("Minerr", FIND_ALGORITHMS; options...)
     unknowns, z0 = _pack(guesses, "Minerr")
     isempty(constraints) && eqerror("Minerr needs at least one constraint after Given")
-    f = z -> _violations(constraints, unknowns, z)
-    _result(unknowns, _levenberg_marquardt(f, z0))
+    z, _ = _find_point(constraints, unknowns, z0, settings, "Minerr")
+    _result(unknowns, z)
 end
 
-# ---- Minimize and Maximize: penalty method with BFGS ----------------------------------------
+# ---- Minimize and Maximize ------------------------------------------------------------------
 
 function _objective(objective, unknowns, z)
     v = objective(_values(unknowns, z)...)
@@ -261,14 +341,67 @@ function _objective(objective, unknowns, z)
     f[1]
 end
 
-function _bfgs(f, z)
-    n = length(z)
-    grad(z) = map(1:n) do j
-        h = 1.0e-6 * max(1.0, abs(z[j]))
-        zp = copy(z); zp[j] += h
-        zm = copy(z); zm[j] -= h
-        (f(zp) - f(zm)) / (2h)
+"""
+The constraints as NLopt takes them: the equation differences (zero when met) and the
+inequality excesses (at most zero when met), one entry per element.
+"""
+function _nlopt_sides(constraints, unknowns, z)
+    vals = _values(unknowns, z)
+    eqs, ineqs = Any[], Any[]
+    for c in constraints
+        l, r = _sides(c, vals)
+        for (a, b) in zip(l, r)
+            c.op === :eq ? push!(eqs, a - b) :
+            c.op in (:lt, :le) ? push!(ineqs, a - b) :
+            push!(ineqs, b - a)
+        end
     end
+    (isempty(eqs) ? Float64[] : map(identity, eqs)), (isempty(ineqs) ? Float64[] : map(identity, ineqs))
+end
+
+const _NLOPT = Dict("slsqp" => :LD_SLSQP, "mma" => :LD_MMA, "ccsaq" => :LD_CCSAQ, "lbfgs" => :LD_LBFGS,
+    "cobyla" => :LN_COBYLA, "nelder-mead" => :LN_NELDERMEAD)
+const _TAKES_EQUATIONS = ("slsqp", "cobyla", "penalty")
+const _TAKES_INEQUALITIES = ("slsqp", "mma", "ccsaq", "cobyla", "penalty")
+
+function _nlopt(objective, constraints, unknowns, z0, sign, algorithm, options::SolverOptions)
+    n = length(z0)
+    F = z -> sign * _objective(objective, unknowns, z)
+    eq0, in0 = _nlopt_sides(constraints, unknowns, z0)
+    opt = NLopt.Opt(_NLOPT[algorithm], n)
+    NLopt.maxeval!(opt, options.max_evaluations)
+    isfinite(options.max_time) && NLopt.maxtime!(opt, options.max_time)
+    NLopt.xtol_rel!(opt, options.x_tolerance)
+    NLopt.ftol_rel!(opt, options.f_tolerance)
+    method = options.derivatives
+    NLopt.min_objective!(opt, (z, grad) -> begin
+        length(grad) > 0 && (grad .= solver_gradient(F, z, method))
+        Float64(F(z))
+    end)
+    tolerance = ctol() / 10
+    if !isempty(eq0)
+        ceq = z -> _nlopt_sides(constraints, unknowns, z)[1]
+        NLopt.equality_constraint!(opt, (res, z, grad) -> begin
+            r = ceq(z)
+            res .= r
+            length(grad) > 0 && (grad .= transpose(solver_jacobian(ceq, z, r, method)))
+        end, fill(tolerance, length(eq0)))
+    end
+    if !isempty(in0)
+        cin = z -> _nlopt_sides(constraints, unknowns, z)[2]
+        NLopt.inequality_constraint!(opt, (res, z, grad) -> begin
+            r = cin(z)
+            res .= r
+            length(grad) > 0 && (grad .= transpose(solver_jacobian(cin, z, r, method)))
+        end, fill(tolerance, length(in0)))
+    end
+    _, z, reason = NLopt.optimize(opt, copy(z0))
+    z, reason
+end
+
+function _bfgs(f, z, options::SolverOptions)
+    n = length(z)
+    grad(z) = solver_gradient(f, z, options.derivatives)
     H = Matrix{Float64}(I, n, n)
     g = grad(z)
     fz = f(z)
@@ -297,38 +430,75 @@ function _bfgs(f, z)
             V = I - ρ * s * y'
             H = V * H * V' + ρ * s * s'
         end
-        done = abs(fz - f(zn)) <= 1.0e-14 * max(1.0, abs(fz)) && norm(s) <= 1.0e-10 * (1 + norm(z))
+        done = abs(fz - f(zn)) <= options.f_tolerance * max(1.0, abs(fz)) && norm(s) <= options.x_tolerance * (1 + norm(z))
         z, g, fz = zn, gn, f(zn)
         done && break
     end
     z
 end
 
-function _optimize(objective, constraints, guesses, sign, name)
-    objective isa Function || eqerror("$name needs the function to optimize")
-    _check_constraints(constraints, name)
-    unknowns, z = _pack(guesses, name)
+"The quadratic penalty method: growing weights, each stage minimised by BFGS."
+function _penalty(objective, constraints, unknowns, z, sign, options::SolverOptions)
     for μ in (1.0e1, 1.0e3, 1.0e5, 1.0e7)
         penalized = w -> begin
             v = _violations(constraints, unknowns, w)
             sign * _objective(objective, unknowns, w) + μ * sum(abs2, v)
         end
-        z = _bfgs(penalized, z)
+        z = _bfgs(penalized, z, options)
     end
-    viol = _violations(constraints, unknowns, z)
-    all(v -> abs(v) <= ctol(), viol) ||
-        eqerror("$name: the constraints cannot be satisfied; try other guess values")
-    _result(unknowns, z)
+    z
+end
+
+function _algorithms_for(has_equations, has_inequalities, has_ne)
+    has_ne && return ["penalty"]
+    filter(a -> a != "auto" && (!has_equations || a in _TAKES_EQUATIONS) &&
+        (!has_inequalities || a in _TAKES_INEQUALITIES), collect(OPTIMIZE_ALGORITHMS))
+end
+
+function _optimize(objective, constraints, guesses, sign, name; options...)
+    objective isa Function || eqerror("$name needs the function to optimize")
+    _check_constraints(constraints, name)
+    settings = solver_options(name, OPTIMIZE_ALGORITHMS; options...)
+    unknowns, z0 = _pack(guesses, name)
+    has_ne = any(c -> c.op === :ne, constraints)
+    has_eq = any(c -> c.op === :eq, constraints)
+    has_in = any(c -> c.op in (:lt, :le, :gt, :ge), constraints)
+    met(z) = all(v -> abs(v) <= ctol(), _violations(constraints, unknowns, z))
+    algorithm = settings.algorithm
+    if algorithm != "auto"
+        allowed = _algorithms_for(has_eq, has_in, has_ne)
+        algorithm in allowed || eqerror(
+            "$name: $algorithm cannot take the constraints of this block; use $(join(allowed, ", "))")
+    end
+    candidates = algorithm != "auto" ? [algorithm] : has_ne ? ["penalty"] : ["slsqp", "cobyla"]
+    stopped = nothing
+    for candidate in candidates
+        z, reason = if candidate == "penalty"
+            _penalty(objective, constraints, unknowns, copy(z0), sign, settings), :SUCCESS
+        else
+            try
+                _nlopt(objective, constraints, unknowns, z0, sign, candidate, settings)
+            catch error
+                (error isa EqError || length(candidates) == 1) && rethrow()
+                continue
+            end
+        end
+        reason in (:MAXEVAL_REACHED, :MAXTIME_REACHED) &&
+            (stopped = reason === :MAXEVAL_REACHED ? "the maximum number of evaluations ($(settings.max_evaluations))" : "the maximum time")
+        all(isfinite, z) && met(z) && return _result(unknowns, z)
+    end
+    stopped === nothing || eqerror("$name stopped at $stopped before the constraints were met; raise it or try other guess values")
+    eqerror("$name: the constraints cannot be satisfied; try other guess values or another algorithm")
 end
 
 """
-    eq_minimize(objective, constraints, guesses)
-    eq_maximize(objective, constraints, guesses)
+    eq_minimize(objective, constraints, guesses; algorithm, derivatives, max_evaluations, max_time, x_tolerance, f_tolerance)
+    eq_maximize(objective, constraints, guesses; ...)
 
-the reference application `Minimize(f, x, ...)` / `Maximize(f, x, ...)`. `objective` is a lambda of the
-unknowns. Constraints (possibly none) are enforced by a quadratic penalty with growing
-weight, each stage minimised by BFGS with finite-difference gradients; the result is
-accepted when all violations are within `CTOL`.
+the reference application `Minimize(f, x, ...)` / `Maximize(f, x, ...)`. `objective` is a lambda of
+the unknowns. The chosen algorithm (`auto` by default: NLopt's SLSQP, then COBYLA, and the
+penalty method when a constraint is `≠`) minimises it under the constraints (possibly none);
+the result is accepted when all violations are within `CTOL`.
 """
-eq_minimize(objective, constraints, guesses) = _optimize(objective, constraints, guesses, 1.0, "Minimize")
-eq_maximize(objective, constraints, guesses) = _optimize(objective, constraints, guesses, -1.0, "Maximize")
+eq_minimize(objective, constraints, guesses; options...) = _optimize(objective, constraints, guesses, 1.0, "Minimize"; options...)
+eq_maximize(objective, constraints, guesses; options...) = _optimize(objective, constraints, guesses, -1.0, "Maximize"; options...)
