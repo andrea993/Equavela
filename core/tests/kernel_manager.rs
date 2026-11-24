@@ -510,3 +510,23 @@ fn a_missing_sysimage_file_is_ignored() {
     assert!(!kernel.sysimage_in_use());
     kernel.shutdown();
 }
+
+#[test]
+fn the_first_symbolic_request_announces_the_wait_and_its_end() {
+    let manager = kernel!();
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let log = std::sync::Arc::clone(&seen);
+    manager.on_activity(std::sync::Arc::new(move |activity| {
+        log.lock().unwrap().push(activity.map(|a| a.kind.clone()));
+    }));
+    manager.start().unwrap();
+    let request = equavela_core::symbolic::SymbolicRequest::new(
+        equavela_core::parse_expression("x + x").unwrap(),
+        Vec::new(),
+    );
+    let _ = manager.symbolic(&request);
+    // Once the engine is ready, a request does not announce anything.
+    let _ = manager.symbolic(&request);
+    let seen = seen.lock().unwrap().clone();
+    assert_eq!(seen, vec![Some("symbolic".to_owned()), None], "{seen:?}");
+}

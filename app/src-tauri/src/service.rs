@@ -8,6 +8,9 @@
 //! Events (the names are part of the frontend contract, see `app/src/equavelaApi.ts`):
 //! - `kernel-status`: a `KernelStatus` object (`status`: `not_started`, `starting`,
 //!   `ready`, `busy`, `crashed`);
+//! - `kernel-activity`: slow, one-time work of a kernel the user should wait for: `environment`
+//!   (the kernel key), `kind` (`packages`, `compiling`, `symbolic`) and `message`, or `kind`
+//!   null when it has ended;
 //! - `worksheet-event`: a `SessionEvent` object plus a `worksheet` field with the
 //!   worksheet id; `pass_failed` (with `message`) is added for a calculation that could
 //!   not run at all.
@@ -69,6 +72,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 pub const EVENT_KERNEL_STATUS: &str = "kernel-status";
 pub const EVENT_WORKSHEET: &str = "worksheet-event";
+pub const EVENT_KERNEL_ACTIVITY: &str = "kernel-activity";
 // The core creation API requires callers in this process to serialize publication.
 static PROJECT_CREATION: Mutex<()> = Mutex::new(());
 static PROJECT_TEXT_RECOVERY: Mutex<()> = Mutex::new(());
@@ -1396,15 +1400,32 @@ impl Service {
             config
         });
         let mut kernels = lock(&self.kernels);
-        let kernel = kernels
-            .entry(key.to_path_buf())
-            .or_insert_with(|| EnvironmentKernel {
-                // A manager that can never start: starting it reports the spawn error.
-                manager: Arc::new(KernelManager::new(
-                    config.unwrap_or_else(|_| KernelConfig::new(PathBuf::from("kernel-not-found"))),
-                )),
+        let kernel = kernels.entry(key.to_path_buf()).or_insert_with(|| {
+            // A manager that can never start: starting it reports the spawn error.
+            let manager =
+                Arc::new(KernelManager::new(config.unwrap_or_else(|_| {
+                    KernelConfig::new(PathBuf::from("kernel-not-found"))
+                })));
+            // Slow work (installing, compiling, preparing the symbolic engine) is announced
+            // to the frontend, which asks the user to wait.
+            let sink = Arc::clone(&self.sink);
+            let environment = slash_path(key);
+            manager.on_activity(Arc::new(move |activity| {
+                let payload = match activity {
+                    Some(activity) => json!({
+                        "environment": environment,
+                        "kind": activity.kind,
+                        "message": activity.message,
+                    }),
+                    None => json!({ "environment": environment, "kind": null, "message": null }),
+                };
+                sink(EVENT_KERNEL_ACTIVITY, payload);
+            }));
+            EnvironmentKernel {
+                manager,
                 status: KernelStatus::NotStarted,
-            });
+            }
+        });
         (Arc::clone(&kernel.manager), error)
     }
 

@@ -97,6 +97,17 @@ pub struct ProgressParams {
     pub message: Option<String>,
 }
 
+/// Slow, one-time work of a request that the user should wait for (`kernel/activity`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActivityParams {
+    pub request_id: RpcId,
+    /// `packages` (installing or resolving packages), `compiling` (precompiling packages a
+    /// worksheet loads) or `symbolic` (preparing Python and SymPy).
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BinaryDType {
     #[serde(rename = "f64le")]

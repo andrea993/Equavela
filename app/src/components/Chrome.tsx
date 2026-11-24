@@ -18,7 +18,7 @@ import {
 } from "../layout/pageSetup";
 import { TOKENS } from "../layout/pageText";
 import { S, windowTitle } from "../strings";
-import type { EnvironmentSummary, ImportIssue, ImportReport, KernelStatus, PageLine, PageSetup } from "../equavelaApi";
+import type { EnvironmentSummary, ImportIssue, ImportReport, KernelActivity, KernelStatus, PageLine, PageSetup } from "../equavelaApi";
 import { recentFileFolder, recentFileName } from "../recentFiles";
 
 import { SHEET_CONTEXTS, shortcutSheet } from "../keymap/shortcutSheet";
@@ -496,11 +496,14 @@ export function describeKernel(status: KernelStatus | null): string {
 /** The first-run notice: shown after 1 s of `starting`, counts the elapsed seconds, never blocks input. */
 export const ENGINE_NOTICE_DELAY_MS = 1000;
 
-export function EngineStartNotice(props: { kernel: KernelStatus | null }) {
+export function EngineStartNotice(props: { kernel: KernelStatus | null; activity?: KernelActivity | null }) {
   const starting = props.kernel?.status === "starting";
+  // What the user waits for: the start of the engine, or slow work of a running kernel
+  // (installing packages, compiling them, preparing the symbolic engine).
+  const waiting = starting ? "starting" : props.activity?.kind ?? null;
   const [seconds, setSeconds] = useState<number | null>(null);
   useEffect(() => {
-    if (!starting) return;
+    if (!waiting) return;
     const began = Date.now();
     const tick = () => setSeconds(Math.floor((Date.now() - began) / 1000));
     const timer = setInterval(tick, ENGINE_NOTICE_DELAY_MS);
@@ -508,13 +511,20 @@ export function EngineStartNotice(props: { kernel: KernelStatus | null }) {
       clearInterval(timer);
       setSeconds(null);
     };
-  }, [starting]);
-  if (!starting || seconds === null) return null;
+  }, [waiting]);
+  if (!waiting || seconds === null) return null;
+  const A = S.status.activity;
+  const H = S.status.activityHint;
+  const [title, hint] =
+    waiting === "starting" ? [S.status.engineStarting(seconds), S.status.engineStartingHint]
+    : waiting === "packages" ? [A.packages(seconds), H.packages]
+    : waiting === "compiling" ? [A.compiling(seconds), H.compiling(props.activity?.message ?? null)]
+    : [A.symbolic(seconds), H.symbolic];
   return (
     <div className="chrome engine-notice" role="status" data-testid="engine-notice">
       <span className="engine-spinner" aria-hidden="true" />
-      <span className="engine-notice-title">{S.status.engineStarting(seconds)}</span>
-      <span className="engine-notice-hint">{S.status.engineStartingHint}</span>
+      <span className="engine-notice-title">{title}</span>
+      <span className="engine-notice-hint">{hint}</span>
     </div>
   );
 }

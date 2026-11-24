@@ -81,6 +81,22 @@ function progress!(context::RequestContext; fraction=nothing, message=nothing)
     return nothing
 end
 
+"""
+    activity!(context, kind; message=nothing)
+
+Tells the host that the request is doing slow, one-time work the user should wait for:
+`packages` (installing or resolving packages), `compiling` (precompiling packages a worksheet
+loads), `symbolic` (preparing Python and SymPy). The host shows it until the request ends.
+"""
+function activity!(context::RequestContext, kind::AbstractString; message=nothing)
+    context.id === nothing && return nothing
+    params = Dict{String,Any}("request_id" => context.id, "kind" => String(kind))
+    message === nothing || (params["message"] = String(message))
+    _write(context.io, Dict{String,Any}("jsonrpc" => "2.0", "method" => "kernel/activity", "params" => params))
+    return nothing
+end
+activity!(::Nothing, kind::AbstractString; message=nothing) = nothing
+
 include("evaluate.jl")
 include("symbolic.jl")
 include("xls_bridge.jl")

@@ -806,6 +806,18 @@ export const S = {
     engineStarting: (seconds: number) => `Starting the calculation engine… ${seconds} s`,
     engineStartingHint:
       "The first start after installation can take up to a minute or two. You can keep editing; results appear when it is ready.",
+    activity: {
+      packages: (seconds: number) => `Installing Julia packages… ${seconds} s`,
+      compiling: (seconds: number) => `Compiling Julia packages… ${seconds} s`,
+      symbolic: (seconds: number) => `Preparing the symbolic engine… ${seconds} s`,
+    },
+    activityHint: {
+      packages: "Julia is downloading and installing packages; this can take a few minutes. You can keep editing; results appear when it is ready.",
+      compiling: (names: string | null) =>
+        `Julia is compiling ${names ? names : "the packages of this worksheet"} the first time they are used. You can keep editing; results appear when it is ready.`,
+      symbolic:
+        "The first symbolic evaluation loads Python and SymPy (the very first time it also installs them). You can keep editing; results appear when it is ready.",
+    },
     kernel: {
       notStarted: "Kernel not started",
       starting: "Kernel starting…",

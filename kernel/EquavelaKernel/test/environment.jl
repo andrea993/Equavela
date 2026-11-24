@@ -201,7 +201,12 @@
         function request(p; id=81)
             line = JSON3.write(Dict("jsonrpc" => "2.0", "id" => id,
                 "method" => "set_compatibility", "params" => p))
-            return only(run_serve(line * "\n"))
+            messages = run_serve(line * "\n")
+            # Package work is announced before the response; a refused request announces nothing.
+            for message in messages[1:end-1]
+                @test message.method == "kernel/activity" && message.params.kind == "packages"
+            end
+            return last(messages)
         end
         files() = Dict(name => read(joinpath(target, name)) for name in readdir(target))
         active = Base.active_project()

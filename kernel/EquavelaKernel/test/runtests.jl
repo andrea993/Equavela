@@ -42,6 +42,23 @@ end
         @test responses[3].result === nothing
     end
 
+    @testset "slow work is announced as kernel/activity" begin
+        out = IOBuffer()
+        context = EquavelaKernel.RequestContext(9, out, 0)
+        EquavelaKernel.activity!(context, "compiling"; message="Plots")
+        EquavelaKernel.activity!(EquavelaKernel.RequestContext(nothing, out, 0), "packages")
+        EquavelaKernel.activity!(nothing, "symbolic")
+        lines = [JSON3.read(line) for line in split(strip(String(take!(out))), '\n') if !isempty(line)]
+        @test length(lines) == 1
+        @test lines[1].method == "kernel/activity"
+        @test lines[1].params.request_id == 9
+        @test lines[1].params.kind == "compiling"
+        @test lines[1].params.message == "Plots"
+        # An invalid package request is refused before any work: nothing is announced.
+        responses = run_serve("{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"remove_packages\",\"params\":{}}\n")
+        @test length(responses) == 1 && responses[1].id == 2 && haskey(responses[1], :error)
+    end
+
     @testset "notifications have no response" begin
         responses = run_serve(
             "{\"jsonrpc\":\"2.0\",\"method\":\"ping\"}\n" *

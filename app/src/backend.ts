@@ -12,6 +12,7 @@ import type { AppSettings } from "./settings";
 import { applyEditDelta, stateFromOpened, stateFromSnapshot, type WorksheetState } from "./editDelta";
 import {
   onKernelStatus,
+  onKernelActivity,
   onOpenRequest,
   onFileDrop,
   onWorksheetEvent,
@@ -45,6 +46,7 @@ import {
   type EnvironmentMetadataFile,
   type EnvironmentOperation,
   type KernelStatusEvent,
+  type KernelActivityEvent,
   type PageSetup,
   type PlotSpec,
   type RecoveryInfo,
@@ -325,6 +327,8 @@ export interface Backend {
   undo(worksheet: string): Promise<EditResult>;
   redo(worksheet: string): Promise<EditResult>;
   onKernelStatus(handler: (status: KernelStatusEvent) => void): Promise<UnlistenFn>;
+  /** Slow, one-time kernel work (installing, compiling, preparing the symbolic engine). */
+  onKernelActivity?(handler: (activity: KernelActivityEvent) => void): Promise<UnlistenFn>;
   onWorksheetEvent(handler: (event: WorksheetEvent) => void): Promise<UnlistenFn>;
 }
 
@@ -629,6 +633,7 @@ export function createTauriBackend(): Backend {
     undo: (worksheet) => edit(worksheet, equavelaApi.undo(worksheet)),
     redo: (worksheet) => edit(worksheet, equavelaApi.redo(worksheet)),
     onKernelStatus,
+    onKernelActivity,
     onWorksheetEvent,
   };
 }

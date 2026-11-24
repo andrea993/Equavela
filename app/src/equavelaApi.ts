@@ -647,6 +647,12 @@ export type KernelStatus =
 
 /** A `kernel-status` event: the status of the kernel of one environment. */
 export type KernelStatusEvent = KernelStatus & { environment?: string };
+/**
+ * Slow, one-time work of a kernel the user should wait for: installing or resolving packages,
+ * compiling the packages a worksheet loads, preparing Python and SymPy. `kind` is null when it ended.
+ */
+export type KernelActivity = { kind: "packages" | "compiling" | "symbolic"; message: string | null };
+export type KernelActivityEvent = { environment: string; kind: KernelActivity["kind"] | null; message: string | null };
 
 export type PassSummary = {
   affected: number;
@@ -693,6 +699,7 @@ export type CommandError = {
 };
 
 export const EVENT_KERNEL_STATUS = "kernel-status";
+export const EVENT_KERNEL_ACTIVITY = "kernel-activity";
 export const EVENT_WORKSHEET = "worksheet-event";
 export const EVENT_OPEN_REQUEST = "open-request";
 
@@ -1173,6 +1180,12 @@ export function onKernelStatus(
   return listen<KernelStatusEvent>(EVENT_KERNEL_STATUS, (event) =>
     handler(event.payload),
   );
+}
+
+export function onKernelActivity(
+  handler: (activity: KernelActivityEvent) => void,
+): Promise<UnlistenFn> {
+  return listen<KernelActivityEvent>(EVENT_KERNEL_ACTIVITY, (event) => handler(event.payload));
 }
 
 /** A second launch queued files to open: the handler should call `takeOpenRequests`. */

@@ -46,6 +46,8 @@ import {
   type ImportReport,
   type KernelStatus,
   type KernelStatusEvent,
+  type KernelActivity,
+  type KernelActivityEvent,
   type EnvironmentSummary,
   type NewRegionKind,
   type OpenedWorksheet,
@@ -207,6 +209,8 @@ export type WorkbenchState = {
   kernel: KernelStatus | null;
   /** The status of each environment's kernel, by kernel key. */
   kernels: Record<string, KernelStatus>;
+  /** The slow work each environment's kernel is doing, by kernel key. */
+  activities: Record<string, KernelActivity>;
   calcMode: CalcMode;
   zoom: number;
   viewMode: ViewMode;
@@ -235,6 +239,7 @@ export type MessageLevel = "success" | "info" | "warning" | "error";
 type Action =
   | { type: "ready" }
   | { type: "kernel"; status: KernelStatusEvent }
+  | { type: "activity"; activity: KernelActivityEvent }
   | { type: "opened"; opened: OpenedWorksheet; modified?: boolean }
   | { type: "prompt"; prompt: Prompt | null }
   | { type: "closed"; id: string }
@@ -383,12 +388,19 @@ export function kernelOf(state: WorkbenchState, doc: DocState | null): KernelSta
   return state.kernels[environment.kernel] ?? (environment.kind === "shared" ? state.kernel : { status: "not_started" });
 }
 
+/** The slow work to tell the user about: the active worksheet's kernel first, else any kernel's. */
+export function activityOf(state: WorkbenchState, doc: DocState | null): KernelActivity | null {
+  const own = doc?.environment ? state.activities[doc.environment.kernel] : undefined;
+  return own ?? Object.values(state.activities)[0] ?? null;
+}
+
 export const initialState = (mode: BackendMode): WorkbenchState => ({
   mode,
   docs: [],
   activeId: null,
   kernel: null,
   kernels: {},
+  activities: {},
   calcMode: "auto",
   zoom: 1,
   viewMode: "page",
@@ -461,6 +473,13 @@ export function reducer(state: WorkbenchState, action: Action): WorkbenchState {
       const { environment, ...status } = action.status;
       if (environment === undefined) return { ...state, kernel: status };
       return { ...state, kernels: { ...state.kernels, [environment]: status } };
+    }
+    case "activity": {
+      const { environment, kind, message } = action.activity;
+      const activities = { ...state.activities };
+      if (kind === null) delete activities[environment];
+      else activities[environment] = { kind, message };
+      return { ...state, activities };
     }
     case "opened":
       return {
@@ -3376,6 +3395,7 @@ export function useWorkbench(backend: Backend) {
     const track = (promise: Promise<() => void>) =>
       promise.then((fn) => (cancelled ? fn() : unlisten.push(fn)));
     track(backend.onKernelStatus((status) => dispatch({ type: "kernel", status })));
+    if (backend.onKernelActivity) track(backend.onKernelActivity((activity) => dispatch({ type: "activity", activity })));
     // The real Ctrl key, read from the key events (Windows, where AltGr arrives as Ctrl+Alt).
     unlisten.push(installKeyTracking());
     // A calculation pass reports one event per region: the results are queued per worksheet and

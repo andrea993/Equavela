@@ -226,6 +226,9 @@ function symbolic_request(params, context)
     (origin === nothing || origin isa Integer) ||
         throw(KernelFailure(-32602, "`origin` must be an integer"))
     request = _plain(params)
+    # The first request after a start may load Python and SymPy (and, the very first time,
+    # install them): the host tells the user to wait.
+    SYMBOLIC_STATUS["state"] == "ready" || activity!(context, "symbolic")
     try
         _ensure_symbolic!()
     catch exception
