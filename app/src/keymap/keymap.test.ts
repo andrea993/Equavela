@@ -285,3 +285,51 @@ describe("Ctrl chords are matched on the typed character", () => {
     }
   });
 });
+
+describe("letter chords beside the chords Windows takes as Ctrl+Shift+0", () => {
+  const cases: Array<[string, KeyInput, string]> = [
+    ["Ctrl+Shift+E", shift("KeyE", "E"), "boolEq"],
+    ["Ctrl+Shift+F", shift("KeyF", "F"), "alsoIf"],
+    ["Ctrl+Shift+G", shift("KeyG", "G"), "greaterEq"],
+    // A Cyrillic layout types another letter on the same key.
+    ["Ctrl+Shift+E (Cyrillic)", shift("KeyE", "У"), "boolEq"],
+    ["Ctrl+Shift+F (Cyrillic)", shift("KeyF", "А"), "alsoIf"],
+    ["Ctrl+Shift+G (Cyrillic)", shift("KeyG", "П"), "greaterEq"],
+  ];
+  for (const [label, ev, cmd] of cases) {
+    it(`${label} is ${cmd} in math, in a matrix and in a program`, () => {
+      for (const ctx of ["math", "matrix", "program"] as KeyContext[]) {
+        expect(resolve(ev, ctx), ctx).toEqual({ kind: "command", cmd });
+      }
+    });
+  }
+
+  it("keeps the first chords of the three commands", () => {
+    expect(resolve(ctrl("Equal", "="), "math")).toEqual({ kind: "command", cmd: "boolEq" });
+    expect(resolve(shift("Digit0", "="), "math")).toEqual({ kind: "command", cmd: "boolEq" });
+    expect(resolve(shift("Digit0", ")"), "math")).toEqual({ kind: "command", cmd: "alsoIf" });
+    expect(resolve(shift("Digit9", ")"), "math")).toEqual({ kind: "command", cmd: "alsoIf" });
+    expect(resolve(ctrl("Digit0", "0"), "math")).toEqual({ kind: "command", cmd: "greaterEq" });
+  });
+
+  it("leaves Ctrl+E, Ctrl+F and Ctrl+G without Shift as they were", () => {
+    expect(resolve(ctrl("KeyE", "e"), "math")).toBeNull();
+    expect(resolve(ctrl("KeyF", "f"), "math")).toBeNull();
+    expect(resolve(ctrl("KeyG", "g"), "math")).toEqual({ kind: "command", cmd: "greek" });
+  });
+
+  it("does nothing with the letter chords outside math", () => {
+    for (const ev of [shift("KeyE", "E"), shift("KeyF", "F"), shift("KeyG", "G")]) {
+      expect(resolve(ev, "sheet"), ev.key).toBeNull();
+      expect(resolve(ev, "text"), ev.key).toBeNull();
+    }
+  });
+
+  it("shows every chord of a command, the first one first", () => {
+    expect(shortcutLabel("boolEq")).toBe("Ctrl+= or Ctrl+Shift+E");
+    expect(shortcutLabel("alsoIf")).toBe("Ctrl+Shift+) or Ctrl+Shift+F");
+    expect(shortcutLabel("greaterEq")).toBe("Ctrl+0 or Ctrl+Shift+G");
+    expect(shortcutLabel("sum")).toBe("Ctrl+Shift+A or Ctrl+Shift+$");
+    expect(shortcutLabel("lessEq")).toBe("Ctrl+9");
+  });
+});
