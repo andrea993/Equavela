@@ -235,10 +235,42 @@ pub fn write_bytes_atomic(path: &Path, content: &[u8]) -> Result<(), WriteError>
         .write_all(content)
         .and_then(|()| temporary.as_file().sync_all())
         .map_err(|error| fail(error.to_string()))?;
+    persist_atomic(temporary, path).map_err(fail)?;
+    Ok(())
+}
+
+/// Replaces `path` with `temporary`. On Windows, concurrent `MoveFileExW` calls to the same
+/// destination (or a transient lock from an external scanner) fail with `ERROR_ACCESS_DENIED`
+/// (5) or `ERROR_SHARING_VIOLATION` (32), so same-process renames are serialized and transient
+/// denials are retried briefly.
+#[cfg(windows)]
+fn persist_atomic(mut temporary: tempfile::NamedTempFile, path: &Path) -> Result<(), String> {
+    static RENAME_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _guard = RENAME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    for attempt in 0..10u64 {
+        match temporary.persist(path) {
+            Ok(_) => return Ok(()),
+            Err(err) => {
+                let code = err.error.raw_os_error();
+                let transient = err.error.kind() == std::io::ErrorKind::PermissionDenied
+                    || matches!(code, Some(5 | 32));
+                if !transient || attempt == 9 {
+                    return Err(err.error.to_string());
+                }
+                temporary = err.file;
+                std::thread::sleep(std::time::Duration::from_millis(2 * (attempt + 1)));
+            }
+        }
+    }
+    unreachable!()
+}
+
+#[cfg(not(windows))]
+fn persist_atomic(temporary: tempfile::NamedTempFile, path: &Path) -> Result<(), String> {
     temporary
         .persist(path)
-        .map_err(|error| fail(error.error.to_string()))?;
-    Ok(())
+        .map(|_| ())
+        .map_err(|err| err.error.to_string())
 }
 
 // ---- sections --------------------------------------------------------------------------------
