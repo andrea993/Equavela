@@ -398,6 +398,7 @@ br.eq-break {
   left: 0;
   top: 0;
   height: 100%;
+  pointer-events: none;
 }
 .root .radicand {
   display: inline-block;
@@ -411,11 +412,13 @@ br.eq-break {
   top: 0;
   width: 100%;
   height: 4px;
+  pointer-events: none;
 }
 .root-index {
   position: absolute;
   left: 0;
   top: 0;
+  z-index: 1;
 }
 .overline,
 .vectorize {

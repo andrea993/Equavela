@@ -466,7 +466,6 @@ function Fraction({ top, bottom }: { top: ReactNode; bottom: ReactNode }) {
 function Radical({ index, children }: { index?: ReactNode; children: ReactNode }) {
   return (
     <span className="root">
-      {index !== undefined && <span className="root-index sup">{index}</span>}
       <svg className="radical" width={12} viewBox="0 0 12 100" preserveAspectRatio="none" aria-hidden="true">
         <path
           d="M0.5,58 L3,54 L6,92 L11.5,1"
@@ -476,6 +475,7 @@ function Radical({ index, children }: { index?: ReactNode; children: ReactNode }
           vectorEffect="non-scaling-stroke"
         />
       </svg>
+      {index !== undefined && <span className="root-index sup">{index}</span>}
       <span className="radicand">
         <HRule className="over-rule" />
         {children}
