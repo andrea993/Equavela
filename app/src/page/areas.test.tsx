@@ -14,6 +14,7 @@ vi.mock("../plot/plotlyBundle", () => ({ default: { react: vi.fn(async () => und
 afterEach(() => {
   leavePrint();
   cleanup();
+  vi.restoreAllMocks();
 });
 
 // y 190 to 290: the header is 190 to 211, so m5 and m6 (y 250) are members; m3 (210) is not.
@@ -353,6 +354,23 @@ describe("a band across pages", () => {
     expect(parts().map((part) => part.dataset.part)).toEqual(["start", "end"]);
   });
 
+  it("keeps members together when the area header moves to the next page", async () => {
+    const backend = await openWithCrossingArea();
+    await clickHeaderOn("ac");
+    const header = region("ac")!.querySelector<HTMLElement>(".area-header")!;
+    fireEvent.pointerDown(header, { button: 0, clientX: 300, clientY: 300 });
+    await act(async () => void fireEvent.pointerMove(window, { clientX: 300, clientY: 800 }));
+    await act(async () => void fireEvent.pointerUp(window, { button: 0, clientX: 300, clientY: 800 }));
+    await waitFor(() => expect(undoButton().getAttribute("title")).toContain("Move region"));
+    const view = await backend.getView("mock1");
+    const moved = (id: string) => view.regions.find((r) => r.id === id)!;
+    expect(moved("ac").page).toBe(2);
+    expect(moved("i1").page).toBe(2);
+    expect(moved("i2").page).toBe(2);
+    expect(Math.abs(moved("i1").y - moved("ac").y - 50)).toBeLessThan(3);
+    expect(Math.abs(moved("i2").y - moved("i1").y - 147.89)).toBeLessThan(3);
+  });
+
   it("grows past the bottom margin with the end line, which moves to the next page", async () => {
     await openWithCrossingArea();
     // Select the band: a press and release on its header.
@@ -418,4 +436,74 @@ describe("a band always holds its content", () => {
     await backend.undo("mock1");
     expect((await heightOf()).height).toBe(100);
   });
+});
+
+it("moves area members across the page boundary without moving an unrelated plot", async () => {
+  const area: ViewRegion = { id: "moving", page: 1, x: 54, y: 90, enabled: true, kind: "area", title: "Moving", height: 720, collapsed: false };
+  const member: ViewRegion = { id: "last", page: 1, x: 54, y: 756, enabled: true, kind: "math", text: "last =", statement: evaluate("last") };
+  const plot: ViewRegion = {
+    id: "unrelated-plot", page: 2, x: 300, y: 300, enabled: true, kind: "plot",
+    plot: { version: 1, type: "xy", size: [240, 160], axes: {
+      x: { scale: "linear", unit: null, min: null, max: null, show_grid: true, title: "" },
+      y: { scale: "linear", unit: null, min: null, max: null, show_grid: true, title: "" },
+    }, traces: [{ id: "trace", x: "t", y: "t", presentation: "line" }] },
+  };
+  const backend = createMockBackend({ fast: true, extraRegions: [area, member, plot] });
+  render(<App backend={backend} />);
+  await waitFor(() => expect(region("moving")).not.toBeNull());
+  const plotTop = top("unrelated-plot");
+  await clickHeaderOn("moving");
+  const header = region("moving")!.querySelector<HTMLElement>(".area-header")!;
+  fireEvent.pointerDown(header, { button: 0, clientX: 300, clientY: 300 });
+  await act(async () => void fireEvent.pointerMove(window, { clientX: 300, clientY: 340 }));
+  await act(async () => void fireEvent.pointerUp(window, { button: 0, clientX: 300, clientY: 340 }));
+  await waitFor(() => expect(undoButton().getAttribute("title")).toContain("Move region"));
+  const view = await backend.getView("mock1");
+  const movedMember = view.regions.find((r) => r.id === "last")!;
+  expect(movedMember.page).toBe(2);
+  expect(movedMember.y).toBeGreaterThanOrEqual(72);
+  expect(movedMember.y).toBeLessThan(120);
+  expect(top("unrelated-plot")).toBeCloseTo(plotTop, 1);
+  expect(view.regions.find((r) => r.id === "unrelated-plot")).toMatchObject({ page: 2, y: 300 });
+});
+
+it("does not pull a displaced plot upward when an area moves away", async () => {
+  const area: ViewRegion = { id: "moving", page: 1, x: 54, y: 90, enabled: true, kind: "area", title: "Moving", height: 650, collapsed: false };
+  const block = (id: string, y: number, height: number): ViewRegion => ({
+    id, page: 1, x: 54, y, enabled: true, kind: "julia",
+    block: { playing: false, size: [220, height], using: [], imports: [], code: null, defines: [] },
+  });
+  const plot: ViewRegion = {
+    id: "outside-plot", page: 2, x: 54, y: 130, enabled: true, kind: "plot",
+    plot: { version: 1, type: "xy", size: [240, 160], axes: {
+      x: { scale: "linear", unit: null, min: null, max: null, show_grid: true, title: "" },
+      y: { scale: "linear", unit: null, min: null, max: null, show_grid: true, title: "" },
+    }, traces: [{ id: "trace", x: "t", y: "t", presentation: "line" }] },
+  };
+  const sizes = [[611,131], [697,101], [287,107], [133,41], [155,155], [349,57], [627,143], [681,57]];
+  const heights = new Map([["outside", 200], ["outside-plot", 160], ...sizes.map(([, h], i): [string, number] => [`member-${i}`, h])]);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+    return heights.has(this.dataset.regionId ?? "") ? 220 * (4 / 3) : 0;
+  });
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+    return (heights.get(this.dataset.regionId ?? "") ?? 0) * (4 / 3);
+  });
+  const backend = createMockBackend({ fast: true, extraRegions: [area, block("outside", 90, 200), ...sizes.map(([y, h], i) => block(`member-${i}`, y, h)), plot] });
+  render(<App backend={backend} />);
+  await waitFor(() => expect(region("outside-plot")).not.toBeNull());
+  const before = top("outside-plot");
+  expect(before).toBeGreaterThan(pageTop(2) + 400 * (4 / 3));
+  await clickHeaderOn("moving");
+  const header = region("moving")!.querySelector<HTMLElement>(".area-header")!;
+  fireEvent.pointerDown(header, { button: 0, clientX: 300, clientY: 300 });
+  await act(async () => void fireEvent.pointerMove(window, { clientX: 300, clientY: 340 }));
+  await act(async () => void fireEvent.pointerUp(window, { button: 0, clientX: 300, clientY: 340 }));
+  await waitFor(() => expect(undoButton().getAttribute("title")).toContain("Move region"));
+  expect(top("outside-plot")).toBeCloseTo(before, 1);
+  fireEvent.click(undoButton());
+  await waitFor(() => expect(top("outside-plot")).toBeCloseTo(before, 1));
+  const undone = await backend.getView("mock1");
+  expect(undone.regions.find((r) => r.id === "outside-plot")?.page).toBe(2);
+  fireEvent.click(screen.getByRole("button", { name: S.quickAccess.redo }));
+  await waitFor(() => expect(top("outside-plot")).toBeCloseTo(before, 1));
 });

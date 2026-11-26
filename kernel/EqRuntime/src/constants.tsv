@@ -8,15 +8,16 @@
 # written `base_sub` (`ε_0`), as in the linear math text. `@alias <name> <target>` is a second
 # spelling of the same constant.
 #
-# Values are CODATA 2022 (NIST SP 961, 2024 release). c, h, e, k and N_A are exact (2019 SI
-# redefinition); R, ħ, σ and Φ₀ are exact consequences of those (the printed digits are the
-# nearest double). The measured ones are α, m_u, R∞, ε₀ and μ₀.
+# Values are CODATA 2022 (NIST SP 961, 2024 release), plus exact standard gravity `g`.
+# c, g, h, e, k and N_A are exact; R, ħ, σ and Φ₀ are exact consequences of the SI constants
+# (the printed digits are the nearest double). The measured ones are α, m_u, R∞, ε₀ and μ₀.
 #
-# Resolution: a definition in the worksheet wins; these names are
-# constants otherwise. None of them is a unit name. The spec's bare spellings `ec`, `mu`, `NA`
-# are NOT aliases: `mu` in particular is far too common as a user variable.
+# Resolution: a definition in the worksheet wins; these names are constants otherwise.
+# `g@unit` stays the gram while `g` / `g@const` is standard gravity. The bare spellings
+# `ec`, `mu`, `NA` are NOT aliases: `mu` in particular is far too common as a user variable.
 c      1,0,-1,0,0,0,0   299792458
 e.c    0,0,1,1,0,0,0    1.602176634e-19
+g      1,0,-2,0,0,0,0   9.80665
 h      2,1,-1,0,0,0,0   6.62607015e-34
 ħ      2,1,-1,0,0,0,0   1.0545718176461565e-34
 k      2,1,-2,0,-1,0,0  1.380649e-23

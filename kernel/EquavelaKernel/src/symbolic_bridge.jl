@@ -17,6 +17,8 @@ using PythonCall
 export evaluate, import_sympy!, warm_up!, versions, SymbolicError
 
 const sp = PythonCall.pynew()
+const algebraic_substitute = PythonCall.pynew()
+const algebraic_collect = PythonCall.pynew()
 
 """
     SymbolicError(category, message)
@@ -38,6 +40,11 @@ function import_sympy!()
     # SymPy's solver accesses the submodule through its parent package.
     pyhasattr(sympy, "assumptions") || pysetattr(sympy, "assumptions", assumptions)
     PythonCall.pycopy!(sp, sympy)
+    namespace = pydict()
+    source = getfield(parentmodule(@__MODULE__), :ALGEBRAIC_SUBSTITUTION_SOURCE)
+    pyexec(source, namespace)
+    PythonCall.pycopy!(algebraic_substitute, namespace["substitute_relation"])
+    PythonCall.pycopy!(algebraic_collect, namespace["collect_expression"])
     return nothing
 end
 
@@ -292,6 +299,7 @@ function tosympy(ctx::Context, e)
             sp.ImmutableMatrix(pylist([pylist([sp.diff(body, symbol(ctx, v))]) for v in vars]))
         end
     elseif kind in ("Deriv", "Partial")
+        get(e, "var_expr", nothing) !== nothing && unsupported("the variable of a derivative must be a name")
         var = e["var"]["name"]
         key = name_key(var)
         order = get(e, "order", nothing)
@@ -301,6 +309,7 @@ function tosympy(ctx::Context, e)
             sp.diff(body, symbol(ctx, var), n)
         end
     elseif kind == "Integral"
+        get(e, "domain", nothing) !== nothing && unsupported("an integral over a domain cannot be evaluated")
         var = e["var"]["name"]
         key = name_key(var)
         bounds = get(e, "bounds", nothing)
@@ -1022,9 +1031,41 @@ function keyword_variable_names(keyword)
             push!(names, name_key(a["name"]))
         elseif a["type"] == "Eq" && a["left"]["type"] == "Ident"
             push!(names, name_key(a["left"]["name"]))
+        elseif a["type"] == "Eq" && keyword_name(keyword) == "substitute"
+            substitution_names!(names, a["left"])
+            left, right = a["left"], a["right"]
+            while get(left, "type", nothing) == "Paren"
+                left = left["expr"]
+            end
+            while get(right, "type", nothing) == "Paren"
+                right = right["expr"]
+            end
+            if get(left, "type", nothing) == "Pow" && get(left["left"], "type", nothing) == "Ident" && get(right, "type", nothing) in ("Add", "Sub")
+                substitution_names!(names, a["right"])
+            end
+        elseif keyword_name(keyword) == "collect"
+            substitution_names!(names, a)
         end
     end
     return names
+end
+
+function substitution_names!(names, value)
+    if value isa AbstractDict
+        if get(value, "type", nothing) == "Ident"
+            push!(names, name_key(value["name"]))
+        else
+            for (key, child) in value
+                # A function's arguments are variables; its name still resolves normally.
+                get(value, "type", nothing) == "Call" && key == "callee" && continue
+                substitution_names!(names, child)
+            end
+        end
+    elseif value isa AbstractVector
+        for child in value
+            substitution_names!(names, child)
+        end
+    end
 end
 
 # The unknown functions of `dsolve, y(t)` and their variable: free names, whatever the worksheet defines.
@@ -1644,15 +1685,20 @@ function substitute_keyword(ctx::Context, value, args)
             a = a["expr"]
         end
         a["type"] == "Eq" || invalid("substitute needs `x == value`")
-        variable = variable_argument(ctx, a["left"], "the left side of substitute")
+        variable = tosympy(ctx, a["left"])
         replacement = tosympy(ctx, a["right"])
-        value = value.subs(variable, replacement)
+        value = algebraic_substitute(value, variable, replacement)
     end
     return value
 end
 
 function collect_keyword(ctx::Context, value, args)
-    length(args) == 1 || invalid("collect needs one variable")
+    length(args) == 1 || invalid("collect needs one expression")
+    arg = first(args)
+    while arg["type"] == "Paren"
+        arg = arg["expr"]
+    end
+    arg["type"] == "Ident" || return algebraic_collect(value, tosympy(ctx, arg))
     variable = variable_argument(ctx, args[1], "the variable of collect")
     together = sp.together(value)
     numerator, denominator = sp.fraction(together)

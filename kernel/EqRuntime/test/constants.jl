@@ -2,6 +2,7 @@
 
 @testset "physical constants" begin
     @test eq_constant("c") == 299792458.0u"m/s"
+    @test eq_constant("g") == 9.80665u"m/s^2"
     @test eq_constant("h") == 6.62607015e-34u"kg*m^2/s"
     @test eq_constant("e.c") == 1.602176634e-19u"A*s"
     @test eq_constant("k") == 1.380649e-23u"kg*m^2/s^2/K"
@@ -30,7 +31,7 @@
               Tuple(parse.(Int, split(fields[2], ',')))
         count += 1
     end
-    @test count == 14
+    @test count == 15
     @test issorted(eq_constant_names()) && "R∞" in eq_constant_names()
     err = try
         eq_constant("mu")

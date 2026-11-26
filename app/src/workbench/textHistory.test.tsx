@@ -63,3 +63,32 @@ it("undoes and redoes typing in a text region from the quick-access buttons, the
   fireEvent.click(undo);
   await waitFor(() => expect(textOf(region("t1")!)).not.toContain("TYPED"));
 });
+
+it("falls back to worksheet undo when Ctrl+Z is pressed in an open text editor with empty local history", async () => {
+  render(<App backend={createMockBackend({ fast: true })} />);
+  await waitFor(() => expect(region("t1")).not.toBeNull());
+  const originalLeft = region("t1")!.style.left;
+
+  // Select and nudge t1 (a worksheet Move operation) so worksheet undo has a step.
+  fireEvent.pointerDown(region("t1")!, { button: 0, clientX: 0, clientY: 0 });
+  fireEvent.pointerMove(window, { clientX: 60, clientY: 0 });
+  await act(async () => {
+    fireEvent.pointerUp(window, { button: 0, clientX: 60, clientY: 0 });
+  });
+  await waitFor(() => expect(region("t1")!.style.left).not.toBe(originalLeft));
+
+  // Open the text editor on t1 without typing anything (local text history is empty).
+  fireEvent.pointerDown(region("t1")!, { button: 0 });
+  await act(async () => {
+    fireEvent.pointerUp(window, { button: 0 });
+  });
+  const root = await screen.findByTestId("text-editor");
+  const undo = screen.getByRole("button", { name: S.quickAccess.undo }) as HTMLButtonElement;
+  expect(undo.disabled).toBe(false);
+
+  // Pressing Ctrl+Z inside the open text editor undoes the worksheet move without deselecting.
+  await act(async () => {
+    fireEvent.keyDown(root, { key: "z", code: "KeyZ", ctrlKey: true });
+  });
+  await waitFor(() => expect(region("t1")!.style.left).toBe(originalLeft));
+});

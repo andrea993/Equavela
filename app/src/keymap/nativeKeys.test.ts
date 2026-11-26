@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { realCtrlDown, resetKeys, trackKey } from "./nativeKeys";
 
 let now = 1000;
-const down = (key: string, code: string, dt = 0) => trackKey({ type: "keydown", key, code, timeStamp: (now += dt) });
+const down = (key: string, code: string, dt = 0, repeat = false) =>
+  trackKey({ type: "keydown", key, code, timeStamp: (now += dt), repeat });
 const up = (key: string, code: string, dt = 0) => trackKey({ type: "keyup", key, code, timeStamp: (now += dt) });
 
 describe("the physical Ctrl key, read from the key events", () => {
@@ -58,6 +59,24 @@ describe("the physical Ctrl key, read from the key events", () => {
     down("Control", "ControlLeft", 300);
     expect(realCtrlDown()).toBe(true);
     up("Control", "ControlLeft", 100);
+    expect(realCtrlDown()).toBe(false);
+  });
+
+  it("ignores repeated synthetic ControlLeft events while AltGr is held on Windows", () => {
+    down("Control", "ControlLeft", 100);
+    down("AltGraph", "AltRight", 0.2);
+    expect(realCtrlDown()).toBe(false);
+    // Holding AltGr past the OS repeat delay emits repeated ControlLeft/AltGraph keydowns.
+    down("Control", "ControlLeft", 550, true);
+    down("AltGraph", "AltRight", 0.2, true);
+    expect(realCtrlDown()).toBe(false);
+    down("[", "BracketLeft", 40);
+    expect(realCtrlDown()).toBe(false);
+    // A real physical Left Ctrl press while AltGr is still held arrives with repeat: false.
+    down("Control", "ControlLeft", 100, false);
+    expect(realCtrlDown()).toBe(true);
+    up("Control", "ControlLeft", 60);
+    up("AltGraph", "AltRight", 0.2);
     expect(realCtrlDown()).toBe(false);
   });
 

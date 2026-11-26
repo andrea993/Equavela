@@ -1126,13 +1126,24 @@ fn rebase_include(old_root: &DocumentId, new_root: &DocumentId, path: &str) -> S
 fn relative_path(from_dir: &str, target: &str) -> Option<String> {
     let from: Vec<&str> = from_dir.split('/').collect();
     let to: Vec<&str> = target.split('/').collect();
-    if from.first() != to.first() {
+    let same_root = match (from.first(), to.first()) {
+        (Some(a), Some(b)) if a.len() == 2 && a.ends_with(':') => a.eq_ignore_ascii_case(b),
+        (a, b) => a == b,
+    };
+    if !same_root {
         return None;
     }
     let common = from
         .iter()
         .zip(&to[..to.len() - 1])
-        .take_while(|(a, b)| a == b)
+        .enumerate()
+        .take_while(|(i, (a, b))| {
+            if *i == 0 && a.len() == 2 && a.ends_with(':') {
+                a.eq_ignore_ascii_case(b)
+            } else {
+                a == b
+            }
+        })
         .count();
     let mut parts: Vec<&str> = vec![".."; from.len() - common];
     parts.extend(&to[common..]);
@@ -1273,7 +1284,9 @@ fn stored_environment(worksheet: &Path, directory: &Path) -> Result<String, Comm
         let text = slash_path(&relative);
         return Ok(if text.is_empty() { ".".into() } else { text });
     }
-    Ok(directory.to_string_lossy().into_owned())
+    Ok(equavela_core::project::strip_verbatim_prefix(
+        &directory.to_string_lossy(),
+    ))
 }
 
 /// The kernel process of one Julia environment and its last status.
@@ -1382,14 +1395,13 @@ impl Service {
 
     // ---- kernel -----------------------------------------------------------------------
 
-    /// The kernel of an environment (created on first use, nothing is spawned yet) and the
-    /// reason no kernel can be started, if its files were not found.
-    fn kernel_for(&self, key: &Path) -> (Arc<KernelManager>, Option<String>) {
+    /// Builds the kernel configuration for `key`, or returns the error if the kernel files were
+    /// not found.
+    fn kernel_config_for(&self, key: &Path) -> Result<KernelConfig, String> {
         let config = lock(&self.kernel_config)
             .get_or_insert_with(|| resolve_kernel_config(&self.inputs))
             .clone();
-        let error = config.as_ref().err().cloned();
-        let config = config.map(|mut config| {
+        config.map(|mut config| {
             config.crash_report_dir = crate::crash_reports::directory();
             if config.terminal && !key.as_os_str().is_empty() {
                 config.env.push((
@@ -1398,9 +1410,17 @@ impl Service {
                 ));
             }
             config
-        });
-        let mut kernels = lock(&self.kernels);
-        let kernel = kernels.entry(key.to_path_buf()).or_insert_with(|| {
+        })
+    }
+
+    /// Inserts an `EnvironmentKernel` entry for `key` if absent and returns a mutable reference.
+    fn ensure_kernel_entry<'a>(
+        &self,
+        kernels: &'a mut HashMap<PathBuf, EnvironmentKernel>,
+        key: &Path,
+        config: Result<KernelConfig, String>,
+    ) -> &'a mut EnvironmentKernel {
+        kernels.entry(key.to_path_buf()).or_insert_with(|| {
             // A manager that can never start: starting it reports the spawn error.
             let manager =
                 Arc::new(KernelManager::new(config.unwrap_or_else(|_| {
@@ -1425,8 +1445,26 @@ impl Service {
                 manager,
                 status: KernelStatus::NotStarted,
             }
-        });
+        })
+    }
+
+    /// The kernel of an environment (created on first use, nothing is spawned yet) and the
+    /// reason no kernel can be started, if its files were not found.
+    fn kernel_for(&self, key: &Path) -> (Arc<KernelManager>, Option<String>) {
+        let config = self.kernel_config_for(key);
+        let error = config.as_ref().err().cloned();
+        let mut kernels = lock(&self.kernels);
+        let kernel = self.ensure_kernel_entry(&mut kernels, key, config);
         (Arc::clone(&kernel.manager), error)
+    }
+
+    /// Announces a kernel status change on the event sink without taking `self.kernels`.
+    fn emit_status(&self, key: &Path, status: &KernelStatus) {
+        let mut payload = serde_json::to_value(status).expect("status serializes");
+        if let Value::Object(map) = &mut payload {
+            map.insert("environment".into(), Value::String(slash_path(key)));
+        }
+        (self.sink)(EVENT_KERNEL_STATUS, payload);
     }
 
     /// The key of the kernel of the shared environment.
@@ -1454,11 +1492,7 @@ impl Service {
         if let Some(kernel) = lock(&self.kernels).get_mut(key) {
             kernel.status = status.clone();
         }
-        let mut payload = serde_json::to_value(&status).expect("status serializes");
-        if let Value::Object(map) = &mut payload {
-            map.insert("environment".into(), Value::String(slash_path(key)));
-        }
-        (self.sink)(EVENT_KERNEL_STATUS, payload);
+        self.emit_status(key, &status);
     }
 
     /// Starts the shared environment's kernel in the background unless it is already running
@@ -1468,25 +1502,55 @@ impl Service {
     }
 
     fn start_kernel_for(self: &Arc<Self>, key: PathBuf) {
-        if matches!(
-            self.kernel_status_of(&key),
-            KernelStatus::Starting | KernelStatus::Ready { .. } | KernelStatus::Busy
-        ) {
+        let config = self.kernel_config_for(&key);
+        let error = config.as_ref().err().cloned();
+        // Check status and transition to Starting (or Crashed) atomically under a single
+        // `self.kernels` lock so concurrent callers never spawn duplicate startup threads.
+        let transition = {
+            let mut kernels = lock(&self.kernels);
+            let kernel = self.ensure_kernel_entry(&mut kernels, &key, config);
+            if matches!(
+                kernel.status,
+                KernelStatus::Starting | KernelStatus::Ready { .. } | KernelStatus::Busy
+            ) {
+                None
+            } else if let Some(message) = error {
+                let status = KernelStatus::Crashed { message };
+                kernel.status = status.clone();
+                Some((None, status))
+            } else {
+                kernel.status = KernelStatus::Starting;
+                Some((Some(Arc::clone(&kernel.manager)), KernelStatus::Starting))
+            }
+        };
+        let Some((manager, status)) = transition else {
             return;
-        }
-        let (manager, error) = self.kernel_for(&key);
-        if let Some(message) = error {
-            self.set_status(&key, KernelStatus::Crashed { message });
+        };
+        self.emit_status(&key, &status);
+        let Some(manager) = manager else {
             return;
-        }
-        self.set_status(&key, KernelStatus::Starting);
+        };
         let service = Arc::clone(self);
         std::thread::spawn(move || match manager.start() {
             Ok(info) => {
-                // A pass may have started meanwhile; do not hide `busy`.
-                let busy = matches!(service.kernel_status_of(&key), KernelStatus::Busy);
-                if !busy {
-                    service.set_status(&key, KernelStatus::Ready { info });
+                // A pass may have started meanwhile; do not hide `busy`. Check and update under
+                // one lock so a concurrent transition to `Busy` is never overwritten.
+                let ready = KernelStatus::Ready { info };
+                let announce = {
+                    let mut kernels = lock(&service.kernels);
+                    if let Some(kernel) = kernels.get_mut(&key) {
+                        if matches!(kernel.status, KernelStatus::Busy) {
+                            false
+                        } else {
+                            kernel.status = ready.clone();
+                            true
+                        }
+                    } else {
+                        false
+                    }
+                };
+                if announce {
+                    service.emit_status(&key, &ready);
                 }
             }
             Err(error) => service.set_status(
@@ -1735,7 +1799,7 @@ impl Service {
         let synced = project_tree::sync_manifest(root, moved).map_err(Self::project_error)?;
         Ok(ProjectChange {
             manifest: synced.manifest,
-            entries: project_tree::list_tree(root).map_err(Self::project_error)?,
+            entries: project_tree::list_explorer(root).map_err(Self::project_error)?,
             opened: None,
             replaced: Vec::new(),
             closed: Vec::new(),
@@ -1755,7 +1819,17 @@ impl Service {
         })?;
         let _guard = project_tree::ProjectGuard::acquire(&root).map_err(Self::project_error)?;
         crate::project_trash::recover(&root).map_err(Self::project_error)?;
-        Self::project_change(&root, &BTreeMap::new())
+        match Self::project_change(&root, &BTreeMap::new()) {
+            Err(error) if error.message == project_tree::NO_WORKSHEETS => Ok(ProjectChange {
+                manifest: equavela_core::project_reference::read_manifest(&root)
+                    .map_err(Self::project_error)?,
+                entries: project_tree::list_explorer(&root).map_err(Self::project_error)?,
+                opened: None,
+                replaced: Vec::new(),
+                closed: Vec::new(),
+            }),
+            result => result,
+        }
     }
 
     /// a new worksheet (`kind` `worksheet`, opened), Julia file (`julia`) or folder
@@ -6267,13 +6341,21 @@ impl Service {
         if key == self.shared_kernel_key() {
             return;
         }
-        let in_use = lock(&self.worksheets)
-            .values()
-            .any(|open| lock(&open.kernel_key).as_path() == key);
-        if in_use {
-            return;
-        }
-        if let Some(kernel) = lock(&self.kernels).remove(key) {
+        // Check `worksheets` and remove from `kernels` under a consistent lock order
+        // (`worksheets` -> `kernels`) so a worksheet opening with the same key cannot lose its
+        // kernel, then drop both locks before shutting the process down.
+        let removed = {
+            let worksheets = lock(&self.worksheets);
+            let in_use = worksheets
+                .values()
+                .any(|open| lock(&open.kernel_key).as_path() == key);
+            if in_use {
+                None
+            } else {
+                lock(&self.kernels).remove(key)
+            }
+        };
+        if let Some(kernel) = removed {
             kernel.manager.shutdown();
         }
     }
@@ -6322,9 +6404,13 @@ impl Service {
         if worksheet.running.load(Ordering::SeqCst) {
             return Err(CommandError::busy());
         }
-        let session = lock(&worksheet.session);
-        let wanted: Vec<(String, u32)> = items.into_iter().map(|i| (i.name, i.version)).collect();
-        Ok(session.definition_values(&wanted))
+        let query = {
+            let session = lock(&worksheet.session);
+            let wanted: Vec<(String, u32)> =
+                items.into_iter().map(|i| (i.name, i.version)).collect();
+            session.prepare_definition_values(&wanted)
+        };
+        Ok(query.run())
     }
 
     /// The current results in evaluation order; available while a calculation runs.
@@ -6421,7 +6507,9 @@ impl Service {
                 }
                 worksheet.rerun.store(false, Ordering::SeqCst);
             }
-            Self::write_results(&worksheet);
+            if let Ok(_project_guard) = service.guard_worksheet(&id, &worksheet) {
+                Self::write_results(&worksheet);
+            }
             worksheet.running.store(false, Ordering::SeqCst);
             release_free_memory();
             // A request that came between the check above and the store found the thread
@@ -8094,6 +8182,16 @@ mod tests {
 
         assert!(service.project_delete(&root, "julia").is_err());
         assert!(service.project_create(&root, "", "x", "picture").is_err());
+        for entry in project_tree::list_tree(&root).unwrap() {
+            if entry.kind == project_tree::EntryKind::Worksheet {
+                std::fs::remove_file(root.join(entry.path)).unwrap();
+            }
+        }
+        let listed = service.project_tree(&root).unwrap();
+        assert!(!listed
+            .entries
+            .iter()
+            .any(|entry| entry.kind == project_tree::EntryKind::Worksheet));
         service.shutdown();
     }
 
@@ -12379,5 +12477,74 @@ regions:
             before
         );
         service.shutdown();
+    }
+
+    #[test]
+    fn concurrent_start_kernel_for_transitions_to_starting_only_once() {
+        let (service, events) = service(Some(PathBuf::from("/nonexistent-julia")));
+        let key = PathBuf::from("/tmp/equavela-concurrent-start-test");
+        let threads = 8;
+        let barrier = Arc::new(std::sync::Barrier::new(threads));
+        std::thread::scope(|scope| {
+            for _ in 0..threads {
+                let service = Arc::clone(&service);
+                let key = key.clone();
+                let barrier = Arc::clone(&barrier);
+                scope.spawn(move || {
+                    barrier.wait();
+                    service.start_kernel_for(key);
+                });
+            }
+        });
+        let starting_events = events
+            .try_iter()
+            .filter(|(name, payload)| {
+                name == EVENT_KERNEL_STATUS && payload["status"] == "starting"
+            })
+            .count();
+        assert_eq!(starting_events, 1);
+        service.shutdown();
+    }
+
+    #[test]
+    fn release_kernel_keeps_kernel_while_another_worksheet_uses_it() {
+        let temp = tempfile::tempdir().unwrap();
+        let (service, _) = service(Some(PathBuf::from("/nonexistent-julia")));
+        let env = temp.path().join("env");
+        std::fs::create_dir(&env).unwrap();
+        std::fs::write(env.join("Project.toml"), "[deps]\n").unwrap();
+        let ws1 = temp.path().join("a.eqv");
+        let ws2 = temp.path().join("b.eqv");
+        for ws in [&ws1, &ws2] {
+            std::fs::write(
+                ws,
+                "format: equavela-worksheet/3\nenvironment: env\nregions: []\n",
+            )
+            .unwrap();
+        }
+        let id1 = service.open_worksheet(&ws1).unwrap().id;
+        let id2 = service.open_worksheet(&ws2).unwrap().id;
+        let key = kernel_key(&env);
+        assert!(lock(&service.kernels).contains_key(&key));
+
+        service.close_worksheet(&id1).unwrap();
+        assert!(lock(&service.kernels).contains_key(&key));
+
+        service.close_worksheet(&id2).unwrap();
+        assert!(!lock(&service.kernels).contains_key(&key));
+        service.shutdown();
+    }
+
+    #[test]
+    fn relative_path_compares_windows_drive_letters_case_insensitively() {
+        assert_eq!(
+            relative_path("C:/proj/sub", "c:/proj/lib.eqv").as_deref(),
+            Some("../lib.eqv")
+        );
+        assert_eq!(
+            relative_path("c:/proj", "C:/proj/sub/a.eqv").as_deref(),
+            Some("sub/a.eqv")
+        );
+        assert_eq!(relative_path("C:/proj", "D:/proj/a.eqv"), None);
     }
 }

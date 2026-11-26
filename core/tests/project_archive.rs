@@ -66,7 +66,7 @@ fn pack_extract_roundtrips_shared_asset_include_and_local_environment_source() {
         "module ArchiveTest\nend\n",
     )
     .unwrap();
-    // whatever the tree shows travels, a hidden file does not.
+    // Ordinary hidden files travel with the project.
     fs::write(project.join("julia/notes.txt"), "keep me").unwrap();
     fs::write(project.join("julia/.cache"), "exclude me").unwrap();
 
@@ -78,7 +78,7 @@ fn pack_extract_roundtrips_shared_asset_include_and_local_environment_source() {
     assert!(archive.entries.contains_key("assets/images/logo.svg"));
     assert!(archive.entries.contains_key("julia/src/ArchiveTest.jl"));
     assert!(archive.entries.contains_key("julia/notes.txt"));
-    assert!(!archive.entries.contains_key("julia/.cache"));
+    assert!(archive.entries.contains_key("julia/.cache"));
 
     let destination = source.path().join("restored");
     let restored = project_archive::extract_project(&bytes, &destination).unwrap();
@@ -267,8 +267,7 @@ fn rejects_local_git_environment_sources() {
 }
 
 #[test]
-fn the_archive_holds_the_whole_tree_but_nothing_hidden() {
-    // data files and Julia sources travel; `.git` and hidden files do not.
+fn the_archive_holds_hidden_files_but_not_version_control_data() {
     let source = tempdir().unwrap();
     let root = source.path().join("tree");
     create(
@@ -283,20 +282,22 @@ fn the_archive_holds_the_whole_tree_but_nothing_hidden() {
     fs::create_dir_all(root.join(".git")).unwrap();
     fs::write(root.join(".git/HEAD"), "ref").unwrap();
     fs::write(root.join(".secret"), "x").unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(root.join("data/loads.csv"), root.join("linked.csv")).unwrap();
     let bytes = project_archive::pack_project(&root).unwrap();
     let archive = EqvzArchive::decode(&bytes).unwrap();
     assert!(archive.entries.contains_key("data/loads.csv"));
     assert!(archive.entries.contains_key("julia/src/Tools.jl"));
-    assert!(archive
-        .entries
-        .keys()
-        .all(|name| !name.split('/').any(|part| part.starts_with('.'))));
+    assert!(archive.entries.contains_key(".secret"));
+    assert!(!archive.entries.contains_key(".git/HEAD"));
+    assert!(!archive.entries.contains_key("linked.csv"));
     let restored = source.path().join("restored");
     project_archive::extract_project(&bytes, &restored).unwrap();
     assert_eq!(
         fs::read_to_string(restored.join("data/loads.csv")).unwrap(),
         "1,2\n"
     );
+    assert_eq!(fs::read_to_string(restored.join(".secret")).unwrap(), "x");
 }
 
 #[test]

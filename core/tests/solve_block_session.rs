@@ -81,6 +81,18 @@ regions:
   - id: nogiven
     at: [0, 130]
     math: "Find(g) ="
+  - id: umin_f
+    at: [0, 140]
+    math: "q(t) := (t - 3)^2 + 1"
+  - id: umin
+    at: [0, 150]
+    math: "Minimize(q, h) ="
+  - id: umax_f
+    at: [0, 160]
+    math: "r(t) := -(t - 4)^2 + 5"
+  - id: umax
+    at: [0, 170]
+    math: "Maximize(r, h) ="
 "#;
 
 fn real(session: &WorksheetSession, root: &DocumentId, id: &str) -> f64 {
@@ -136,6 +148,9 @@ fn solve_blocks_calculate_through_the_kernel() {
     assert!(is_error(&session, &root, "impossible"));
     // A call without a Given above it is an error, not a solve with no constraints.
     assert!(is_error(&session, &root, "nogiven"));
+    // Minimize and Maximize without a Given above them solve unconstrained.
+    assert!((real(&session, &root, "umin") - 3.0).abs() < 1e-4);
+    assert!((real(&session, &root, "umax") - 4.0).abs() < 1e-4);
 
     // Editing a constraint region recalculates the solving region (one ordinary math edit).
     session.edit_math(&root, "c1", "g^2 == 9").unwrap();

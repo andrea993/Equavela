@@ -19,6 +19,7 @@ const _RETIRED_NAMES = Set{Symbol}()
 function worksheet_module(name::AbstractString; reset::Bool=false, module_name=nothing)
     key = String(name)
     if reset || !haskey(WORKSHEETS, key)
+        reset && release_handles!(key)
         _MODULE_COUNTER[] += 1
         symbol = module_name === nothing ? Symbol("Worksheet", _MODULE_COUNTER[]) : Symbol(module_name)
         mod = Module(symbol)
@@ -130,6 +131,8 @@ function _region_error(exception)
     end
     message, statement, julia_type = if exception isa EqError
         exception.message, exception.statement, nothing
+    elseif exception isa MethodError && !(exception.f isa Function) && !(exception.f isa Type)
+        "cannot call a value that is not a function", nothing, nothing
     elseif exception isa MethodError && _arity_message(exception) !== nothing
         _arity_message(exception), nothing, "MethodError"
     elseif exception isa Meta.ParseError
@@ -492,7 +495,7 @@ function evaluate_request(params, context)
                 "modules" => module_results, "environment" => environment_result),
             descriptors, payloads)
     end
-    scoped = run
+    scoped = _scoped(f -> with_handle_owner(f, String(name)), run)
     tol === nothing || (scoped = _scoped(f -> with_tol(f, tol), scoped))
     ctol === nothing || (scoped = _scoped(f -> with_ctol(f, ctol), scoped))
     exact_boolean === false &&
@@ -505,8 +508,10 @@ function discard_request(params)
     name = _field(params, :worksheet)
     name isa AbstractString ||
         throw(KernelFailure(-32602, "`worksheet` must be a string"))
-    delete!(WORKSHEETS, String(name))
-    retired = pop!(SHEET_NAMES, String(name), nothing)
+    key = String(name)
+    delete!(WORKSHEETS, key)
+    release_handles!(key)
+    retired = pop!(SHEET_NAMES, key, nothing)
     retired === nothing || push!(_RETIRED_NAMES, retired)
     retired === nothing || Base.invokelatest(_bind_names!, _shared())
     return nothing
@@ -868,7 +873,22 @@ function _set_compatibility_in(Pkg, dir::String, package::String, compatibility:
     previous = Base.active_project()
     try
         Pkg.activate(dir) do
-            Pkg.compat(package, compatibility; io=log)
+            if isempty(strip(compatibility))
+                # In an interactive (`julia -i`) kernel, `Pkg.compat(pkg, "")` prompts on `stdin`
+                # and blocks forever. Remove the `[compat]` entry via TOML and let `Pkg.resolve`
+                # validate and update the environment.
+                data = Pkg.TOML.parsefile(project)
+                compat = get(data, "compat", nothing)
+                if compat isa AbstractDict && haskey(compat, package)
+                    delete!(compat, package)
+                    isempty(compat) && delete!(data, "compat")
+                    open(project, "w") do io
+                        Pkg.TOML.print(io, data; sorted=true)
+                    end
+                end
+            else
+                Pkg.compat(package, compatibility; io=log)
+            end
             # Pkg.compat may report a resolver failure without throwing it.
             Pkg.resolve(; io=log)
         end

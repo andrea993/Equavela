@@ -105,6 +105,20 @@ end
         @test_throws EqError eq_julia_call(InteropFixture.gain, OpaqueHandle("nope", "T", "s"))
         clear_handles!()
         @test_throws EqError eq_julia_call(InteropFixture.gain, plant)
+        # per-worksheet handle ownership releases only handles exclusive to that worksheet
+        h_a = with_handle_owner("sheet_a") do
+            eq_julia_call(() -> InteropFixture.Plant(3.0))
+        end
+        h_b = with_handle_owner("sheet_b") do
+            eq_julia_call(() -> InteropFixture.Plant(4.0))
+        end
+        @test eq_julia_call(InteropFixture.gain, h_a) == 3.0
+        @test eq_julia_call(InteropFixture.gain, h_b) == 4.0
+        release_handles!("sheet_a")
+        @test_throws EqError eq_julia_call(InteropFixture.gain, h_a)
+        @test eq_julia_call(InteropFixture.gain, h_b) == 4.0
+        release_handles!("sheet_b")
+        @test_throws EqError eq_julia_call(InteropFixture.gain, h_b)
     end
 
     @testset "functions and errors" begin

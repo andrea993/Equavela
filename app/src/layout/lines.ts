@@ -16,7 +16,7 @@ export const WORKSHEET_LINE_PT = 15;
 
 /** A region as the line insertion needs it: its stored place in points (`page` 1-based). */
 /** A region as the line commands move it; `h`, its height in points, when it is known. */
-export type LineRegion = { id: string; page: number; y: number; h?: number };
+export type LineRegion = { id: string; page: number; y: number; h?: number; rise?: number; selectionY?: number; isArea?: boolean };
 
 /** A new stored place of a region (page 1-based, y in points). */
 export type FlowPlace = { id: string; page: number; y: number };
@@ -110,9 +110,13 @@ export function shiftFlow(
   const inMargin = (region: LineRegion) =>
     region.y > area.bottom - EPS || (region.y < area.top - EPS && region.y + (region.h ?? 0) <= area.top + EPS);
   const moving = regions
-    .filter((region) => !inMargin(region) && flowOf(region.page, region.y) >= insertion - EPS)
+    .filter((region) => !inMargin(region) && flowOf(region.page, region.selectionY ?? region.y) >= insertion - EPS)
     .sort((a, b) => flowOf(a.page, a.y) - flowOf(b.page, b.y));
   const moves: FlowPlace[] = [];
+  const movedPlaces = new Map<string, FlowPlace>();
+  const ordered = [...regions].sort((a, b) => flowOf(a.page, a.y) - flowOf(b.page, b.y));
+  let earlierIndex = 0;
+  let earlierBottom = 0;
   // How far the content after a region that jumped to the next page goes on with it.
   let extra = 0;
   for (const region of moving) {
@@ -132,8 +136,15 @@ export function shiftFlow(
         // Pulled up past the top of its page, it goes on up onto the page above, as low as it fits
         // whole (its bottom on the bottom margin), even above the crosshair: from there it is no
         // longer below the crosshair and stops. What follows it only moves by the line.
-        const lowest = (place.page - 1) * area.height + Math.floor((area.bottom - h - area.top) / GRID_PT + EPS) * GRID_PT;
-        if (lowest < original - EPS) {
+        const rise = region.rise ?? 0;
+        const lowest = (place.page - 1) * area.height + Math.floor((area.bottom - h + rise - area.top) / GRID_PT + EPS) * GRID_PT;
+        while (earlierIndex < ordered.length && flowOf(ordered[earlierIndex].page, ordered[earlierIndex].y) < original - EPS) {
+          const previous = ordered[earlierIndex++];
+          if (previous.isArea) continue;
+          const position = movedPlaces.get(previous.id) ?? previous;
+          earlierBottom = Math.max(earlierBottom, flowOf(position.page, position.y) + Math.max(0, (previous.h ?? 0) - (previous.rise ?? 0)));
+        }
+        if (lowest < original - EPS && lowest - rise >= earlierBottom - EPS) {
           offset = lowest;
         } else {
           // No place above where it was: it stays, and what follows stays below it.
@@ -143,7 +154,9 @@ export function shiftFlow(
       }
       place = placeOf(offset);
     }
-    moves.push({ id: region.id, ...place });
+    const move = { id: region.id, ...place };
+    moves.push(move);
+    movedPlaces.set(region.id, move);
   }
   return { moves, at: placeOf(insertion + amount) };
 }
@@ -190,7 +203,12 @@ function repeatInsertion(
   for (let i = 0; i < Math.max(1, count); i++) {
     const insertion = step(current, point);
     for (const move of insertion.moves) moved.set(move.id, move);
-    current = current.map((region) => moved.get(region.id) ?? region);
+    const stepMoves = new Map(insertion.moves.map((move) => [move.id, move]));
+    current = current.map((region) => {
+      const move = stepMoves.get(region.id);
+      if (!move) return region;
+      return { ...region, ...move, ...(region.selectionY === undefined ? {} : { selectionY: move.y + region.selectionY - region.y }) };
+    });
     point = insertion.crosshair;
   }
   return { moves: [...moved.values()], crosshair: point };
@@ -211,7 +229,7 @@ export function blankSpaceBelow(
   const insertion = flowOf(at.page, at.y);
   let blank = Infinity;
   for (const region of regions) {
-    const flow = flowOf(region.page, region.y);
+    const flow = flowOf(region.page, region.selectionY ?? region.y);
     if (flow < insertion - EPS) continue;
     blank = Math.min(blank, flow - insertion);
   }
@@ -254,9 +272,9 @@ export function blankSpaceAbove(
   const insertion = flowOf(at.page, at.y);
   let bottom = 0;
   for (const region of regions) {
-    const flow = flowOf(region.page, region.y);
+    const flow = flowOf(region.page, region.selectionY ?? region.y);
     if (flow >= insertion - EPS) continue;
-    bottom = Math.max(bottom, flow + region.h);
+    bottom = Math.max(bottom, flow + (region.selectionY === undefined ? Math.max(0, region.h - (region.rise ?? 0)) : region.h));
   }
   return Math.max(0, insertion - bottom);
 }

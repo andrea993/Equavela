@@ -7,7 +7,7 @@ import { charKey, ctrl, named, typed, type LayoutId } from "../keymap/testKeys";
 import { handleKey } from "./controller";
 import { breakWires, focusAt, initialState, insertMatrixSized, loneNameText, insertSymbolicKeyword, placeCaret, runCommand, selectedNode, selectRange, typeCharacter, typeText, type EditorState } from "./model";
 import { sameCursor } from "../text/InlineMath";
-import { BIG_OPS, childRefs, get, ident, isEmptyStatement, leafPaths, withDrawnParens, drawnParenPath, remapIntegralBoundHit, set, sexpr, type Node, toEditing, toWire, withIntegralBoundSlots } from "./tree";
+import { BIG_OPS, childRefs, get, ident, isEmptyStatement, leafPaths, withDrawnParens, drawnParenPath, remapIntegralBoundHit, remapRootIndexHit, set, sexpr, type Node, toEditing, toWire, withIntegralBoundSlots, withRootIndexSlots } from "./tree";
 
 type Chords = Record<string, KeyInput>;
 
@@ -2057,6 +2057,40 @@ describe.each(["en-US", "it-IT"] as const)("editor on %s", (layout) => {
     const wireBreak = { path: [0, 0, 0], offset: 1 };
     const editor = initialState(expanded, [{ ...wireBreak, path: [...remapIntegralBoundHit(root, wireBreak.path)] }]);
     expect(breakWires(editor.root, editor.breaks)).toEqual([wireBreak]);
+  });
+
+  it("offers an optional index slot on roots: empty commits as square root, filled commits as nth root", () => {
+    // Inserting a root puts the caret in the radicand while leaving an optional index slot.
+    const inserted = run(layout, [t("\\8")]);
+    expect(inserted.root.expr.type).toBe("Root");
+    expect(inserted.root.expr.index.type).toBe("Placeholder");
+    expect(inserted.root.expr.radicand.text).toBe("8");
+    // Leaving the index empty commits as a square root (`index: null`).
+    const sqWire = toWire(inserted.root);
+    expect(sqWire.expr.index).toBeNull();
+    expect(sqWire.expr.radicand.text).toBe("8");
+
+    // Moving left into the optional index slot and typing `3` produces a cube root.
+    const cube = run(layout, [named("ArrowLeft"), named("ArrowLeft"), t("3")], inserted);
+    const cubeWire = toWire(cube.root);
+    expect(cubeWire.expr.index.text).toBe("3");
+    expect(cubeWire.expr.radicand.text).toBe("8");
+
+    // Reopening a committed square root restores the optional index slot and remaps hits/breaks.
+    const committed: Node = {
+      type: "ExprRegion",
+      expr: { type: "Root", index: null, radicand: { type: "Root", index: null, radicand: ident("x") } },
+    };
+    const reopened = withRootIndexSlots(committed);
+    expect(reopened.expr.index.type).toBe("Placeholder");
+    expect(reopened.expr.radicand.index.type).toBe("Placeholder");
+    expect(remapRootIndexHit(committed, [0, 0, 0])).toEqual([0, 1, 1]);
+    expect(get(reopened, remapRootIndexHit(committed, [0, 0, 0]))).toEqual(ident("x"));
+    const wireBreak = { path: [0, 0, 0], offset: 1 };
+    const editor = initialState(reopened, [{ ...wireBreak, path: [...remapRootIndexHit(committed, wireBreak.path)] }]);
+    expect(breakWires(editor.root, editor.breaks)).toEqual([wireBreak]);
+    // Unchanged reopen commits back to square roots (`index: null`).
+    expect(toWire(reopened)).toEqual(toWire(committed));
   });
 
   it("strings take every character until the closing quote", () => {

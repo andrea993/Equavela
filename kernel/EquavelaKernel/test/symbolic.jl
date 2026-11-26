@@ -359,6 +359,144 @@ else
             @test assumed == V("p")
         end
 
+        @testset "algebraic substitution" begin
+            x, r, z, a, b = V("X"), V("R"), V("Z"), V("a"), V("b")
+            two = N("2")
+            pattern = Add(Pw(x, two), Pw(r, two))
+            replacement = Pw(z, two)
+            rule = Eqn(pattern, replacement)
+            substitute(expr, rules...; assumptions=Any[], definitions=Any[]) =
+                value_expr(run_symbolic(expr; keywords=Any[assumptions..., kw("substitute", rules...)], definitions=definitions))
+            expanded_square = Add(Add(Pw(x, N("4")), Mul(two, Mul(Pw(x, two), Pw(r, two)))), Pw(r, N("4")))
+            cases = [
+                (pattern, replacement),
+                (Add(Pw(r, two), Pw(x, two)), replacement),
+                (Mul(two, pattern), Mul(two, replacement)),
+                (expanded_square, Pw(z, N("4"))),
+                (Add(Add(Mul(a, Pw(x, two)), Mul(a, Pw(r, two))), b), Add(Mul(a, replacement), b)),
+                (Div(N("1"), pattern), Div(N("1"), replacement)),
+                (call("sin", Mul(two, pattern)), call("sin", Mul(two, replacement))),
+                (call("exp", expanded_square), call("exp", Pw(z, N("4")))),
+                (Div(N("1"), Add(Mul(two, pattern), N("1"))), Div(N("1"), Add(Mul(two, replacement), N("1")))),
+            ]
+            for (input, expected) in cases
+                actual = substitute(input, rule)
+                @test same(actual, expected)
+                @test !occursin("\"text\":\"X\"", JSON3.write(actual))
+                @test !occursin("\"text\":\"R\"", JSON3.write(actual))
+            end
+            nonnegative = kw("assume", bin("Ge", z, N("0")))
+            @test substitute(call("sqrt", pattern), rule; assumptions=Any[nonnegative]) == z
+            @test same(substitute(call("sqrt", expanded_square), rule; assumptions=Any[nonnegative]), replacement)
+            unrestricted = substitute(call("sqrt", pattern), rule)
+            @test unrestricted != z
+            @test same(unrestricted, call("sqrt", replacement))
+            real = kw("assume", Eqn(z, V("real")))
+            @test same(substitute(call("sqrt", pattern), rule; assumptions=Any[real]), call("abs", z))
+
+            l, omega, voltage = V("L"), V("ω"), V("V")
+            impedance = Div(voltage, Mul(call("sqrt", two), Add(Mul(Pw(l, two), Pw(omega, two)), Pw(r, two))))
+            chain = Eqn(Mul(omega, l), x)
+            expected = Div(voltage, Mul(call("sqrt", two), replacement))
+            @test same(substitute(impedance, chain, rule), expected)
+            @test same(substitute(call("exp", impedance), chain, rule), call("exp", expected))
+            @test same(substitute(call("sin", impedance), chain, rule), call("sin", expected))
+            @test same(substitute(Div(N("1"), Add(N("1"), impedance)), chain, rule), Div(N("1"), Add(N("1"), expected)))
+
+            current, angle = V("current"), V("angle")
+            negative_terms = Sub(Mul(N("0"), x), Add(Mul(current, Pw(r, two)), Mul(current, Pw(x, two))))
+            for f in ("cos", "exp")
+                other = Mul(Mul(current, replacement), call(f, angle))
+                actual = substitute(Add(negative_terms, other), rule)
+                @test same(actual, Sub(other, Mul(current, replacement)))
+                @test !occursin("\"text\":\"X\"", JSON3.write(actual))
+                @test !occursin("\"text\":\"R\"", JSON3.write(actual))
+            end
+            coefficient = call("sin", angle)
+            @test same(substitute(Add(Mul(coefficient, Pw(x, two)), Mul(coefficient, Pw(r, two))), rule), Mul(coefficient, replacement))
+            # A non-polynomial term depending on the same variables remains intact.
+            other = call("exp", Div(Mul(r, Sub(angle, V("angle0"))), x))
+            actual = substitute(Add(negative_terms, other), rule)
+            @test same(actual, Sub(other, Mul(current, replacement)))
+            @test occursin("\"text\":\"angle0\"", JSON3.write(actual))
+
+            reverse_rule = Eqn(replacement, pattern)
+            @test same(substitute(pattern, reverse_rule), replacement)
+            @test same(substitute(Add(negative_terms, other), reverse_rule), Sub(other, Mul(current, replacement)))
+            @test same(substitute(Add(pattern, replacement), reverse_rule), Mul(two, replacement))
+            # If only the left side occurs, the ordinary substitution direction still applies.
+            @test same(substitute(replacement, reverse_rule), pattern)
+            @test same(substitute(pattern, reverse_rule; definitions=Any[defn("X", N("3")), defn("R", N("4"))]), replacement)
+
+            # A complete fraction with exponential and trigonometric terms.
+            phase = Div(Mul(r, Sub(angle, V("angle0"))), x)
+            exponential = call("exp", phase)
+            v = V("voltage")
+            voltage_term = Mul(v, Sub(Mul(r, call("sin", angle)), Mul(x, call("cos", angle))))
+            numerator = Add(Add(negative_terms, Mul(Mul(current, pattern), exponential)), Add(Mul(v, r), Mul(voltage_term, exponential)))
+            full = Div(numerator, Mul(Mul(two, pattern), exponential))
+            expected_full = Div(Add(Add(Neg(Mul(current, replacement)), Mul(Mul(current, replacement), exponential)), Add(Mul(v, r), Mul(voltage_term, exponential))), Mul(Mul(two, replacement), exponential))
+            for direction in (rule, reverse_rule)
+                full_result = substitute(full, direction)
+                @test same(full_result, expected_full)
+                @test occursin("\"text\":\"Z\"", JSON3.write(full_result))
+            end
+            alias = Dict{String,Any}("type" => "Ident", "name" => nm("e", "θ"))
+            alias_rule = Eqn(alias, exponential)
+            combined = value_expr(run_symbolic(full; keywords=Any[kw("substitute", reverse_rule), kw("substitute", alias_rule)]))
+            expected_alias = Div(Add(Add(Neg(Mul(current, replacement)), Mul(Mul(current, replacement), alias)), Add(Mul(v, r), Mul(voltage_term, alias))), Mul(Mul(two, replacement), alias))
+            @test same(combined, expected_alias)
+            @test occursin("\"text\":\"θ\"", JSON3.write(combined))
+            @test same(substitute(call("sin", angle), Eqn(alias, call("sin", angle))), alias)
+            # An existing symbol keeps the usual left-to-right substitution.
+            @test same(substitute(Add(alias, call("sin", angle)), Eqn(alias, call("sin", angle))), Mul(two, call("sin", angle)))
+            @test same(substitute(alias, Eqn(alias, Add(V("k"), N("1"))); definitions=Any[defn("k", N("3"))]), N("4"))
+
+            @test substitute(Add(x, N("1")), Eqn(x, r)) == Add(r, N("1"))
+            @test substitute(x, Eqn(x, r), Eqn(r, z)) == z
+            @test substitute(x, Eqn(x, r), Eqn(r, x)) == x
+            @test substitute(x, Eqn(x, r), Eqn(x, z)) == r
+            @test same(substitute(pattern, rule, Eqn(replacement, pattern)), pattern)
+            @test same(value_expr(run_symbolic(pattern; keywords=Any[kw("substitute", rule), kw("substitute", Eqn(z, N("3")))])), N("9"))
+            @test substitute(V("q"), rule) == V("q")
+            # A compound pattern's variables remain symbolic even if the worksheet defines them.
+            @test same(substitute(pattern, rule; definitions=Any[defn("X", N("3")), defn("R", N("4"))]), replacement)
+            # A partial term must not be eliminated by solving the rule for one variable.
+            @test substitute(Pw(x, two), rule) == Pw(x, two)
+            @test same(substitute(Add(Pw(x, two), Pw(r, N("4"))), rule), Add(Pw(x, two), Pw(r, N("4"))))
+            # Reaching the operation budget falls back to direct substitution.
+            large = foldl((left, i) -> Add(left, Pw(V("q$i"), two)), 1:110; init=pattern)
+            large_result = substitute(large, rule)
+            @test occursin("\"text\":\"Z\"", JSON3.write(large_result))
+            large_factored = foldl((left, i) -> Add(left, Pw(V("q$i"), two)), 1:110; init=Mul(two, pattern))
+            @test !occursin("\"text\":\"Z\"", JSON3.write(substitute(large_factored, rule)))
+            # Rewriting a sum in a denominator must not cancel unrelated singularities.
+            pole = Div(N("1"), Mul(Sub(x, N("1")), Add(x, N("1"))))
+            @test same(substitute(pole, Eqn(Sub(Pw(x, two), N("1")), z)), pole)
+        end
+
+        @testset "collect by an expression" begin
+            x, r, z, a, b, t = V("X"), V("R"), V("Z"), V("a"), V("b"), V("t")
+            target = Mul(a, Pw(z, N("2")))
+            input = Add(Sub(Mul(target, call("exp", t)), target), b)
+            collected = value_expr(run_symbolic(input; keywords=Any[kw("collect", target)]))
+            expected = Add(Mul(target, Sub(call("exp", t), N("1"))), b)
+            @test same(collected, expected)
+            function has_factored_sum(node)
+                node isa AbstractDict || return false
+                if get(node, "type", nothing) == "Mul" && any(get(get(node, key, Dict()), "type", nothing) in ("Add", "Sub") for key in ("left", "right"))
+                    return true
+                end
+                return any(has_factored_sum(child) for child in values(node))
+            end
+            @test has_factored_sum(collected)
+            sum_target = Add(Pw(x, N("2")), Pw(r, N("2")))
+            expanded = Add(Add(Mul(a, Pw(x, N("2"))), Mul(a, Pw(r, N("2")))), b)
+            grouped = value_expr(run_symbolic(expanded; keywords=Any[kw("collect", sum_target)]))
+            @test same(grouped, Add(Mul(a, sum_target), b))
+            @test has_factored_sum(grouped)
+        end
+
         @testset "transforms (laplace, fourier, ztrans and their inverses)" begin
             t, s, ω, z, n = V("t"), V("s"), V("ω"), V("z"), V("n")
             e = V("e")

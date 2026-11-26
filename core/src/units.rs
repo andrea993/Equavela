@@ -413,8 +413,21 @@ fn collect_expr_names(expr: &Expr, out: &mut HashSet<String>) {
                 }
                 stack.push(body);
             }
-            ExprKind::Deriv { var, order, body } | ExprKind::Partial { var, order, body } => {
-                binder(var, out);
+            ExprKind::Deriv {
+                var,
+                var_expr,
+                order,
+                body,
+            }
+            | ExprKind::Partial {
+                var,
+                var_expr,
+                order,
+                body,
+            } => {
+                if var_expr.is_none() {
+                    binder(var, out);
+                }
                 stack.push(body);
                 if let Some(order) = order {
                     stack.push(order);

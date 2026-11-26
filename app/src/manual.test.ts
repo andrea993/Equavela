@@ -10,5 +10,6 @@ describe("manual links", () => {
     expect(functionManualPath({ name: "lsolve", category: "Array characteristics and linear algebra" })).toBe(
       "manual/functions/array-characteristics-and-linear-algebra.html#f-lsolve",
     );
+    expect(functionManualPath({ name: "odesolve", category: "Differential equations" })).toBe("manual/functions/differential-equations.html#f-odesolve");
   });
 });

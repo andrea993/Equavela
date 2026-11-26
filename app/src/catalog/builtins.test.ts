@@ -17,6 +17,14 @@ describe("built-in catalogue", () => {
     expect(builtinEntry("nope")).toBeUndefined();
   });
 
+  it("includes solve functions with their context and signatures", () => {
+    for (const name of ["root", "find", "minerr", "minimize", "maximize", "odesolve"]) {
+      expect(searchBuiltins(name)[0]?.name).toBe(name);
+    }
+    expect(builtinEntry("odesolve")).toMatchObject({ category: "Differential equations", signature: "odesolve(vf, b, [intvls])" });
+    expect(builtinEntry("odesolve")?.description).toContain("initial condition");
+  });
+
   it("searches name first, then signature, category and description", () => {
     const names = searchBuiltins("stac").map((e) => e.name);
     expect(names[0]).toBe("stack");

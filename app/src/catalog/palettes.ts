@@ -137,7 +137,7 @@ export function paletteSections(kind: PaletteKind, prefix = ""): PaletteSection[
           command("+", "Addition", "add"), command("−", "Subtraction", "sub"),
           command("·", "Multiplication", "mul"), command("÷", "Stacked division", "frac", "fraction divide"),
           command("/", "Inline division", "inlineDiv", "slash"), command("xʸ", "Power", "pow", "exponent"),
-          command("√x", "Square root", "sqrt", "root"), command("|x|", "Absolute value", "abs", "magnitude determinant"),
+          command("√x", "Square root", "sqrt", "root nth cube"), command("|x|", "Absolute value", "abs", "magnitude determinant"),
           command("x!", "Factorial", "factorial"), command("%", "Percent", "percent"),
           command("‰", "Parts per thousand", "permille", "per mille permil thousandth"),
           command("scale", "Scaling (implicit product)", "scale", "implicit multiply"),
@@ -252,6 +252,7 @@ export function paletteSections(kind: PaletteKind, prefix = ""): PaletteSection[
         section("physics", "Physics", [
           text("c", "Speed of light, 299 792 458 m/s"),
           text("e.c", "Elementary charge, 1.602 176 634e-19 C"),
+          text("g", "Standard gravity, 9.806 65 m/s²"),
           text("h", "Planck constant, 6.626 070 15e-34 J·s"),
           text("ħ", "Reduced Planck constant h/2π, 1.054 571 8e-34 J·s"),
           text("k", "Boltzmann constant, 1.380 649e-23 J/K"),

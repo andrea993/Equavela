@@ -147,3 +147,38 @@ it("finds the tracks a span overlaps, with a margin", async () => {
   expect(tracksIn([60, 60, 60, 60, 60], 12, 140, 150, 1)).toEqual([1, 4]);
   expect(tracksIn([60, 60, 60], 12, 0, 1000, 2)).toEqual([0, 3]);
 });
+
+it("keeps ellipses when the grid re-renders at rest and applies them after a late box resize", () => {
+  const value = matrix(20, 1);
+  const { container, rerender } = render(<ValueView value={value} format={DEFAULT_FORMAT} active={false} />);
+  expect(classes(container, 4, 0)).toContain("dots-v");
+  // Changing the display format re-renders the cells with className="cell"; ellipses must stay.
+  rerender(<ValueView value={value} format={{ ...DEFAULT_FORMAT, precision: 5 }} active={false} />);
+  expect(classes(container, 4, 0)).toContain("dots-v");
+  cleanup();
+
+  // If the first layout pass sees a zero-height box, a subsequent ResizeObserver callback restores ellipses.
+  const callbacks: ResizeObserverCallback[] = [];
+  const savedRO = globalThis.ResizeObserver;
+  class FakeResizeObserver {
+    constructor(cb: ResizeObserverCallback) { callbacks.push(cb); }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver = FakeResizeObserver as unknown as typeof ResizeObserver;
+  let height = 0;
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+    configurable: true,
+    get() { return this.classList.contains("result-matrix-scroll") ? height : 0; },
+  });
+  try {
+    const late = render(<ValueView value={value} format={DEFAULT_FORMAT} active={false} />).container;
+    expect(classes(late, 4, 0)).not.toContain("dots-v");
+    height = 100;
+    for (const cb of callbacks) cb([], {} as ResizeObserver);
+    expect(classes(late, 4, 0)).toContain("dots-v");
+  } finally {
+    globalThis.ResizeObserver = savedRO;
+  }
+});

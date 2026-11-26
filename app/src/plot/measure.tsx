@@ -11,7 +11,13 @@ import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type
 import type { Node } from "../editor/tree";
 import { MathStatement } from "../math/render";
 import type { PlotSpec } from "../equavelaApi";
-import { NO_TEXT_WIDTHS, type PlotTextWidths } from "./adapter";
+import {
+  NO_TEXT_WIDTHS,
+  Y_SAMPLE_HEIGHT,
+  Y_SLOT_MIN_HEIGHT,
+  Y_STACK_GAP,
+  type PlotTextWidths,
+} from "./adapter";
 import { limitText, usesRightAxis } from "./edit";
 import { PlotContext } from "./PlotContext";
 
@@ -52,6 +58,26 @@ export function measurementTexts(spec: PlotSpec): MeasureItem[] {
     add("y2", limitText(spec.axes.y2?.min ?? null));
   }
   return items;
+}
+
+/**
+ * Total vertical height (CSS px) the left y column needs so every y expression, its trace sample
+ * line and the top/bottom y limits fit without clipping.
+ */
+export function yColumnHeight(spec: PlotSpec, heights: ReadonlyMap<string, number>): number {
+  const heightOf = (text: string) => {
+    const trimmed = text.trim();
+    return Math.max(Y_SLOT_MIN_HEIGHT, trimmed ? (heights.get(`y:${trimmed}`) ?? 0) : 0);
+  };
+  let expressions = 0;
+  for (const trace of spec.traces) {
+    const raw = spec.type === "contour" ? trace.z ?? "" : trace.y;
+    const trimmed = raw.trim();
+    expressions += heightOf(trimmed) + (trimmed !== "" ? Y_SAMPLE_HEIGHT : 0);
+  }
+  if (spec.traces.length > 1) expressions += (spec.traces.length - 1) * Y_STACK_GAP;
+  if (spec.type === "polar") return expressions;
+  return heightOf(limitText(spec.axes.y.max)) + expressions + heightOf(limitText(spec.axes.y.min));
 }
 
 /** What the mirror has measured: the widths and whether they belong to the current specification. */
@@ -129,6 +155,8 @@ export function PlotMeasure({
   useLayoutEffect(() => {
     if (!measured.parsed || measured.key !== key) return;
     const widths: PlotTextWidths = { y: 0, y2: 0, x: 0 };
+    const yHeights = new Map<string, number>();
+    let hasYHeight = false;
     for (const item of measured.items) {
       const element = refs.current.get(item.key);
       if (!element) continue;
@@ -136,9 +164,14 @@ export function PlotMeasure({
       // keeps a fractional glyph edge from being clipped. The x row is measured for its height.
       const size = (item.column === "x" ? element.offsetHeight : element.offsetWidth) + 1;
       if (size > widths[item.column]) widths[item.column] = size;
+      if (item.column === "y" && element.offsetHeight > 0) {
+        hasYHeight = true;
+        yHeights.set(item.key, element.offsetHeight + 1);
+      }
     }
+    if (hasYHeight) widths.yHeight = yColumnHeight(spec, yHeights);
     report.current(widths, true);
-  }, [measured, key, fontEpoch]);
+  }, [measured, key, fontEpoch, spec]);
 
   return (
     <span className="plot-measure" aria-hidden="true" data-testid="plot-measure">

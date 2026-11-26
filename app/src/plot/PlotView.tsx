@@ -16,6 +16,7 @@ import {
   NO_TEXT_WIDTHS,
   plotBands,
   plotMargin,
+  plotVerticalExpansion,
   traceSample,
   Y2_COLUMN,
   Y_COLUMN,
@@ -99,7 +100,11 @@ export function PlotView({
   );
   const onMeasured = useCallback((widths: PlotTextWidths, ready: boolean) => {
     setMeasured((previous) =>
-      previous.ready === ready && previous.widths.y === widths.y && previous.widths.y2 === widths.y2
+      previous.ready === ready &&
+      previous.widths.y === widths.y &&
+      previous.widths.y2 === widths.y2 &&
+      previous.widths.x === widths.x &&
+      (previous.widths.yHeight ?? 0) === (widths.yHeight ?? 0)
         ? previous
         : { widths, ready },
     );
@@ -181,8 +186,11 @@ export function PlotView({
     y: Math.max(measured.widths.y, live.y),
     y2: Math.max(measured.widths.y2, live.y2),
     x: measured.widths.x,
+    ...(measured.widths.yHeight ? { yHeight: measured.widths.yHeight } : {}),
   });
-  const margin = plotMargin(spec, textWidths);
+  const vertical = plotVerticalExpansion(spec, height, textWidths);
+  const renderHeight = height + vertical.top + vertical.bottom;
+  const margin = plotMargin(spec, textWidths, vertical);
   const bands = plotBands(spec);
   // The placeholder columns sit in the inner edge of their margin: next to the tick labels, which
   // start at the plot area. A title band takes the outer edge, so a column moves in by its band.
@@ -212,8 +220,8 @@ export function PlotView({
       style={
         {
           width,
-          height,
-          "--plot-title-band": `${bands.plot}px`,
+          height: renderHeight,
+          "--plot-title-band": `${bands.plot + vertical.top}px`,
           "--plot-left-margin": `${margin.l}px`,
         } as CSSProperties
       }
@@ -237,10 +245,11 @@ export function PlotView({
         spec={spec}
         frame={frame}
         width={width}
-        height={height}
+        height={renderHeight}
         // the same measured margins PlotView lays its placeholders out with, and no draw
         // until the committed expressions have been measured (print waits for the final layout).
         textWidths={textWidths}
+        extraY={vertical}
         measured={measured.ready}
         selectedTraceId={showEditingChrome ? selectedTrace : null}
         // A navigation only has samples to move when the plot samples an x itself.
@@ -276,7 +285,15 @@ export function PlotView({
         <i className="right" style={{ top: margin.t, bottom: margin.b, width: margin.r }} />
       </span>
       {/* The plot title and the axis titles and units are part of the plot. */}
-      <PlotLabels spec={spec} margin={margin} onTitle={setTitle} onUnit={setUnit} onActivate={activate} />
+      <PlotLabels
+        spec={spec}
+        margin={margin}
+        extraTop={vertical.top}
+        extraBottom={vertical.bottom}
+        onTitle={setTitle}
+        onUnit={setUnit}
+        onActivate={activate}
+      />
       {/* The legend is part of the plot, not editing chrome. */}
       <PlotLegend
         spec={spec}
@@ -287,7 +304,10 @@ export function PlotView({
           selectTrace(traceId);
         }}
       />
-      <div className="plot-slots y" style={{ ...yColumn, top: margin.t, bottom: margin.b }}>
+      <div
+        className="plot-slots y"
+        style={{ ...yColumn, top: margin.t - vertical.overhang, bottom: margin.b - vertical.overhang }}
+      >
         {spec.type !== "polar" && (
           <Slot
             onLiveWidth={liveWidth("y")}
@@ -332,7 +352,7 @@ export function PlotView({
           <Slot onLiveWidth={liveWidth("y2")} className="limit" text={limitText(spec.axes.y2?.min ?? null)} label={S.plot.y2Min} onActivate={activate} onCommit={(text) => setY2Limit("min", text)} />
         </div>
       )}
-      <div className="plot-slots x" style={{ left: margin.l, right: margin.r, bottom: 2 + bands.x, height: textWidths.x }}>
+      <div className="plot-slots x" style={{ left: margin.l, right: margin.r, bottom: 2 + bands.x + vertical.bottom, height: textWidths.x }}>
         {spec.type !== "polar" && (
           <Slot
             className="limit"

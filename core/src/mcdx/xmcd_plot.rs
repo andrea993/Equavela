@@ -14,7 +14,7 @@ use crate::plot::{
     TraceMarkerShape, TraceMarkerStyle, TracePresentation, TraceYAxis,
 };
 use crate::project::DocumentRegion;
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 /// Relation bits of a tree node: the node is the right child of its parent (else the
 /// left), and the value was computed by the application rather than typed.
@@ -350,7 +350,7 @@ fn xml(tree: &Tree, index: Option<usize>) -> Result<String, String> {
 fn expression_text(
     tree: &Tree,
     index: usize,
-    units: &std::rc::Rc<HashSet<String>>,
+    units: &std::rc::Rc<HashMap<String, &'static str>>,
 ) -> Result<Option<String>, (String, String)> {
     if tree.node(index).kind == KIND_EMPTY {
         return Ok(None);
@@ -363,7 +363,7 @@ fn expression_text(
         "plot-not-imported".to_owned(),
         "an empty expression".to_owned(),
     ))?;
-    math::with_implicit_units(units.clone(), || plot_math_text(content))
+    math::with_implicit_labels(units.clone(), || plot_math_text(content))
 }
 
 // ---- format ------------------------------------------------------------------------------
@@ -601,7 +601,7 @@ fn tree_axis(tree: &Tree, index: Option<usize>) -> TreeAxis {
 fn limit(
     tree: &Tree,
     index: Option<usize>,
-    units: &std::rc::Rc<HashSet<String>>,
+    units: &std::rc::Rc<HashMap<String, &'static str>>,
     report: &mut ImportReport,
     id: &str,
 ) -> Option<AxisLimit> {
@@ -723,7 +723,7 @@ pub(super) fn plot_region(
     id: &str,
     page: &PageSetup,
     item: Option<Vec<u8>>,
-    units: &std::rc::Rc<HashSet<String>>,
+    units: &std::rc::Rc<HashMap<String, &'static str>>,
     report: &mut ImportReport,
 ) -> Option<DocumentRegion> {
     let fail = |report: &mut ImportReport, message: String| {
@@ -907,6 +907,8 @@ pub(super) fn plot_region(
         size,
         axes: plot_axes,
         grid_spacing: None,
+        legend_position: crate::plot::LegendPosition::default(),
+        legend_font_size: None,
         traces,
         reference_lines,
     };
@@ -947,7 +949,7 @@ mod tests {
             .collect();
         let (tree, wide) = parse_tree(&bytes).unwrap();
         assert!(wide);
-        let units = std::rc::Rc::new(HashSet::new());
+        let units = std::rc::Rc::new(HashMap::new());
         let x = tree_axis(&tree, tree.right(tree.root));
         let y = tree_axis(&tree, tree.left(tree.root).and_then(|s| tree.left(s)));
         let text = |i: usize| expression_text(&tree, i, &units).unwrap().unwrap();

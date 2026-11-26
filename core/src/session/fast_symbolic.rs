@@ -39,6 +39,7 @@ pub struct FastSymbolicInput {
     pub statement: Statement,
     pub operation: FastSymbolicOperation,
     pub variable: Option<Name>,
+    pub collect_expression: Option<Expr>,
     pub worksheet_variables: bool,
 }
 
@@ -86,7 +87,16 @@ impl WorksheetSession {
             Fast::Simplify => SymbolicOperation::Simplify.request(expr),
             Fast::Expand => SymbolicOperation::Expand.request(expr),
             Fast::Factor => SymbolicOperation::Factor.request(expr),
-            Fast::Collect => SymbolicOperation::Collect { var: variable()? }.request(expr),
+            Fast::Collect => match &input.collect_expression {
+                Some(target) => SymbolicRequest::new(
+                    expr.clone(),
+                    vec![SymbolicKeyword {
+                        keyword: "collect".into(),
+                        args: vec![target.clone()],
+                    }],
+                ),
+                None => SymbolicOperation::Collect { var: variable()? }.request(expr),
+            },
             Fast::Differentiate => {
                 SymbolicOperation::Differentiate { var: variable()? }.request(expr)
             }

@@ -83,7 +83,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # Limited test threads: every kernel test starts its own Julia process.
       # This test can hang when the tests run in parallel; it is run locally until it is fixed.
-      - run: cargo test --workspace --no-fail-fast -- --test-threads=2 --skip compatibility_changes_are_trusted
+      - run: cargo test --workspace --no-fail-fast -- --test-threads=2
       - name: Linux WebKitGTK PDF checks
         if: runner.os == 'Linux'
         run: |
@@ -133,6 +133,8 @@ jobs:
         os: [windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - run: npm install -g pnpm
       - uses: actions/setup-node@v4
         with:

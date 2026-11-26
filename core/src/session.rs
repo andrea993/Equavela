@@ -33,10 +33,10 @@ use crate::codegen::{
 use crate::edit::{self, EditCommand, EditError};
 use crate::environment::{resolve_environment_with_archive, WorksheetEnvironment};
 use crate::graph::{DependencyGraph, FailureTracker, GraphError};
-use crate::kernel::ProgressParams;
+use crate::kernel::{ProgressParams, RpcId};
 use crate::kernel_manager::{
-    EvaluateRequest, InstallResult, KernelError, KernelInfo, KernelManager, RegionError,
-    RegionInput, RegionOutcome,
+    EvaluateRequest, EvaluateResponse, InstallResult, KernelError, KernelInfo, KernelManager,
+    RegionError, RegionInput, RegionOutcome, RequestOptions,
 };
 use crate::kernel_value::KernelValue;
 use crate::layout::PageSetup;
@@ -59,8 +59,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 pub use inspect::{
-    DefinitionInfo, DefinitionValue, IncludeInfo, Inspection, IntrinsicInfo, ReferenceInfo,
-    WarningInfo,
+    DefinitionInfo, DefinitionValue, DefinitionValuesQuery, IncludeInfo, Inspection, IntrinsicInfo,
+    ReferenceInfo, WarningInfo,
 };
 
 // ---------------------------------------------------------------------------------------
@@ -487,14 +487,43 @@ impl ResultsHandle {
 pub struct InterruptHandle {
     kernel: Arc<KernelManager>,
     cancel: Arc<AtomicBool>,
+    active_request: Arc<Mutex<Option<RpcId>>>,
 }
 
 impl InterruptHandle {
-    /// Asks the pass to stop: the running region is interrupted in the kernel and no
-    /// further region is sent. Returns whether a kernel request was interrupted.
+    /// Asks the pass to stop: the running region of this worksheet is interrupted in the kernel
+    /// (leaving any other worksheet sharing the kernel untouched) and no further region is sent.
+    /// Returns whether a kernel request was interrupted.
     pub fn interrupt(&self) -> bool {
         self.cancel.store(true, Ordering::SeqCst);
-        self.kernel.interrupt_active().unwrap_or(false)
+        let id = self
+            .active_request
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        id.and_then(|id| self.kernel.interrupt_request(&id).ok())
+            .unwrap_or(false)
+    }
+}
+
+/// Clears the session's active request id when a kernel call returns or unwinds.
+struct ActiveRequestGuard<'a> {
+    slot: &'a Mutex<Option<RpcId>>,
+}
+
+impl<'a> ActiveRequestGuard<'a> {
+    fn set(slot: &'a Mutex<Option<RpcId>>, id: RpcId) -> Self {
+        *slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(id);
+        Self { slot }
+    }
+}
+
+impl Drop for ActiveRequestGuard<'_> {
+    fn drop(&mut self) {
+        *self
+            .slot
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
     }
 }
 
@@ -872,6 +901,7 @@ pub struct WorksheetSession {
     edits: u64,
     results: ResultsHandle,
     cancel: Arc<AtomicBool>,
+    active_request: Arc<Mutex<Option<RpcId>>>,
     derived: Arc<Derived>,
     /// What the kernel holds and the package problems, shared with a running pass.
     pass_state: SharedPassState,
@@ -991,6 +1021,7 @@ impl WorksheetSession {
             edits: 0,
             results: ResultsHandle::default(),
             cancel: Arc::new(AtomicBool::new(false)),
+            active_request: Arc::new(Mutex::new(None)),
             derived,
             pass_state: SharedPassState::default(),
             revision: Arc::new(AtomicU64::new(0)),
@@ -1390,6 +1421,7 @@ impl WorksheetSession {
         InterruptHandle {
             kernel: Arc::clone(&self.kernel),
             cancel: Arc::clone(&self.cancel),
+            active_request: Arc::clone(&self.active_request),
         }
     }
 
@@ -2162,6 +2194,9 @@ impl WorksheetSession {
     /// The pass holds what it needs, so the host runs it without keeping the session locked:
     /// edits go on meanwhile, and one made during the pass stops it at the next region.
     pub fn pass(&self, mode: RecalcMode) -> Pass {
+        // Clear any stale stop from a previous pass when preparing the new one, never on
+        // `Pass::run` entry, so an interrupt arriving before the worker thread starts is not lost.
+        self.cancel.store(false, Ordering::SeqCst);
         let setting = |name: &str| {
             self.project
                 .document(&self.root)
@@ -2173,6 +2208,7 @@ impl WorksheetSession {
             worksheet_id: self.worksheet_id.clone(),
             results: self.results.clone(),
             cancel: Arc::clone(&self.cancel),
+            active_request: Arc::clone(&self.active_request),
             derived: Arc::clone(&self.derived),
             state: self.pass_state.clone(),
             revision: Arc::clone(&self.revision),
@@ -2227,6 +2263,7 @@ pub struct Pass {
     worksheet_id: String,
     results: ResultsHandle,
     cancel: Arc<AtomicBool>,
+    active_request: Arc<Mutex<Option<RpcId>>>,
     derived: Arc<Derived>,
     state: SharedPassState,
     revision: Arc<AtomicU64>,
@@ -2258,7 +2295,18 @@ impl Pass {
 
     /// Evaluates the affected regions one by one and publishes each result. Blocking.
     pub fn run(self, progress: &mut dyn FnMut(&SessionEvent)) -> Result<PassSummary, SessionError> {
-        self.cancel.store(false, Ordering::SeqCst);
+        if self.cancel.load(Ordering::SeqCst) {
+            let summary = PassSummary {
+                incomplete: true,
+                ..PassSummary::default()
+            };
+            progress(&SessionEvent::PassStarted {
+                affected: 0,
+                reset: false,
+            });
+            progress(&SessionEvent::PassFinished { summary });
+            return Ok(summary);
+        }
         if !self.kernel.is_running() {
             progress(&SessionEvent::Kernel {
                 status: KernelStatus::Starting,
@@ -2441,15 +2489,13 @@ impl Pass {
             };
             progress(&SessionEvent::RegionStarted { key: key.clone() });
             let started_key = key.clone();
-            let outcome =
-                self.kernel
-                    .evaluate_with_progress(&request, &mut |p: &ProgressParams| {
-                        progress(&SessionEvent::RegionProgress {
-                            key: started_key.clone(),
-                            fraction: p.fraction,
-                            message: p.message.clone(),
-                        })
-                    });
+            let outcome = self.evaluate_request(&request, &mut |p: &ProgressParams| {
+                progress(&SessionEvent::RegionProgress {
+                    key: started_key.clone(),
+                    fraction: p.fraction,
+                    message: p.message.clone(),
+                })
+            });
             first = false;
             if outcome.is_ok() {
                 self.state.lock().needs_reset = false;
@@ -2697,6 +2743,40 @@ impl Pass {
         Ok(summary)
     }
 
+    /// Sends an `evaluate` request tagged with a fresh id recorded in `active_request`, so
+    /// [`InterruptHandle::interrupt`] interrupts only this worksheet's active request.
+    fn evaluate_request(
+        &self,
+        request: &EvaluateRequest,
+        progress: &mut dyn FnMut(&ProgressParams),
+    ) -> Result<EvaluateResponse, KernelError> {
+        let id = self.kernel.next_request_id();
+        let _guard = ActiveRequestGuard::set(&self.active_request, id.clone());
+        if self.cancel.load(Ordering::SeqCst) {
+            return Err(KernelError::Interrupted);
+        }
+        let options = RequestOptions {
+            id: Some(id),
+            timeout: None,
+        };
+        self.kernel
+            .evaluate_with_options(request, &options, progress)
+    }
+
+    /// Sends a `symbolic` request tagged with a fresh id recorded in `active_request`.
+    fn symbolic_request(&self, request: &SymbolicRequest) -> Result<SymbolicOutcome, KernelError> {
+        let id = self.kernel.next_request_id();
+        let _guard = ActiveRequestGuard::set(&self.active_request, id.clone());
+        if self.cancel.load(Ordering::SeqCst) {
+            return Err(KernelError::Interrupted);
+        }
+        let options = RequestOptions {
+            id: Some(id),
+            timeout: None,
+        };
+        self.kernel.symbolic_with_options(request, &options)
+    }
+
     /// Runs the symbolic request of a region and maps the outcome.
     fn symbolic_step(
         &self,
@@ -2705,7 +2785,7 @@ impl Pass {
         request: &SymbolicRequest,
         region: &GeneratedRegion,
     ) -> SymbolicStep {
-        match self.kernel.symbolic(request) {
+        match self.symbolic_request(request) {
             Ok(SymbolicOutcome::Value(value)) => {
                 // A definition by a symbolic result becomes usable in numeric regions: the
                 // result is generated as numeric code that replaces the placeholder.
@@ -2733,7 +2813,7 @@ impl Pass {
                             capture: false,
                         }],
                     };
-                    match self.kernel.evaluate(&definition) {
+                    match self.evaluate_request(&definition, &mut |_| {}) {
                         Ok(response) => {
                             if let Some(RegionOutcome::Error(error)) =
                                 response.region(gid).map(|r| r.outcome.clone())

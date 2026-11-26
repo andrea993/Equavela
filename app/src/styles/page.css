@@ -788,12 +788,14 @@ html.region-capture .crosshair {
 }
 /* A literal label and a fallback id share the size and line box of the math labels. */
 .plot-legend-text {
-  font-size: 16px;
-  line-height: 20px;
+  font-size: var(--legend-fs, 16px);
+  line-height: 1.25;
   color: #000000;
   white-space: nowrap;
 }
 .plot-legend-label {
+  --fs: var(--legend-fs, 16px);
+  font-size: var(--legend-fs, 16px);
   color: #000000;
 }
 /* The plot title and the axis titles and units are drawn by the app, in
@@ -863,7 +865,7 @@ html.region-capture .crosshair {
 /* Only the boxes take the pointer: a container is as wide as its whole margin, and the space between
    two boxes belongs to the outer area that moves the plot. */
 .plot-slot { display: inline-block; flex: 0 1 auto; pointer-events: auto; min-width: 0; min-height: 0; max-width: 90px; overflow: hidden; }
-.plot-slots.y .plot-slot, .plot-slots.y2 .plot-slot { max-width: 100%; }
+.plot-slots.y .plot-slot, .plot-slots.y2 .plot-slot, .plot-slots.x .expressions .plot-slot { max-width: 100%; }
 .plot-slots.y .expressions .plot-slot { flex: 0 0 auto; }
 .plot-slots .plot-slot.limit { flex: 0 1 auto; min-width: 24px; max-width: 56px; }
 /* the trace's line sample under its y expression, as wide as the expression; always drawn and printed. */

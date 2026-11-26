@@ -234,7 +234,7 @@ function TextEditor({ tab, onEdit, onSave, onReload, onClose, module, complete, 
     }
   };
   return <div className="file-tab text">
-    <div className="file-bar">
+    <div className="file-bar chrome no-print">
       <span className="file-path" title={tab.id}>{tab.path}{modified && <span aria-label={S.documents.modified}> *</span>}</span>
       <span className="file-tools">
         {module && <label className="file-module" title={S.juliaModule.loadTitle}>
@@ -246,7 +246,7 @@ function TextEditor({ tab, onEdit, onSave, onReload, onClose, module, complete, 
         <ToolButton label={S.project.reload} icon={<Icon>⟳</Icon>} iconOnly onClick={onReload} />
       </span>
     </div>
-    {bar && <div className="code-bar" role="search" aria-label={bar.mode === "line" ? S.code.goToLine : S.code.find}>
+    {bar && <div className="code-bar chrome no-print" role="search" aria-label={bar.mode === "line" ? S.code.goToLine : S.code.find}>
       <input
         ref={barField}
         aria-label={bar.mode === "line" ? S.code.lineNumber : S.code.find}
@@ -312,7 +312,7 @@ function TextEditor({ tab, onEdit, onSave, onReload, onClose, module, complete, 
 function ImageViewer({ tab }: { tab: FileTab }) {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   return <div className="file-tab image">
-    <div className="file-bar">
+    <div className="file-bar chrome no-print">
       <span className="file-path" title={tab.id}>{tab.path}</span>
       {size && <span className="file-size">{S.project.imageSize(size.width, size.height)}</span>}
     </div>
@@ -356,7 +356,7 @@ export function SheetFrame({ path, modified, pendingEdit = false, onSave, childr
 }) {
   if (path === null) return <>{children}</>;
   return <div className="file-tab sheet-frame">
-    <div className="file-bar">
+    <div className="file-bar chrome no-print">
       <span className="file-path">{path}{modified && <span aria-label={S.documents.modified}> *</span>}</span>
       <span className="file-tools">
         <ToolButton label={S.project.saveFile} title={`${S.project.saveFile} (Ctrl+S)`} icon={<Icon>▣</Icon>} iconOnly disabled={!modified && !pendingEdit} onClick={onSave} />

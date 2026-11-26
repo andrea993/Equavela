@@ -336,6 +336,37 @@ fn region_state(session: &WorksheetSession, region_id: &str) -> RegionState {
     session.results().get(&key).unwrap()
 }
 
+#[test]
+fn algebraic_substitution_runs_through_a_worksheet() {
+    let Some(kernel) = symbolic_kernel() else {
+        return;
+    };
+    let mut sheet = session(
+        Arc::clone(&kernel),
+        &[
+            ("result", "V/(sqrt(2)·(L^2·w^2 + R^2)) →[substitute, w·L == X, X^2 + R^2 == Z^2]"),
+            ("reverse", "(-a·R^2 - a·X^2 + a·(R^2 + X^2)·exp(R·(t - t0)/X))/(2·(R^2 + X^2)) →[substitute, Z^2 == X^2 + R^2]"),
+            ("alias", "(exp(R·(t - t0)/X) + V)/(2·exp(R·(t - t0)/X)) →[substitute, q == exp(R·(t - t0)/X)]"),
+        ],
+    );
+    sheet.recalculate(RecalcMode::Changed, &mut |_| {}).unwrap();
+    let (result, _) = symbolic_result(&sheet, "result");
+    assert!(equivalent(&kernel, &result, "V/(sqrt(2)·Z^2)"), "{result}");
+    let (reverse, _) = symbolic_result(&sheet, "reverse");
+    assert!(
+        equivalent(&kernel, &reverse, "a·(exp(R·(t - t0)/X) - 1)/2"),
+        "{reverse}"
+    );
+    assert!(
+        !reverse.contains("R^2") && !reverse.contains("X^2"),
+        "{reverse}"
+    );
+    let (alias, _) = symbolic_result(&sheet, "alias");
+    assert!(equivalent(&kernel, &alias, "(q + V)/(2·q)"), "{alias}");
+    assert!(!alias.contains("exp"), "{alias}");
+    kernel.shutdown();
+}
+
 /// The text and AST of a symbolic region result.
 fn symbolic_result(session: &WorksheetSession, region_id: &str) -> (String, Expr) {
     match region_state(session, region_id) {
@@ -792,6 +823,54 @@ fn fast_symbolic_uses_the_live_source_scope_and_labels_results() {
         multiple.starts_with("x == [") && multiple.contains("-1"),
         "{multiple}"
     );
+    kernel.shutdown();
+}
+
+#[test]
+fn collect_accepts_a_compound_expression_in_a_worksheet_and_fast_symbolic() {
+    let Some(kernel) = symbolic_kernel() else {
+        return;
+    };
+    use equavela_core::session::FastSymbolicInput;
+    let mut sheet = session(
+        kernel.clone(),
+        &[
+            ("a", "a := 3"),
+            ("result", "a·z^2·exp(t) - a·z^2 + b →[collect, a·z^2]"),
+            ("source", "0"),
+        ],
+    );
+    sheet.recalculate(RecalcMode::Changed, &mut |_| {}).unwrap();
+    let (live, _) = symbolic_result(&sheet, "result");
+    assert!(live.contains("(e^t - 1)"), "{live}");
+    assert!(live.contains("a"), "{live}");
+    let input: FastSymbolicInput = serde_json::from_value(json!({
+        "regionId": "source", "page": 0, "x": 0.0, "y": 0.0,
+        "statement": parse_statement("a·z^2·exp(t) - a·z^2 + b").unwrap(),
+        "operation": "collect", "variable": null,
+        "collectExpression": parse_expression("a·z^2").unwrap(),
+        "worksheetVariables": true,
+    }))
+    .unwrap();
+    let request = sheet.prepare_fast_symbolic(&input).unwrap();
+    let result = kernel.symbolic(&request).unwrap();
+    let SymbolicOutcome::Value(KernelValue::Symbolic { text, .. }) = result else {
+        panic!("{result:?}");
+    };
+    assert!(text.contains("(e^t - 1)"), "{text}");
+    assert!(text.contains("a"), "{text}");
+    let legacy: FastSymbolicInput = serde_json::from_value(json!({
+        "regionId": "source", "page": 0, "x": 0.0, "y": 0.0,
+        "statement": parse_statement("a·b + a·c").unwrap(), "operation": "collect",
+        "variable": Name::plain("a"), "worksheetVariables": true,
+    }))
+    .unwrap();
+    let request = sheet.prepare_fast_symbolic(&legacy).unwrap();
+    let result = kernel.symbolic(&request).unwrap();
+    let SymbolicOutcome::Value(KernelValue::Symbolic { text, .. }) = result else {
+        panic!("{result:?}");
+    };
+    assert!(text.contains("a·(b + c)"), "{text}");
     kernel.shutdown();
 }
 

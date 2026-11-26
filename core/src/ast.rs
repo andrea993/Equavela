@@ -546,16 +546,22 @@ pub enum ExprKind {
     Integral {
         var: Ident,
         bounds: Option<Bounds>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        domain: Option<Box<Expr>>,
         algorithm: Option<Ident>,
         body: Box<Expr>,
     },
     Deriv {
         var: Ident,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        var_expr: Option<Box<Expr>>,
         order: Option<Box<Expr>>,
         body: Box<Expr>,
     },
     Partial {
         var: Ident,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        var_expr: Option<Box<Expr>>,
         order: Option<Box<Expr>>,
         body: Box<Expr>,
     },

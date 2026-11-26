@@ -20,7 +20,8 @@ async function insertPlot() {
   fireEvent.click(screen.getByRole("tab", { name: "Insert" }));
   fireEvent.click(screen.getByRole("button", { name: S.ribbon.commands.plot }));
   await waitFor(() => expect(document.querySelector('[data-testid^="plot-r"]')).not.toBeNull());
-  // The trace fields act on the selected trace: pick the first one in the trace list.
+  // Switch to the contextual Trace tab and pick the first trace in the trace list.
+  fireEvent.click(screen.getByRole("tab", { name: S.ribbon.tabs.trace }));
   await act(async () => {
     fireEvent.click(within(screen.getByRole("listbox", { name: S.plot.traceList })).getAllByRole("option")[0]);
   });

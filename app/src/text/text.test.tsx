@@ -1,7 +1,7 @@
 import { render, cleanup, act, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createRef, StrictMode } from "react";
-import { $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isTextNode, COPY_COMMAND, createEditor, ElementNode, getNearestEditorFromDOMNode, UNDO_COMMAND } from "lexical";
+import { $createRangeSelection, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isTextNode, $setSelection, COPY_COMMAND, createEditor, ElementNode, getNearestEditorFromDOMNode, UNDO_COMMAND } from "lexical";
 import { createEmptyHistoryState, registerHistory } from "@lexical/history";
 import { toEditing, toWire } from "../editor/tree";
 import type { MathRun, RichText } from "../equavelaApi";
@@ -10,6 +10,7 @@ import { InlineMath, TextEnvContext } from "./InlineMath";
 import { $readValue, $setAlign, $setParagraphStyle, $setRunColor, $setRunHighlight, $writeValue, roundTrip } from "./lexical/convert";
 import { MathNode } from "./lexical/MathNode";
 import { TextParagraphNode } from "./lexical/TextParagraphNode";
+import { $copyMixedSelection, $pasteMixedSelection, normalizeInlineSelection } from "./lexical/inlineClipboard";
 import { TextView } from "./TextView";
 import { isEmptyText, paragraphCss, paragraphStyle, sameText, type InlineActive, type MathClipboard, type MathTarget, type TextHandle } from "./value";
 import { rememberMathCopy } from "../mathPaste";
@@ -446,6 +447,118 @@ function openEditor(initial: RichText, onChange = vi.fn(), onFormat = vi.fn(), c
 }
 
 describe("TextEditor", () => {
+  it("preserves a backward selection spanning paragraphs and inline math", () => {
+    const makeEditor = () => createEditor({ namespace: "copy-test", nodes: [MathNode, TextParagraphNode], onError: (error) => { throw error; } });
+    const source = makeEditor();
+    source.update(() => $writeValue([
+      { runs: [{ kind: "text", text: "first" }, { kind: "math", text: "", statement: ratio }] },
+      { runs: [{ kind: "text", text: "second", italic: true }] },
+    ]), { discrete: true });
+    let plain = "";
+    source.update(() => {
+      const paragraphs = $getRoot().getChildren() as ElementNode[];
+      const first = paragraphs[0].getFirstChildOrThrow();
+      const last = paragraphs[1].getFirstChildOrThrow();
+      const selection = $createRangeSelection();
+      selection.anchor.set(last.getKey(), 3, "text");
+      selection.focus.set(first.getKey(), 2, "text");
+      $setSelection(selection);
+      plain = $copyMixedSelection(selection, source)!;
+    }, { discrete: true });
+    const destination = makeEditor();
+    destination.update(() => {
+      $writeValue([{ runs: [] }]);
+      $getRoot().getFirstChildOrThrow().selectEnd();
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) expect($pasteMixedSelection(selection, plain)).toBe(true);
+    }, { discrete: true });
+    const result = destination.getEditorState().read($readValue);
+    expect(result).toHaveLength(2);
+    expect(result[0].runs).toMatchObject([{ kind: "text", text: "rst" }, { kind: "math", statement: ratio }]);
+    expect(result[1].runs).toMatchObject([{ kind: "text", text: "sec", italic: true }]);
+  });
+
+  it("does not copy an equation when the selection stops just before it", () => {
+    const editor = createEditor({ namespace: "copy-boundary", nodes: [MathNode, TextParagraphNode], onError: (error) => { throw error; } });
+    editor.update(() => $writeValue([{ runs: [{ kind: "text", text: "before" }, { kind: "math", text: "", statement: ratio }] }]), { discrete: true });
+    let copied: string | null = "unexpected";
+    editor.update(() => {
+      const paragraph = $getRoot().getFirstChildOrThrow() as ElementNode;
+      const selection = $createRangeSelection();
+      selection.anchor.set(paragraph.getFirstChildOrThrow().getKey(), 0, "text");
+      selection.focus.set(paragraph.getKey(), 1, "element");
+      $setSelection(selection);
+      copied = $copyMixedSelection(selection, editor);
+    }, { discrete: true });
+    expect(copied).toBeNull();
+  });
+  it("extends a drag ending inside an inline equation to the complete equation", () => {
+    const root = document.createElement("div");
+    root.innerHTML = 'before<span class="tx-math-host"><span>formula</span></span>after';
+    document.body.appendChild(root);
+    const first = root.firstChild!;
+    const math = root.querySelector("span span")!.firstChild!;
+    const selection = window.getSelection()!;
+    selection.setBaseAndExtent(first, 2, math, 3);
+    normalizeInlineSelection(root, selection);
+    expect(selection.getRangeAt(0).endContainer).toBe(root);
+    expect(selection.getRangeAt(0).endOffset).toBe(2);
+    selection.setBaseAndExtent(math, 3, first, 2);
+    normalizeInlineSelection(root, selection);
+    expect(selection.anchorNode).toBe(root);
+    expect(selection.anchorOffset).toBe(2);
+    root.remove();
+    selection.removeAllRanges();
+  });
+  it("copies a mixed selection with an entire inline equation into another text region", async () => {
+    const range = Range.prototype as unknown as Record<string, unknown>;
+    range.getBoundingClientRect ??= () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 });
+    range.getClientRects ??= () => [];
+    const scope = globalThis as unknown as { ClipboardEvent?: unknown };
+    scope.ClipboardEvent ??= class extends Event {};
+    const source = openEditor([{ runs: [
+      { kind: "text", text: "Before ", bold: true },
+      { kind: "math", text: "", statement: ratio, disabled: true, format: { "format.precision": "5" } },
+      { kind: "text", text: " after" },
+    ] }]);
+    const sourceRoot = source.container.querySelector<HTMLElement>("[contenteditable=true]")!;
+    const editor = getNearestEditorFromDOMNode(sourceRoot)!;
+    await waitFor(() => expect(editor.getEditorState().read(() => ($getRoot().getFirstChildOrThrow() as ElementNode).getChildrenSize())).toBe(3));
+    await act(async () => editor.update(() => {
+      const paragraph = $getRoot().getFirstChildOrThrow() as ElementNode;
+      const children = paragraph.getChildren();
+      const selection = $createRangeSelection();
+      selection.anchor.set(children[0].getKey(), 3, "text");
+      selection.focus.set(children[2].getKey(), 3, "text");
+      $setSelection(selection);
+    }));
+    expect(editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      return $isRangeSelection(selection) ? selection.getNodes().map((node) => node.getType()) : [];
+    })).toContain("inline-math");
+    const clipboard = new Map<string, string>();
+    const EventType = scope.ClipboardEvent as new (type: string, init: EventInit) => Event;
+    const event = new EventType("copy", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: { setData: (type: string, text: string) => clipboard.set(type, text) } });
+    await act(async () => { editor.dispatchCommand(COPY_COMMAND, event as ClipboardEvent); });
+    expect(event.defaultPrevented).toBe(true);
+    const text = clipboard.get("text/plain")!;
+    expect(text.startsWith("ore ")).toBe(true);
+    expect(text.endsWith(" af")).toBe(true);
+
+    const destination = openEditor([{ runs: [{ kind: "text", text: "Target " }] }]);
+    const target = destination.container.querySelector<HTMLElement>("[contenteditable=true]")!;
+    fireEvent.keyDown(target, { key: "v", code: "KeyV", ctrlKey: true });
+    const box = document.querySelector<HTMLTextAreaElement>('textarea[aria-hidden="true"]')!;
+    const paste = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, "clipboardData", { value: { getData: () => text } });
+    await act(async () => { box.dispatchEvent(paste); });
+    await waitFor(() => expect(destination.state.value[0].runs.some((run) => run.kind === "math")).toBe(true));
+    const runs = destination.state.value[0].runs;
+    expect(runs.find((run) => run.kind === "math")).toMatchObject({ statement: ratio, disabled: true, format: { "format.precision": "5" } });
+    expect(runs.filter((run) => run.kind === "text").map((run) => run.text).join("")).toContain("ore  af");
+    expect(runs.some((run) => run.kind === "text" && run.text === "ore " && run.bold)).toBe(true);
+  });
   it("copies selected plain text through the WebKit clipboard event and async clipboard API", async () => {
     const writeText = vi.fn(async (_text: string) => undefined);
     const previous = Object.getOwnPropertyDescriptor(navigator, "clipboard");
@@ -777,6 +890,18 @@ describe("TextEditor", () => {
       await press(math, "ArrowLeft");
       await waitFor(() => expect(math.classList.contains("editing")).toBe(false));
       await waitFor(() => expect(caret(editor)).toEqual(["ab ", 3]));
+    });
+
+    it("Backspace on an emptied inline math deletes it and returns focus to the text", async () => {
+      const { root, math } = await open(false);
+      await press(root, "ArrowLeft");
+      await waitFor(() => expect(math.classList.contains("editing")).toBe(true));
+      // Backspace through the expression until only the empty placeholder remains, then once more to delete it.
+      for (let i = 0; i < 6 && !math.querySelector(".ph"); i++) await press(math, "Backspace");
+      expect(math.querySelector(".ph")).not.toBeNull();
+      await press(math, "Backspace");
+      await waitFor(() => expect(document.querySelector('[data-testid="inline-math"]')).toBeNull());
+      expect(document.activeElement).toBe(root);
     });
   });
 

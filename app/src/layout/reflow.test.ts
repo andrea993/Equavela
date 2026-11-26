@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { PageSetup, ViewRegion } from "../equavelaApi";
-import { printableArea, reflow, snapToGrid, GRID_PT, type FlowItem, type Flowed } from "./geometry";
+import { printableArea, reflow, reflowIncremental, snapToGrid, GRID_PT, type FlowItem, type Flowed } from "./geometry";
 import { drawnY, drawnYOf } from "./areas";
 
 const EPS = 1e-6;
@@ -147,6 +147,74 @@ describe("reflow with a per-page index", () => {
     // Informative only: timings vary with the machine; the indexed version must not be slower.
     expect(indexed).toBeLessThan(reference * 1.5 + 5);
   }, 60_000);
+});
+
+describe("incremental reflow from the changed page", () => {
+  it("matches the reference implementation across 200 random edit sequences (resize, move, insert, delete)", () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const next = random(seed + 10_000);
+      let items = layout(seed, 10 + (seed % 50));
+      let state = reflowIncremental(a4, items);
+      for (let step = 0; step < 5; step++) {
+        const op = Math.floor(next() * 4);
+        const copy = items.map((item) => ({ ...item }));
+        if (op === 0 && copy.length > 0) {
+          // Resize one region (grow or shrink, potentially causing or removing a page spill).
+          const idx = Math.floor(next() * copy.length);
+          copy[idx].h = next() < 0.2 ? 300 : 9 + Math.floor(next() * 120);
+          copy[idx].w = 12 + Math.floor(next() * 250);
+        } else if (op === 1 && copy.length > 0) {
+          // Move one region to another page or y.
+          const idx = Math.floor(next() * copy.length);
+          copy[idx].page = 1 + Math.floor(next() * 6);
+          copy[idx].y = 72 + Math.floor(next() * 230) * 3;
+        } else if (op === 2) {
+          // Insert a new region.
+          copy.push({
+            id: `ins-${seed}-${step}`,
+            page: 1 + Math.floor(next() * 6),
+            x: 54 + Math.floor(next() * 100) * 3,
+            y: 72 + Math.floor(next() * 230) * 3,
+            w: 40 + Math.floor(next() * 150),
+            h: 15 + Math.floor(next() * 100),
+          });
+        } else if (copy.length > 1) {
+          // Delete a region (possibly emptying its page).
+          copy.splice(Math.floor(next() * copy.length), 1);
+        }
+        items = copy;
+        state = reflowIncremental(a4, items, state);
+        const expected = referenceReflow(a4, items);
+        expect(state.flow.size).toBe(expected.size);
+        for (const [id, want] of expected) {
+          expect(state.flow.get(id)).toEqual(want);
+        }
+      }
+    }
+  });
+
+  it("recomputes only the touched page when a size change does not spill onto later pages", () => {
+    // 20 pages, 10 well-spaced regions per page.
+    const items: FlowItem[] = [];
+    for (let page = 1; page <= 20; page++) {
+      for (let row = 0; row < 10; row++) {
+        items.push({ id: `p${page}-r${row}`, page, x: 54, y: 72 + row * 60, w: 120, h: 24 });
+      }
+    }
+    const initial = reflowIncremental(a4, items);
+    expect(initial.pagesRecomputed).toBe(20);
+
+    // Grow one region on page 12 by 12 pt: stays on page 12, no spill onto page 13.
+    const edited = items.map((item) => (item.id === "p12-r3" ? { ...item, h: 36 } : item));
+    const after = reflowIncremental(a4, edited, initial);
+    expect(after.pagesRecomputed).toBe(1);
+    expect(after.flow.get("p12-r3")).toEqual(referenceReflow(a4, edited).get("p12-r3"));
+
+    // No-op pass recomputes 0 pages and keeps the same flow map.
+    const noop = reflowIncremental(a4, edited, after);
+    expect(noop.pagesRecomputed).toBe(0);
+    expect(noop.flow).toBe(after.flow);
+  });
 });
 
 describe("drawnYOf", () => {

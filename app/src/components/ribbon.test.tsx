@@ -891,19 +891,23 @@ describe("contextual tabs in the window (mock backend)", () => {
     fireEvent.pointerDown(region("pl1")!, { button: 0, clientX: 420, clientY: 820 });
     await act(async () => void fireEvent.pointerUp(window, { button: 0, clientX: 420, clientY: 820 }));
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
-    expect((screen.getByRole("button", { name: S.ribbon.commands.removeTrace }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("tab", { name: S.ribbon.tabs.trace })).toBeTruthy();
     const logY = screen.getByRole("button", { name: S.ribbon.commands.logY });
     expect(logY.getAttribute("aria-pressed")).toBe("false");
     fireEvent.click(logY);
     await waitFor(() => expect(screen.getByRole("button", { name: S.ribbon.commands.logY }).getAttribute("aria-pressed")).toBe("true"));
+    fireEvent.click(screen.getByRole("tab", { name: S.ribbon.tabs.trace }));
+    expect((screen.getByRole("button", { name: S.ribbon.commands.removeTrace }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: S.ribbon.commands.addTrace }));
     await waitFor(() => expect((screen.getByRole("button", { name: S.ribbon.commands.removeTrace }) as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: S.quickAccess.undo }));
     await waitFor(() => expect((screen.getByRole("button", { name: S.ribbon.commands.removeTrace }) as HTMLButtonElement).disabled).toBe(true));
+    fireEvent.click(screen.getByRole("tab", { name: S.ribbon.tabs.plot }));
     expect(screen.getByRole("button", { name: S.ribbon.commands.logY }).getAttribute("aria-pressed")).toBe("true");
-    // Escape clears the selection: the tab leaves, Insert is back.
+    // Escape clears the selection: both Plot and Trace tabs leave, Insert is back.
     await act(async () => void fireEvent.keyDown(window, { key: "Escape", code: "Escape" }));
     await waitFor(() => expect(screen.queryByRole("tab", { name: S.ribbon.tabs.plot })).toBeNull());
+    expect(screen.queryByRole("tab", { name: S.ribbon.tabs.trace })).toBeNull();
     expect(screen.getByRole("tab", { name: "Insert" }).getAttribute("aria-selected")).toBe("true");
   });
 
@@ -912,6 +916,7 @@ describe("contextual tabs in the window (mock backend)", () => {
     fireEvent.pointerDown(region("pl1")!, { button: 0, clientX: 420, clientY: 820 });
     await act(async () => void fireEvent.pointerUp(window, { button: 0, clientX: 420, clientY: 820 }));
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
+    fireEvent.click(screen.getByRole("tab", { name: S.ribbon.tabs.trace }));
     const remove = () => screen.getByRole("button", { name: S.ribbon.commands.removeTrace }) as HTMLButtonElement;
     const traceSlots = () => [...region("pl1")!.querySelectorAll<HTMLElement>("[data-trace-id]")];
     expect(remove().disabled).toBe(true);

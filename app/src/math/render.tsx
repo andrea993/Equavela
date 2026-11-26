@@ -378,7 +378,7 @@ function NameView({ name, upright = false, callee = false }: { name: Name; uprig
 /** A binder name (`∑`, `∫`, `ⅆ`, `lim`, `for` variable): a name or, while editing, `□`. */
 function VarView({ v, path }: { v: Node; path: Path | undefined }) {
   return (
-    <N path={path}>
+    <N path={path} node={v}>
       {v.type === "Placeholder" || !v.name ? <Placeholder /> : <NameView name={v.name} />}
     </N>
   );
@@ -466,7 +466,6 @@ function Fraction({ top, bottom }: { top: ReactNode; bottom: ReactNode }) {
 function Radical({ index, children }: { index?: ReactNode; children: ReactNode }) {
   return (
     <span className="root">
-      {index !== undefined && <span className="root-index sup">{index}</span>}
       <svg className="radical" width={12} viewBox="0 0 12 100" preserveAspectRatio="none" aria-hidden="true">
         <path
           d="M0.5,58 L3,54 L6,92 L11.5,1"
@@ -476,6 +475,7 @@ function Radical({ index, children }: { index?: ReactNode; children: ReactNode }
           vectorEffect="non-scaling-stroke"
         />
       </svg>
+      {index !== undefined && <span className="root-index sup">{index}</span>}
       <span className="radicand">
         <HRule className="over-rule" />
         {children}
@@ -531,6 +531,9 @@ function body(expr: Expr, path: Path | undefined): ReactNode {
 
 function Derivative({ node, path, partial }: { node: Expr; path: Path | undefined; partial: boolean }) {
   const d = partial ? <span className="up">{GLYPH.partial}</span> : <Differential />;
+  const varNode = node.var_expr ?? node.var;
+  const free = varNode.type !== undefined && varNode.type !== "Ident" && varNode.type !== "Placeholder";
+  const variable = free ? <MathExpr expr={varNode} path={at(path, 0)} /> : <VarView v={varNode} path={at(path, 0)} />;
   // The order shows twice; only the numerator copy is addressable.
   const order = (addressable: boolean) =>
     node.order ? (
@@ -550,7 +553,7 @@ function Derivative({ node, path, partial }: { node: Expr; path: Path | undefine
         bottom={
           <>
             {d}
-            <VarView v={node.var} path={at(path, 0)} />
+            {variable}
             {order(false)}
           </>
         }
@@ -769,7 +772,7 @@ function exprContent(expr: Expr, path: Path | undefined): ReactNode {
       const callee: Expr = expr.callee;
       const head =
         callee.type === "Ident" ? (
-          <N path={at(path, 0)}>
+          <N path={at(path, 0)} node={callee}>
             <NameView name={callee.name} upright={isFunctionLike(callee.name)} callee />
           </N>
         ) : (
@@ -787,7 +790,13 @@ function exprContent(expr: Expr, path: Path | undefined): ReactNode {
         <>
           <span className="id up">{expr.package}</span>
           <span className="op">{expr.package === "julia" ? "." : "::"}</span>
-          <span className="id up">{expr.name}</span>
+          {expr.package === "julia" && typeof expr.name === "string" && !expr.name.includes(".") ? (
+            <span className="name" data-name={expr.name}>
+              <span className="id up">{expr.name}</span>
+            </span>
+          ) : (
+            <span className="id up">{expr.name}</span>
+          )}
           {/* `julia.k` with no parentheses: a Julia value or a registered function. */}
           {!expr.bare && <Fenced kind="paren" className="call">{args(expr.args, path, 0)}</Fenced>}
         </>
@@ -857,17 +866,22 @@ function exprContent(expr: Expr, path: Path | undefined): ReactNode {
         </>
       );
     case "Integral": {
-      const b = expr.bounds ? 2 : 0;
+      const b = expr.bounds ? 2 : expr.domain ? 1 : 0;
       return (
         <>
           <span className="integral">
             <span className="int-glyph">{GLYPH.integral}</span>
-            {expr.bounds && (
+            {expr.bounds ? (
               <span className="int-bounds">
                 <span className="int-hi"><MathExpr expr={expr.bounds.hi} path={at(path, 1)} /></span>
                 <span className="int-lo"><MathExpr expr={expr.bounds.lo} path={at(path, 0)} /></span>
               </span>
-            )}
+            ) : expr.domain ? (
+              <span className="int-bounds">
+                <span className="int-hi" aria-hidden="true" />
+                <span className="int-lo"><MathExpr expr={expr.domain} path={at(path, 0)} /></span>
+              </span>
+            ) : null}
           </span>
           {body(expr.body, at(path, b))}
           <span className="differential">
@@ -1070,14 +1084,14 @@ export function TargetView({ target, path }: { target: Target; path?: Path }): R
     case "FunctionHead":
       return (
         <N path={path} node={target}>
-          <N path={at(path, 0)}>
+          <N path={at(path, 0)} node={target.name}>
             <NameView name={target.name.name} upright={isFunctionLike(target.name.name)} callee />
           </N>
           <Fenced kind="paren" className="call">
             {target.params.map((param: { name: Name }, i: number) => (
               <Fragment key={i}>
                 {i > 0 && <span className="comma">, </span>}
-                <N path={at(path, i + 1)}>
+                <N path={at(path, i + 1)} node={param}>
                   <NameView name={param.name} />
                 </N>
               </Fragment>

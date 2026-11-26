@@ -821,8 +821,16 @@ impl<'a> Analyzer<'a> {
             }
             K::Prod { .. } => DimensionFact::Unknown,
             K::Integral {
-                var, bounds, body, ..
+                var,
+                bounds,
+                domain,
+                body,
+                ..
             } => {
+                if domain.is_some() {
+                    let _ = self.infer_expr(region_id, body, locals, call_stack);
+                    return DimensionFact::Unknown;
+                }
                 let variable = bounds.as_ref().and_then(|bounds| {
                     scalar_of(&self.infer_expr(region_id, &bounds.lo, locals, call_stack))
                 });
@@ -840,9 +848,23 @@ impl<'a> Analyzer<'a> {
                 self.infer_expr(region_id, body, locals, call_stack);
                 DimensionFact::Unknown
             }
-            K::Deriv { var, order, body } | K::Partial { var, order, body } => {
-                let variable = locals.get(&LocalKey::variable(&var.name)).cloned();
+            K::Deriv {
+                var,
+                var_expr,
+                order,
+                body,
+            }
+            | K::Partial {
+                var,
+                var_expr,
+                order,
+                body,
+            } => {
                 let body = self.infer_expr(region_id, body, locals, call_stack);
+                if var_expr.is_some() {
+                    return DimensionFact::Unknown;
+                }
+                let variable = locals.get(&LocalKey::variable(&var.name)).cloned();
                 let order = order
                     .as_deref()
                     .and_then(literal_rational)

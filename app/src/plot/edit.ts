@@ -280,3 +280,27 @@ const setAxis = (spec: PlotSpec, axis: PlotAxisName, fields: Partial<PlotAxis>):
 
 /** The plot type (XY or polar); the traces keep their expressions (a polar trace reads x as the angle, y as the radius). */
 export const setPlotType = (spec: PlotSpec, type: PlotSpec["type"]): PlotSpec => ({ ...spec, type });
+
+/** Legend corner inside the plot area; default (`top-right`) is omitted from the spec. */
+export function setLegendPosition(
+  spec: PlotSpec,
+  position: NonNullable<PlotSpec["legend_position"]>,
+): PlotSpec {
+  const next: PlotSpec = { ...spec };
+  if (position === "top-right") delete next.legend_position;
+  else next.legend_position = position;
+  return next;
+}
+
+/** Legend font size in points (6..36); `null` or the default 12 pt restores the default size. */
+export function setLegendFontSize(spec: PlotSpec, sizePt: number | null): PlotSpec {
+  const next: PlotSpec = { ...spec };
+  if (sizePt === null || !Number.isFinite(sizePt)) {
+    delete next.legend_font_size;
+    return next;
+  }
+  const clamped = Math.min(36, Math.max(6, sizePt));
+  if (clamped === 12) delete next.legend_font_size;
+  else next.legend_font_size = clamped;
+  return next;
+}

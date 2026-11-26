@@ -185,7 +185,11 @@ export function childRefs(n: Node): Step[][] {
     case "Prod":
       return n.bounds ? [["var"], ["bounds", "lo"], ["bounds", "hi"], ["body"]] : [["var"], ["body"]];
     case "Integral":
-      return n.bounds ? [["bounds", "lo"], ["bounds", "hi"], ["body"], ["var"]] : [["body"], ["var"]];
+      return n.bounds
+        ? [["bounds", "lo"], ["bounds", "hi"], ["body"], ["var"]]
+        : n.domain
+          ? [["domain"], ["body"], ["var"]]
+          : [["body"], ["var"]];
     case "Deriv":
     case "Partial":
       return n.order ? [["var"], ["order"], ["body"]] : [["var"], ["body"]];
@@ -476,11 +480,15 @@ export function toEditing(value: unknown): Node {
       const name = out.keyword.name as { segments?: { text: string }[] } | undefined;
       if (name && (name.segments ?? []).every((s) => s.text === "")) out.keyword = ph();
     }
-    // The free lower slot of a sum or product is the editing form's `var`: the slot
-    // holds any expression.
+    // The free lower slot of a sum or product, and the free variable expression of a
+    // derivative, become the editing form's `var` so the slot holds any expression.
     if ((out.type === "Sum" || out.type === "Prod") && "index" in out) {
       if (out.index) out.var = out.index;
       delete out.index;
+    }
+    if ((out.type === "Deriv" || out.type === "Partial") && "var_expr" in out) {
+      if (out.var_expr) out.var = out.var_expr;
+      delete out.var_expr;
     }
     if (key === "target" && ownerType && ["Define", "GlobalDefine", "LocalDef", "InlineDef"].includes(ownerType)) {
       return keep(targetToExpr(out as Node));
@@ -489,9 +497,9 @@ export function toEditing(value: unknown): Node {
     // name (`julia.f(a, b)`), so the caret, the mouse and the selection treat it as any name. The
     // commit parses it back into the Julia reference.
     if (out.type === "JuliaCall" && out.package === "julia" && typeof out.name === "string") {
-      const name: Node = { type: "Ident", name: { segments: [{ text: `julia.${out.name}`, subscript: false }], label: null } };
+      const name: Node = keep({ type: "Ident", name: { segments: [{ text: `julia.${out.name}`, subscript: false }], label: null } });
       const args = Array.isArray(out.args) ? (out.args as Node[]) : [];
-      if (out.bare) return keep(name);
+      if (out.bare) return name;
       if (args.length > 0) return keep({ type: "Call", callee: name, args });
     }
     return keep(out);
@@ -538,7 +546,7 @@ export function withIntegralBoundSlots(value: Node): Node {
     if (Array.isArray(v)) return v.map(walk);
     if (!isObject(v)) return v;
     const out = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
-    if (out.type === "Integral" && !out.bounds) out.bounds = { lo: ph(), hi: ph() };
+    if (out.type === "Integral" && !out.bounds && !out.domain) out.bounds = { lo: ph(), hi: ph() };
     const span = SPANS.get(v);
     if (span) SPANS.set(out, span);
     return out;
@@ -550,13 +558,37 @@ export function withIntegralBoundSlots(value: Node): Node {
 export function remapIntegralBoundHit(root: Node, path: Path): number[] {
   let node = root;
   return path.map((index) => {
-    const mapped = node.type === "Integral" && !node.bounds ? index + 2 : index;
+    const mapped = node.type === "Integral" && !node.bounds && !node.domain ? index + 2 : index;
     node = children(node)[index];
     return mapped;
   });
 }
 
-/** Translate an editing path to the committed tree after empty integral bounds disappear. */
+/** Offer an optional index slot when editing a square root; an empty slot serializes as a square root. */
+export function withRootIndexSlots(value: Node): Node {
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (!isObject(v)) return v;
+    const out = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    if (out.type === "Root" && !out.index) out.index = ph();
+    const span = SPANS.get(v);
+    if (span) SPANS.set(out, span);
+    return out;
+  };
+  return walk(value) as Node;
+}
+
+/** Translate a hit in the committed tree into the tree with editable root index slots. */
+export function remapRootIndexHit(root: Node, path: Path): number[] {
+  let node = root;
+  return path.map((index) => {
+    const mapped = node.type === "Root" && !node.index ? index + 1 : index;
+    node = children(node)[index];
+    return mapped;
+  });
+}
+
+/** Translate an editing path to the committed tree after empty optional slots (integral bounds, root index) disappear. */
 export function integralWirePath(root: Node, path: Path): Path | null {
   let node = root;
   const result: number[] = [];
@@ -565,6 +597,9 @@ export function integralWirePath(root: Node, path: Path): Path | null {
     if (node.type === "Integral" && node.bounds && isEmptySlot(node.bounds.lo) && isEmptySlot(node.bounds.hi)) {
       if (index < 2) return null;
       mapped -= 2;
+    } else if (node.type === "Root" && isEmptySlot(node.index)) {
+      if (index === 0) return null;
+      mapped -= 1;
     }
     result.push(mapped);
     node = children(node)[index];
@@ -666,9 +701,19 @@ function toWireExpr(e: Node): Node {
       // Both bounds still empty: the indefinite integral `∫[x] body`, as for a sum.
       if (isObject(e.bounds) && isEmptySlot(e.bounds.lo) && isEmptySlot(e.bounds.hi)) out.bounds = null;
       break;
+    case "Root":
+      // An empty index slot is a square root, as empty integral bounds are an indefinite integral.
+      if (isEmptySlot(e.index)) out.index = null;
+      break;
     case "Deriv":
     case "Partial":
-      out.var = binderIdent(e.var, "derivative");
+      if (e.var.type === "Ident" || e.var.type === "Placeholder") {
+        out.var = binderIdent(e.var, "derivative");
+        delete out.var_expr;
+      } else {
+        out.var_expr = toWireAny(e.var);
+        out.var = { name: { segments: [{ text: "", subscript: false }], label: null } };
+      }
       break;
     case "Gradient":
       out.vars = (e.vars as Node[]).map((v) => binderIdent(v, "gradient"));

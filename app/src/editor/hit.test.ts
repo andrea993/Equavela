@@ -25,6 +25,16 @@ function sum() {
   return { container, op, a };
 }
 
+it("places a click after a short program instruction at its right edge", () => {
+  const container = document.createElement("div");
+  container.innerHTML = '<span class="prog-lines"><span class="line" data-path="0.0"><span class="kw">return</span><span class="node" data-path="0.0.0">x</span></span></span>';
+  const line = container.querySelector(".line")!;
+  box(line, 10, 200);
+  box(line.querySelector(".kw")!, 10, 35);
+  box(line.querySelector(".node")!, 35, 50);
+  expect(mathHit(container, line, 80, 10)).toEqual({ path: [0, 0], side: "R", caret: null });
+});
+
 describe("a click inside a string split by a presentation break", () => {
   function split() {
     const container = document.createElement("div");

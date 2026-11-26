@@ -14,18 +14,42 @@
 const _HANDLE_LOCK = ReentrantLock()
 const _HANDLE_OBJECTS = Dict{String,Any}()
 const _HANDLE_IDS = IdDict{Any,String}()
+const _HANDLE_OWNERS = Dict{String,Set{String}}()
+const _HANDLE_OWNER = ScopedValue{Union{Nothing,String}}(nothing)
 const _HANDLE_COUNTER = Ref(0)
+
+"Run `f` attributing any newly created or reused opaque handles to `owner`."
+with_handle_owner(f, owner::AbstractString) =
+    with(f, _HANDLE_OWNER => String(owner))
 
 "Forget all opaque handles issued so far (a handle id is only valid for the process that issued it)."
 function clear_handles!()
     lock(_HANDLE_LOCK) do
         empty!(_HANDLE_OBJECTS)
         empty!(_HANDLE_IDS)
+        empty!(_HANDLE_OWNERS)
+    end
+    nothing
+end
+
+"Release opaque handles owned exclusively by `owner` (called when a worksheet resets or closes)."
+function release_handles!(owner::AbstractString)
+    key = String(owner)
+    lock(_HANDLE_LOCK) do
+        ids = pop!(_HANDLE_OWNERS, key, nothing)
+        ids === nothing && return
+        for id in ids
+            still_owned = any(set -> id in set, values(_HANDLE_OWNERS))
+            still_owned && continue
+            obj = pop!(_HANDLE_OBJECTS, id, nothing)
+            obj === nothing || delete!(_HANDLE_IDS, obj)
+        end
     end
     nothing
 end
 
 function _make_handle(object)
+    owner = _HANDLE_OWNER[]
     lock(_HANDLE_LOCK) do
         id = get(_HANDLE_IDS, object, nothing)
         if id === nothing
@@ -33,6 +57,9 @@ function _make_handle(object)
             id = "h" * string(_HANDLE_COUNTER[])
             _HANDLE_OBJECTS[id] = object
             _HANDLE_IDS[object] = id
+        end
+        if owner !== nothing
+            push!(get!(() -> Set{String}(), _HANDLE_OWNERS, owner), id)
         end
         OpaqueHandle(id, _qualified_type_name(object), _summary(object))
     end

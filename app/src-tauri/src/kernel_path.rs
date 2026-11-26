@@ -219,14 +219,34 @@ fn sysimage_disabled(path: &Path) -> bool {
 /// The newest modification time of the files that make up the kernel (the EquavelaKernel and
 /// EqRuntime sources and manifests).
 fn newest_kernel_source(kernel_project: &Path) -> Option<std::time::SystemTime> {
-    fn visit(path: &Path, newest: &mut Option<std::time::SystemTime>) {
-        let Ok(meta) = std::fs::metadata(path) else {
+    const MAX_DEPTH: usize = 32;
+    fn is_reparse_point(meta: &std::fs::Metadata) -> bool {
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+            meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = meta;
+            false
+        }
+    }
+    fn visit(path: &Path, depth: usize, newest: &mut Option<std::time::SystemTime>) {
+        if depth > MAX_DEPTH {
+            return;
+        }
+        let Ok(meta) = std::fs::symlink_metadata(path) else {
             return;
         };
+        if meta.file_type().is_symlink() || is_reparse_point(&meta) {
+            return;
+        }
         if meta.is_dir() {
             if let Ok(entries) = std::fs::read_dir(path) {
                 for entry in entries.flatten() {
-                    visit(&entry.path(), newest);
+                    visit(&entry.path(), depth + 1, newest);
                 }
             }
         } else if let Ok(modified) = meta.modified() {
@@ -239,7 +259,7 @@ fn newest_kernel_source(kernel_project: &Path) -> Option<std::time::SystemTime> 
     let runtime = kernel_project.parent()?.join("EqRuntime");
     for root in [kernel_project, runtime.as_path()] {
         for item in ["src", "Project.toml", "Manifest.toml"] {
-            visit(&root.join(item), &mut newest);
+            visit(&root.join(item), 0, &mut newest);
         }
     }
     newest

@@ -61,6 +61,33 @@ pub enum PathError {
     Nul,
 }
 
+/// Strips a Windows verbatim prefix (`\\?\` or `\\?\UNC\`, and their `/`-normalized forms)
+/// so canonical paths use ordinary drive or UNC spelling.
+pub fn strip_verbatim_prefix(path: &str) -> String {
+    if let Some(rest) = path.strip_prefix(r"\\?\") {
+        if rest
+            .get(..4)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case(r"UNC\"))
+        {
+            return format!(r"\\{}", &rest[4..]);
+        }
+        if rest.len() >= 3 && rest.as_bytes()[1..3] == *b":\\" {
+            return rest.to_owned();
+        }
+    } else if let Some(rest) = path.strip_prefix("//?/") {
+        if rest
+            .get(..4)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("UNC/"))
+        {
+            return format!("//{}", &rest[4..]);
+        }
+        if rest.len() >= 3 && rest.as_bytes()[1..3] == *b":/" {
+            return rest.to_owned();
+        }
+    }
+    path.to_owned()
+}
+
 fn normalize_path(path: &str) -> Result<String, PathError> {
     if path.is_empty() {
         return Err(PathError::Empty);
@@ -68,23 +95,9 @@ fn normalize_path(path: &str) -> Result<String, PathError> {
     if path.contains('\0') {
         return Err(PathError::Nul);
     }
-    let path = path.replace('\\', "/");
     // Windows canonicalize() returns verbatim paths. Document IDs use ordinary
     // drive/UNC spelling so typed and canonical paths identify the same document.
-    let path = if let Some(rest) = path.strip_prefix("//?/") {
-        if rest
-            .get(..4)
-            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("UNC/"))
-        {
-            format!("//{}", &rest[4..])
-        } else if rest.len() >= 3 && rest.as_bytes()[1..3] == *b":/" {
-            rest.to_owned()
-        } else {
-            path
-        }
-    } else {
-        path
-    };
+    let path = strip_verbatim_prefix(&path.replace('\\', "/"));
     let unc_root = path.strip_prefix("//").and_then(|network| {
         let mut parts = network.splitn(3, '/');
         let server = parts.next()?;
@@ -1326,4 +1339,30 @@ fn name_key(name: &Name) -> String {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod verbatim_path_tests {
+    use super::strip_verbatim_prefix;
+
+    #[test]
+    fn strips_windows_drive_and_unc_verbatim_prefixes() {
+        assert_eq!(
+            strip_verbatim_prefix(r"\\?\C:\proj\a.eqv"),
+            r"C:\proj\a.eqv"
+        );
+        assert_eq!(
+            strip_verbatim_prefix(r"\\?\UNC\server\share\a.eqv"),
+            r"\\server\share\a.eqv"
+        );
+        assert_eq!(
+            strip_verbatim_prefix("//?/UNC/server/share/a.eqv"),
+            "//server/share/a.eqv"
+        );
+        assert_eq!(strip_verbatim_prefix("//?/C:/proj/a.eqv"), "C:/proj/a.eqv");
+        assert_eq!(
+            strip_verbatim_prefix("/home/user/a.eqv"),
+            "/home/user/a.eqv"
+        );
+    }
 }

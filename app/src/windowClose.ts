@@ -26,12 +26,19 @@ export function guardWindowClose(guard: () => CloseGuard): () => void {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }
   let removed = false;
+  let inFlight = false;
   let unlisten: (() => void) | null = null;
   void import("@tauri-apps/api/window").then(async ({ getCurrentWindow }) => {
     const current = getCurrentWindow();
     const off = await current.onCloseRequested(async (event) => {
       event.preventDefault();
-      if (await guard().confirm()) await current.destroy();
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        if (await guard().confirm()) await current.destroy();
+      } finally {
+        inFlight = false;
+      }
     });
     if (removed) off();
     else unlisten = off;

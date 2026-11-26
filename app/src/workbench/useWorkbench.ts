@@ -7,6 +7,7 @@ import { fastSymbolicContext, type FastSymbolicOperation, type FastSymbolicOptio
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { Backend, BackendMode, ReferencesChange } from "../backend";
 import type { EnvironmentInfo, EnvironmentMetadataFile, EnvironmentOperation, EnvironmentSwitchPreview } from "../equavelaApi";
+import { projectWorksheetPath } from "../components/ProjectTree";
 import { storedY, withMembers } from "../layout/areas";
 import { NEW_REGION_HEIGHT_PT, placeOnPage } from "../layout/insert";
 import { dropImages } from "../page/ImageContext";
@@ -31,7 +32,7 @@ import {
 import { S } from "../strings";
 import { enterPrint, leavePrint, printReady, withPrintView } from "../print/printMode";
 import { apply as applyEditor, breakWires, initialState as initialEditor, placeCaret, type Caret, type EditorState, type Side } from "../editor/model";
-import { drawnParenPath, isEmptyKeywordGroup, isEmptyStatement, toEditing, toWire, withDrawnParens, withKeywordSlot, withIntegralBoundSlots, withTableUnitSlots, withUnitSlot, remapIntegralBoundHit, WireError, type Node, type Path } from "../editor/tree";
+import { drawnParenPath, isEmptyKeywordGroup, isEmptyStatement, toEditing, toWire, withDrawnParens, withKeywordSlot, withIntegralBoundSlots, withRootIndexSlots, withTableUnitSlots, withUnitSlot, remapIntegralBoundHit, remapRootIndexHit, WireError, type Node, type Path } from "../editor/tree";
 import { isEmptyText, sameText } from "../text/value";
 import { loadProjectSession, relativeTo, saveProjectSession } from "./projectSession";
 import { reuseEntries, reuseRegions, sameValue } from "./reuse";
@@ -111,12 +112,15 @@ function lineAreasOf(doc: DocState): { id: string; page: number; y: number; heig
     .map((region) => ({ id: region.id, page: region.page, y: region.y, height: region.kind === "area" ? region.height : 0 }));
 }
 
-/**
- * The stored places the flow arithmetic of the sheet works on (`layout/lines.ts`), with the drawn
- * height of each region when it is known, so a moved region never reaches into the bottom margin.
- */
-function flowRegionsOf(doc: DocState, heights?: ReadonlyMap<string, number>): { id: string; page: number; y: number; h?: number }[] {
-  return doc.view.regions.map((region) => ({ id: region.id, page: region.page, y: region.y, h: heights?.get(region.id) }));
+/** Line commands follow displayed regions, including those displaced by reflow. */
+function visibleLineRegionsOf(doc: DocState, rects: readonly FlowRect[]) {
+  const byId = new Map(rects.flatMap((rect) => rect.id === undefined ? [] : [[rect.id, rect] as const]));
+  return doc.view.regions.map((region) => {
+    const rect = byId.get(region.id);
+    if (!rect) return { id: region.id, page: region.page, y: region.y, isArea: region.kind === "area" };
+    const stored = (y: number) => storedY(doc.view.regions, doc.view.page, rect.page, y);
+    return { id: region.id, page: rect.page, y: stored(rect.y + (rect.rise ?? 0)), selectionY: stored(rect.y), h: rect.h, rise: rect.rise, isArea: region.kind === "area" };
+  });
 }
 
 /** Where a click landed in a math region (for placing the caret). */
@@ -643,9 +647,6 @@ export function useWorkbench(backend: Backend) {
   const stateRef = useRef(state);
   /** Drawn rectangles (points) of the active worksheet, reported by the page view (reflow). */
   const layoutRef = useRef<FlowRect[]>([]);
-  /** The drawn height of each region, in points, as the line commands need it. */
-  const drawnHeights = (): Map<string, number> =>
-    new Map(layoutRef.current.flatMap((rect) => (rect.id === undefined ? [] : [[rect.id, rect.h] as const])));
   const pageCountRef = useRef(1);
   stateRef.current = state;
   // Promises waiting for the next commit of the window, resolved after it renders (`rendered`).
@@ -1310,13 +1311,25 @@ export function useWorkbench(backend: Backend) {
     if (id) await edit(id, () => backend.setWorksheetTrusted(id, false));
   }, [backend, edit]);
 
+  const deleteRegions = useCallback(
+    async (docId: string, ids: string[]) => {
+      if (ids.length === 0) return;
+      const doc = stateRef.current.docs.find((d) => d.id === docId);
+      if (!doc) return;
+      const existing = ids.filter((id) => doc.view.regions.some((r) => r.id === id));
+      if (existing.length === 0) return;
+      await edit(doc.id, () => backend.removeRegions(doc.id, existing), () => []);
+    },
+    [backend, edit],
+  );
+
   const deleteSelection = useCallback(async () => {
     const doc = stateRef.current.docs.find((d) => d.id === stateRef.current.activeId);
     if (!doc || doc.selection.length === 0) return;
     // Deleting an area deletes its members with it.
     const ids = withMembers(doc.view.regions, doc.selection, doc.view.page);
-    await edit(doc.id, () => backend.removeRegions(doc.id, ids), () => []);
-  }, [backend, edit]);
+    await deleteRegions(doc.id, ids);
+  }, [deleteRegions]);
 
   /** Sets the title, height and collapsed flag of an area; one undo step. */
   const setArea = useCallback(
@@ -1637,9 +1650,13 @@ export function useWorkbench(backend: Backend) {
    * draft was committed again with the characters typed while the first commit ran).
    */
   const commitInFlight = useRef<Promise<boolean> | null>(null);
+  const previewInFlight = useRef<Promise<void> | null>(null);
   const commitEdit = useCallback((after?: Crosshair): Promise<boolean> => {
     if (commitInFlight.current) return commitInFlight.current;
-    const run = commitEditNow(after).finally(() => {
+    const run = (async () => {
+      if (previewInFlight.current) await previewInFlight.current;
+      return commitEditNow(after);
+    })().finally(() => {
       commitInFlight.current = null;
     });
     commitInFlight.current = run;
@@ -1656,7 +1673,7 @@ export function useWorkbench(backend: Backend) {
   const lastPreview = useRef<string | null>(null);
   const preview = useCallback(async () => {
     const editing = stateRef.current.editing;
-    if (!editing || stateRef.current.textEditing || commitInFlight.current) return;
+    if (!editing || stateRef.current.textEditing || commitInFlight.current || previewInFlight.current) return;
     const root = editing.editor.root;
     if (!isLiveEvaluation(root)) return;
     const key = JSON.stringify(root);
@@ -1670,29 +1687,40 @@ export function useWorkbench(backend: Backend) {
     }
     lastPreview.current = key;
     const regionId = editing.regionId;
-    const result = await edit(
-      editing.docId,
-      () =>
-        regionId
-          ? backend.setMath(editing.docId, regionId, wire, breaks)
-          : backend.addMathRegion(editing.docId, editing.page, snapToGrid(editing.x), storedAt(stateRef.current, editing.docId, editing.page, snapToGrid(editing.y)), wire, breaks),
-      () => [],
-      S.editor.rejected,
-    );
-    const now = stateRef.current.editing;
-    if (!result) {
-      // Refused: the editor stays with the math as typed, and the first Escape discards it
-      // instead of trying to store it again.
-      if (now && now.docId === editing.docId && now.regionId === regionId && JSON.stringify(now.editor.root) === key) {
-        dispatch({ type: "editing", editing: { ...now, rejected: lastFailure.current || S.messages.commandFailed("") } });
+    const run = (async () => {
+      const result = await edit(
+        editing.docId,
+        () =>
+          regionId
+            ? backend.setMath(editing.docId, regionId, wire, breaks)
+            : backend.addMathRegion(editing.docId, editing.page, snapToGrid(editing.x), storedAt(stateRef.current, editing.docId, editing.page, snapToGrid(editing.y)), wire, breaks),
+        () => [],
+        S.editor.rejected,
+      );
+      const now = stateRef.current.editing;
+      if (!result) {
+        // Refused: the editor stays with the math as typed, and the first Escape discards it
+        // instead of trying to store it again.
+        if (now && now.docId === editing.docId && now.regionId === regionId && JSON.stringify(now.editor.root) === key) {
+          const nextEditing = { ...now, rejected: lastFailure.current || S.messages.commandFailed("") };
+          stateRef.current = { ...stateRef.current, editing: nextEditing };
+          dispatch({ type: "editing", editing: nextEditing });
+        }
+        return;
       }
-      return;
-    }
-    if (!now || now.docId !== editing.docId || now.regionId !== regionId) return;
-    dispatch({ type: "editing", editing: { ...now, regionId: regionId ?? result.created, original: key, originalBreaks: breaks, rejected: null } });
-    if (!regionId) {
-      dispatch({ type: "crosshair", id: editing.docId, crosshair: { page: editing.page, x: editing.x, y: (editing.insertionY ?? editing.y) + WORKSHEET_LINE_PT } });
-    }
+      if (!now || now.docId !== editing.docId || now.regionId !== regionId) return;
+      const nextEditing = { ...now, regionId: regionId ?? result.created, original: key, originalBreaks: breaks, rejected: null };
+      // Update stateRef synchronously so a commitEdit() waiting on previewInFlight sees the created regionId.
+      stateRef.current = { ...stateRef.current, editing: nextEditing };
+      dispatch({ type: "editing", editing: nextEditing });
+      if (!regionId) {
+        dispatch({ type: "crosshair", id: editing.docId, crosshair: { page: editing.page, x: editing.x, y: (editing.insertionY ?? editing.y) + WORKSHEET_LINE_PT } });
+      }
+    })().finally(() => {
+      previewInFlight.current = null;
+    });
+    previewInFlight.current = run;
+    await run;
   }, [backend, edit]);
   const editedRoot = state.editing?.editor.root;
   useEffect(() => {
@@ -1736,8 +1764,10 @@ export function useWorkbench(backend: Backend) {
       // view (the click, the stored breaks) are mapped onto them.
       const drawn = withKeywordSlot(toEditing(region.statement));
       const base = withDrawnParens(drawn);
-      const viewPath = (path: Path) => remapIntegralBoundHit(base, drawnParenPath(drawn, base, path));
-      const tree = withUnitSlot(withTableUnitSlots(withIntegralBoundSlots(base)));
+      const withBounds = withIntegralBoundSlots(base);
+      const viewPath = (path: Path) =>
+        remapRootIndexHit(withBounds, remapIntegralBoundHit(base, drawnParenPath(drawn, base, path)));
+      const tree = withUnitSlot(withTableUnitSlots(withRootIndexSlots(withBounds)));
       const breaks = region.breaks ?? [];
       const editingBreaks = breaks.map(anchor => ({ ...anchor, path: viewPath(anchor.path) }));
       let editor = initialEditor(tree, editingBreaks);
@@ -1916,9 +1946,10 @@ export function useWorkbench(backend: Backend) {
     // else it goes before the area the crosshair is in, so a member is never pushed out of its band.
     const raw = storedCrosshair(doc);
     const area = areaBodyAt(setup, lineAreasOf(doc), raw, view);
+    const regions = visibleLineRegionsOf(doc, layoutRef.current);
     const insertion: LineInsertion & { area?: { id: string; height: number } } = area
-      ? insertWorksheetLineInArea(setup, flowRegionsOf(doc, drawnHeights()), area, raw, view, count)
-      : insertWorksheetLines(setup, flowRegionsOf(doc, drawnHeights()), storedInsertionPoint(doc), count, view);
+      ? insertWorksheetLineInArea(setup, regions, area, raw, view, count)
+      : insertWorksheetLines(setup, regions, storedInsertionPoint(doc), count, view);
     dispatch({ type: "crosshair", id: doc.id, crosshair: { page: insertion.crosshair.page, x, y: insertion.crosshair.y } });
     const resize = areaHeightsOf(insertion.area ?? null);
     if (insertion.moves.length === 0 && !resize) return;
@@ -1960,7 +1991,7 @@ export function useWorkbench(backend: Backend) {
       dispatch({ type: "message", text: S.ribbon.pageBreakExists(at.page), level: "info" });
       return;
     }
-    const shift = addPageBreakShift(doc.view.page, flowRegionsOf(doc, drawnHeights()), at, stateRef.current.viewMode);
+    const shift = addPageBreakShift(doc.view.page, visibleLineRegionsOf(doc, layoutRef.current), at, stateRef.current.viewMode);
     const y = snapToGrid(at.y);
     await edit(doc.id, () => backend.addPageBreak(doc.id, at.page, y, movesOf(doc, shift.moves)));
   }, [backend, commitEdit, edit]);
@@ -1977,7 +2008,7 @@ export function useWorkbench(backend: Backend) {
     const at = storedInsertionPoint(doc);
     const found = pageBreakAtKey(doc.view.page, doc.view.page_breaks ?? [], at, key, stateRef.current.viewMode);
     if (!found) return false;
-    const shift = removePageBreakShift(doc.view.page, flowRegionsOf(doc, drawnHeights()), found, stateRef.current.viewMode);
+    const shift = removePageBreakShift(doc.view.page, visibleLineRegionsOf(doc, layoutRef.current), found, stateRef.current.viewMode);
     await edit(doc.id, () => backend.removePageBreak(doc.id, found.page, movesOf(doc, shift.moves)));
     return true;
   }, [backend, edit]);
@@ -1995,9 +2026,10 @@ export function useWorkbench(backend: Backend) {
     const view = stateRef.current.viewMode;
     const raw = storedCrosshair(doc);
     const area = areaBodyAt(setup, lineAreasOf(doc), raw, view);
+    const regions = visibleLineRegionsOf(doc, layoutRef.current);
     const shift = area
-      ? removeWorksheetLineInArea(setup, flowRegionsOf(doc, drawnHeights()), area, raw, view)
-      : { ...removeWorksheetLine(setup, flowRegionsOf(doc, drawnHeights()), storedInsertionPoint(doc), view), area: null };
+      ? removeWorksheetLineInArea(setup, regions, area, raw, view)
+      : { ...removeWorksheetLine(setup, regions, storedInsertionPoint(doc), view), area: null };
     if (shift.moves.length === 0 && !shift.area) return;
     await edit(doc.id, () => backend.moveRegions(doc.id, movesOf(doc, shift.moves), areaHeightsOf(shift.area)));
   }), [backend, commitEdit, edit, inLineOrder]);
@@ -2013,8 +2045,7 @@ export function useWorkbench(backend: Backend) {
     if ((stateRef.current.editing || stateRef.current.textEditing) && !(await commitEdit())) return;
     const doc = stateRef.current.docs.find((d) => d.id === stateRef.current.activeId);
     if (!doc) return;
-    const heights = new Map(layoutRef.current.map((rect) => [rect.id, rect.h]));
-    const regions = flowRegionsOf(doc).map((region) => ({ ...region, h: heights.get(region.id) ?? 0 }));
+    const regions = visibleLineRegionsOf(doc, layoutRef.current).map((region) => ({ ...region, h: region.h ?? 0 }));
     const setup = doc.view.page;
     const view = stateRef.current.viewMode;
     const raw = storedCrosshair(doc);
@@ -2121,7 +2152,7 @@ export function useWorkbench(backend: Backend) {
     const source = current.editing;
     const doc = current.docs.find(d => d.id === current.activeId);
     if (!source || !doc || source.docId !== doc.id) return;
-    const { entries, variable } = fastSymbolicContext(source.editor);
+    const { entries, variable, collectExpression } = fastSymbolicContext(source.editor);
     const entry = entries.find(item => item.id === operation);
     if (!entry?.enabled) return;
     const sourceRect = layoutRef.current.find(r => r.id === (source.regionId ?? DRAFT_REGION));
@@ -2134,6 +2165,7 @@ export function useWorkbench(backend: Backend) {
       const statement = toWire(source.editor.root);
       const output = await backend.fastSymbolic(doc.id, {
         statement, operation, variable: entry.needs === "expression" || entry.needs === "scalar" ? null : variable,
+        ...(operation === "collect" && collectExpression ? { collectExpression: toWire({ type: "ExprRegion", expr: collectExpression }).expr } : {}),
         worksheetVariables: options.worksheetVariables, regionId: source.regionId,
         page: source.page, x: source.x, y: storedAt(current, doc.id, source.page, source.y),
       });
@@ -2541,12 +2573,14 @@ export function useWorkbench(backend: Backend) {
     moves: readonly (readonly [string, string])[] = [],
   ) => {
     const current = projectRef.current;
-    if (!current) return;
+    if (!current) return false;
     try {
       const change = await run(current.root);
       if (change) applyProjectChange(change, moves);
+      return change !== null;
     } catch (error) {
       fail(S.project.worksheetFailed, error);
+      return false;
     }
   }, [applyProjectChange, fail]);
 
@@ -2562,9 +2596,9 @@ export function useWorkbench(backend: Backend) {
   const moveProjectItems = useCallback(async (paths: string[], folder: string) => {
     if (paths.some(hasUnsaved)) {
       dispatch({ type: "message", text: S.project.saveBeforeChanging, level: "warning" });
-      return;
+      return false;
     }
-    await projectCommand(root => backend.projectMoveMany(root, paths, folder), paths.map((path) => [path, inFolder(folder, baseName(path))] as const));
+    return projectCommand(root => backend.projectMoveMany(root, paths, folder), paths.map((path) => [path, inFolder(folder, baseName(path))] as const));
   }, [backend, hasUnsaved, projectCommand]);
 
   /** to the trash after a confirmation naming it (and its file count for a folder). */
@@ -2606,6 +2640,16 @@ export function useWorkbench(backend: Backend) {
     (folder: string, sources?: string[]) => projectCommand((root) => backend.projectImport(root, folder, sources)),
     [backend, projectCommand],
   );
+
+  const copyProjectFiles = useCallback(async (paths: string[], folder: string) => {
+    const current = projectRef.current;
+    if (!current) return;
+    if (paths.some(hasUnsaved)) {
+      dispatch({ type: "message", text: S.project.saveBeforeChanging, level: "warning" });
+      return;
+    }
+    await importProjectFiles(folder, paths.map((path) => projectWorksheetPath(current.root, path)));
+  }, [hasUnsaved, importProjectFiles]);
 
   const revealProjectItem = useCallback(async (path: string) => {
     const current = projectRef.current;
@@ -2986,8 +3030,7 @@ export function useWorkbench(backend: Backend) {
     }
   }, [fail, loadProject]);
 
-  // The project tree: read when a project opens and after each revision of the active
-  // worksheet, since inserting an image into a project worksheet may add a file.
+  // Refresh while open as files may also be created or removed outside the app.
   const activeRevision = state.docs.find((doc) => doc.id === state.activeId)?.revision;
   const projectRoot = project?.root ?? null;
   useEffect(() => {
@@ -2996,15 +3039,21 @@ export function useWorkbench(backend: Backend) {
       return;
     }
     let current = true;
-    backend.projectTree(projectRoot).then(
-      (change) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = async () => {
+      try {
+        const change = await backend.projectTree(projectRoot);
         if (!current) return;
         setProjectEntries((old) => (JSON.stringify(old) === JSON.stringify(change.entries) ? old : change.entries));
-        setProject((open) => (open && JSON.stringify(open.manifest) !== JSON.stringify(change.manifest) ? { ...open, manifest: change.manifest } : open));
-      },
-      () => { if (current) setProjectEntries([]); },
-    );
-    return () => { current = false; };
+        setProject((open) => (open && open.root === projectRoot && JSON.stringify(open.manifest) !== JSON.stringify(change.manifest) ? { ...open, manifest: change.manifest } : open));
+      } catch {
+        // Keep the last known tree when the filesystem is temporarily unavailable.
+      } finally {
+        if (current) timer = setTimeout(refresh, 3000);
+      }
+    };
+    void refresh();
+    return () => { current = false; clearTimeout(timer); };
   }, [backend, projectRoot, activeRevision, projectLoads]);
 
   // ---- project references ------------------------------
@@ -3550,6 +3599,7 @@ export function useWorkbench(backend: Backend) {
     setResultDefaults,
     setLabelStyles,
     setCalculationSettings,
+    deleteRegions,
     deleteSelection,
     undo,
     redo,
@@ -3568,6 +3618,7 @@ export function useWorkbench(backend: Backend) {
     deleteProjectItem,
     deleteProjectItems,
     importProjectFiles,
+    copyProjectFiles,
     revealProjectItem,
     openProjectFile,
     openProjectItems,

@@ -10,12 +10,14 @@ import { WORKSHEET_LINE_PT } from "../layout/lines";
 import { createMockBackend } from "../mock/mockBackend";
 import { enterPrint, leavePrint } from "../print/printMode";
 import { S } from "../strings";
+import type { ViewRegion } from "../equavelaApi";
 
 vi.mock("../plot/plotlyBundle", () => ({ default: { react: vi.fn(async () => undefined), purge: vi.fn(), register: vi.fn() } }));
 
 afterEach(() => {
   leavePrint();
   cleanup();
+  vi.restoreAllMocks();
 });
 
 const region = (id: string) => document.querySelector<HTMLElement>(`[data-region-id="${id}"]`);
@@ -23,6 +25,32 @@ const top = (id: string) => parseFloat(region(id)!.style.top);
 const pages = () => document.querySelectorAll(".sheet > .page");
 const marks = () => document.querySelectorAll(".page-break-mark");
 const undoButton = () => screen.getByRole("button", { name: S.quickAccess.undo }) as HTMLButtonElement;
+
+it("moves text shown below the crosshair after reflow for a line or page break", async () => {
+  const block: ViewRegion = { id: "tall-block", page: 1, x: 300, y: 150, enabled: true, kind: "julia", block: { playing: false, size: [220, 120], using: [], imports: [], code: null, defines: [] } };
+  const heading: ViewRegion = { id: "heading", page: 1, x: 300, y: 180, enabled: true, kind: "text", text: "Heading", width: null, paragraphs: [{ runs: [{ kind: "text", text: "Heading" }] }] };
+  const dimensions = new Map([["tall-block", 120], ["heading", 24]]);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+    return dimensions.has(this.dataset.regionId ?? "") ? ptToPx(220) : 0;
+  });
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+    return ptToPx(dimensions.get(this.dataset.regionId ?? "") ?? 0);
+  });
+  render(<App backend={createMockBackend({ fast: true, extraRegions: [block, heading] })} />);
+  await waitFor(() => expect(region("heading")).not.toBeNull());
+  const before = top("heading");
+  expect(before).toBeGreaterThan(ptToPx(240));
+  const page = document.querySelector<HTMLElement>('.page[data-page="1"]')!;
+  await act(async () => void fireEvent.pointerDown(page, { button: 0, clientX: 100, clientY: ptToPx(240) }));
+  await act(async () => void fireEvent.keyDown(window, { key: "Enter", code: "Enter" }));
+  await waitFor(() => expect(top("heading")).toBeCloseTo(before + ptToPx(WORKSHEET_LINE_PT), 1));
+  fireEvent.click(undoButton());
+  await waitFor(() => expect(top("heading")).toBeCloseTo(before, 1));
+  await act(async () => void fireEvent.pointerDown(page, { button: 0, clientX: 100, clientY: ptToPx(240) }));
+  await command(S.ribbon.commands.addPageBreak);
+  await waitFor(() => expect(pages().length).toBeGreaterThanOrEqual(2));
+  expect(top("heading")).toBeGreaterThan(parseFloat((pages()[1] as HTMLElement).style.top));
+});
 
 async function openDemo() {
   render(<App backend={createMockBackend({ fast: true })} />);

@@ -1025,3 +1025,111 @@ describe("symbolic keyword lines", () => {
     expect(container.querySelector(".keywords > .comma")).toBeNull();
   });
 });
+
+describe("derivative with expression variable", () => {
+  it("draws a derivative with an expression in the denominator", () => {
+    const varExpr = { type: "Index", base: ident("w"), indices: [ident("j")] };
+    const container = renderStatement({
+      type: "ExprRegion",
+      expr: {
+        type: "Deriv",
+        var: { name: { segments: [{ text: "", subscript: false }], label: null } },
+        var_expr: varExpr,
+        order: null,
+        body: ident("f"),
+      },
+    });
+    expect(container.querySelector(".frac .den .sub.idx")?.textContent).toBe("j");
+    expect(text(container)).toContain("wj");
+    expect(text(container)).toContain("f");
+  });
+});
+
+describe("integral over a domain", () => {
+  it("draws the domain below the integral sign with no upper bound", () => {
+    const container = renderStatement({
+      type: "ExprRegion",
+      expr: {
+        type: "Integral",
+        var: { name: { segments: [{ text: "V", subscript: false }], label: null } },
+        bounds: null,
+        domain: ident("Ω"),
+        algorithm: null,
+        body: ident("ρ"),
+      },
+    });
+    expect(container.querySelector(".int-lo")?.textContent).toBe("Ω");
+    expect(container.querySelector(".int-hi")?.textContent).toBe("");
+    expect(text(container)).toContain("ρ");
+  });
+});
+
+describe("spans for hover and Ctrl+click navigation", () => {
+  it("preserves data-span on function call callees, function heads and Julia calls", () => {
+    const { container: call } = render(
+      <MathStatement
+        statement={
+          toEditing({
+            type: "ExprRegion",
+            span: { start: 0, end: 8 },
+            expr: {
+              type: "Call",
+              span: { start: 0, end: 8 },
+              callee: {
+                type: "Ident",
+                span: { start: 0, end: 5 },
+                name: { segments: [{ text: "U", subscript: false }, { text: "lim", subscript: true }], label: null },
+              },
+              args: [
+                {
+                  type: "Expr",
+                  expr: {
+                    type: "Ident",
+                    span: { start: 6, end: 7 },
+                    name: { segments: [{ text: "x", subscript: false }], label: null },
+                  },
+                },
+              ],
+            },
+          }) as never
+        }
+        path={[]}
+      />,
+    );
+    const calleeName = call.querySelector<HTMLElement>('.name[data-name="U_lim"]')!;
+    expect(calleeName).not.toBeNull();
+    expect(calleeName.closest<HTMLElement>(".node")?.dataset.span).toBe("0-5");
+
+    const { container: julia } = render(
+      <MathStatement
+        statement={
+          toEditing({
+            type: "ExprRegion",
+            span: { start: 0, end: 12 },
+            expr: {
+              type: "JuliaCall",
+              span: { start: 0, end: 12 },
+              package: "julia",
+              name: "foo",
+              bare: false,
+              args: [
+                {
+                  type: "Expr",
+                  expr: {
+                    type: "Ident",
+                    span: { start: 10, end: 11 },
+                    name: { segments: [{ text: "x", subscript: false }], label: null },
+                  },
+                },
+              ],
+            },
+          }) as never
+        }
+        path={[]}
+      />,
+    );
+    const juliaName = julia.querySelector<HTMLElement>('.name[data-name="julia.foo"]')!;
+    expect(juliaName).not.toBeNull();
+    expect(juliaName.closest<HTMLElement>(".node")?.dataset.span).toBe("0-12");
+  });
+});

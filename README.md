@@ -6,6 +6,16 @@ Website: [equavela.org](https://equavela.org)
 
 It brings live mathematics, explanatory text, physical units, matrices, and visualizations together on clean, paginated worksheets. Results recalculate automatically as you edit, and print/PDF output matches the screen exactly.
 
+## Screenshots
+
+| Symbolic analysis & multi-trace plots | Units, complex numbers & Bode plots |
+|---|---|
+| ![Fourier series and the Gibbs phenomenon](https://equavela.org/assets/shots/fourier-gibbs-1.webp) | ![Frequency response of an RC filter](https://equavela.org/assets/shots/rc-filter-2.webp) |
+
+| Programs & symbolic derivatives | Projects & Julia blocks |
+|---|---|
+| ![Newton's method as a program](https://equavela.org/assets/shots/newton-method-1.webp) | ![Predator-prey model with Julia block and phase portrait](https://equavela.org/assets/shots/lotka-volterra-2.webp) |
+
 ## Features
 
 - **Live Calculations & Symbolic Math:** Write formulas in standard mathematical notation. Numerical evaluation is powered by Julia, and symbolic manipulation is backed by SymPy.
@@ -61,3 +71,7 @@ julia --project=kernel/EqRuntime -e "using Pkg; Pkg.test()"
 ## License
 
 Equavela is licensed under the [Mozilla Public License 2.0 (MPL-2.0)](LICENSE).
+
+## Trademarks
+
+Mathcad® is a registered trademark of PTC Inc. Equavela is an independent open-source project and is not affiliated with, endorsed by, or sponsored by PTC Inc.

@@ -129,6 +129,12 @@ fn physical_constants_are_runtime_lookups_and_a_definition_wins() {
     // an explicit variable label is never a constant; an explicit constant label is
     assert!(expr("c@var").contains("is undefined"));
     assert_eq!(expr("c@const"), r#"eq_constant("c")"#);
+    // standard gravity `g` is a physical constant, `g@unit` stays the gram, and a definition wins
+    assert_eq!(expr("g"), r#"eq_constant("g")"#);
+    assert_eq!(expr("g@const"), r#"eq_constant("g")"#);
+    assert_eq!(expr("g@unit"), r#"eq_unit("g")"#);
+    assert_eq!(expr_with(&["g"], "g"), "g_v1");
+    assert!(expr("g@var").contains("is undefined"));
 }
 
 // --------------------------------------------------------------------------- operators
@@ -2156,6 +2162,34 @@ mod end_to_end {
         assert_eq!(value(4), "8.0");
         assert_eq!(value(5), "-1.0");
         assert_eq!(value(6), "ERROR: EqError: V[1] is not a function");
+    }
+
+    #[test]
+    fn variable_redefined_as_function_is_passed_as_the_function() {
+        let Some((results, _)) = run(&[
+            "VectDer(F, u) := program\n  F(u) + 1",
+            "X := [1; 2]",
+            "X(t) := t^2",
+            "VectDer(X, 3) =",
+            "D := [1; 2]",
+            "D(t, y) := [y[0]]",
+            "R := rkfixed([1], 0, 1, 10, D)",
+            "R[10, 1] =",
+            "M := [1; 2]",
+            "VectDer(M, 3) =",
+        ]) else {
+            return;
+        };
+        assert_eq!(results[0].1, "10.0");
+        let e_approx: f64 = results[1].1.parse().expect("rkfixed result");
+        assert!((e_approx - std::f64::consts::E).abs() < 1e-4, "{e_approx}");
+        assert!(
+            results[2]
+                .1
+                .contains("cannot call a value that is not a function"),
+            "{}",
+            results[2].1
+        );
     }
 
     #[test]

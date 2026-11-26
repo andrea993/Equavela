@@ -49,6 +49,18 @@ export const MIN_PLOT_AREA = 48;
 /** The row of the x expressions and limits: one line high, taller only for a taller expression. */
 export const X_ROW = { height: 22, max: 66 } as const;
 
+/** Vertical layout metrics of the y placeholder column, matching `page.css`, CSS px. */
+export const Y_SLOT_MIN_HEIGHT = 20;
+export const Y_SAMPLE_HEIGHT = 3;
+export const Y_STACK_GAP = 2;
+/** Minimum breathing room kept between an expanded y column and the top/bottom edge of the region box, CSS px. */
+export const Y_EDGE_PAD = 4;
+
+/** Extra vertical room added above and below the plot area when a tall y stack extends past it. */
+export type PlotVerticalExpansion = { overhang: number; top: number; bottom: number };
+
+export const NO_VERTICAL_EXPANSION: PlotVerticalExpansion = { overhang: 0, top: 0, bottom: 0 };
+
 /**
  * Room one title band takes, CSS px: one line of the label font at the fixed plot text size
  * . A band exists only while its fields hold text, so a plot without titles and
@@ -67,12 +79,10 @@ const axisBand = (axis: { title?: string; unit?: string | null } | undefined): n
 export type PlotBands = { plot: number; x: number; y: number; y2: number };
 
 /**
- * The width the placeholders of each margin column need, measured from their typeset math, CSS px
- *. The width is of the widest committed placeholder of the column: a y expression or y limit
- * on the left, a right y limit on the right.
+ * The measured room of the placeholders: the widths of the y columns, the height of the x row,
+ * and the total height of the stacked y column (expressions, trace samples and y limits).
  */
-/** The measured room of the placeholders: the widths of the y columns and the height of the x row. */
-export type PlotTextWidths = { y: number; y2: number; x: number };
+export type PlotTextWidths = { y: number; y2: number; x: number; yHeight?: number };
 
 /** No measured placeholder: every column keeps its base width. */
 export const NO_TEXT_WIDTHS: PlotTextWidths = { y: 0, y2: 0, x: 0 };
@@ -93,7 +103,11 @@ export function plotBands(spec: PlotSpec): PlotBands {
  * specification and the bundled fonts only — never on what is selected, focused or being edited — so
  * the screen and the PDF lay the same plot out at the same size.
  */
-export function plotMargin(spec: PlotSpec, widths: PlotTextWidths = NO_TEXT_WIDTHS): PlotMargin {
+export function plotMargin(
+  spec: PlotSpec,
+  widths: PlotTextWidths = NO_TEXT_WIDTHS,
+  extraY: { top?: number; bottom?: number } = NO_VERTICAL_EXPANSION,
+): PlotMargin {
   const bands = plotBands(spec);
   // the left column keeps the width its widest placeholder needs, and the plot area shifts
   // right by it; the right y limits do the same to the right margin.
@@ -102,11 +116,33 @@ export function plotMargin(spec: PlotSpec, widths: PlotTextWidths = NO_TEXT_WIDT
   return {
     l: bands.y + Y_COLUMN.left + y + Y_COLUMN.gap,
     r: usesRightAxis(spec) ? bands.y2 + Y2_COLUMN.right + y2 + Y2_COLUMN.gap : NO_RIGHT_AXIS_MARGIN,
-    t: MARGIN.t + bands.plot,
+    t: MARGIN.t + bands.plot + (extraY.top ?? 0),
     // A two-line x expression (a fraction, a unit under a subscript) lowers the title band instead
     // of running over it: the margin grows by what the row needs beyond one line.
-    b: MARGIN.b + bands.x + Math.max(0, widths.x - X_ROW.height),
+    b: MARGIN.b + bands.x + Math.max(0, widths.x - X_ROW.height) + (extraY.bottom ?? 0),
   };
+}
+
+/**
+ * Extra vertical room (CSS px) added above and/or below the plot area when the stacked y
+ * expressions are taller than the plot area. The y stack stays centred on the plot area and uses
+ * existing top/bottom margin room first (since the y column sits left of the x axis and title),
+ * only growing the region box past what already fits so no unused space is added below the plot.
+ */
+export function plotVerticalExpansion(
+  spec: PlotSpec,
+  baseHeightPx: number,
+  widths: PlotTextWidths = NO_TEXT_WIDTHS,
+): PlotVerticalExpansion {
+  const needed = widths.yHeight ?? 0;
+  if (needed <= 0) return NO_VERTICAL_EXPANSION;
+  const base = plotMargin(spec, widths);
+  const available = Math.max(0, baseHeightPx - base.t - base.b);
+  if (needed <= available) return NO_VERTICAL_EXPANSION;
+  const overhang = Math.ceil((needed - available) / 2);
+  const top = Math.max(0, overhang - Math.max(0, base.t - Y_EDGE_PAD));
+  const bottom = Math.max(0, overhang - Math.max(0, base.b - Y_EDGE_PAD));
+  return { overhang, top, bottom };
 }
 
 /**
@@ -129,7 +165,12 @@ export function fitTextWidths(
   };
   const y = fit(widths.y, Y_COLUMN.width);
   const x = Math.min(Math.max(widths.x, X_ROW.height), X_ROW.max);
-  return { y, y2: right ? fit(widths.y2, Y2_COLUMN.width) : Y2_COLUMN.width, x };
+  return {
+    y,
+    y2: right ? fit(widths.y2, Y2_COLUMN.width) : Y2_COLUMN.width,
+    x,
+    ...(widths.yHeight ? { yHeight: widths.yHeight } : {}),
+  };
 }
 
 export type RenderMode = "svg" | "gl";
@@ -637,6 +678,7 @@ export function buildFigure(
   selectedTraceId: string | null = null,
   ranges: AxisRanges = {},
   textWidths: PlotTextWidths = NO_TEXT_WIDTHS,
+  extraY: { top?: number; bottom?: number } = NO_VERTICAL_EXPANSION,
 ): PlotlyFigure {
   const traces: TraceFrame[] = frame && frame.state !== "error" && frame.state !== "pending" ? frame.traces : [];
   const drawn = plotlyTraces(spec, frame, printing, selectedTraceId);
@@ -707,7 +749,7 @@ export function buildFigure(
     layout: {
       width: size.width,
       height: size.height,
-      margin: plotMargin(spec, textWidths),
+      margin: plotMargin(spec, textWidths, extraY),
       paper_bgcolor: "#ffffff",
       plot_bgcolor: "#ffffff",
       // The legend is drawn by the app as typeset math: the library's own legend shows

@@ -77,11 +77,15 @@ fn lock_directory() -> Result<PathBuf, String> {
 fn lock_directory() -> Result<PathBuf, String> {
     use std::os::windows::fs::MetadataExt;
     let base = std::env::var_os("LOCALAPPDATA")
+        .filter(|value| !value.is_empty())
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
     let mut path = base;
-    let meta = fs::symlink_metadata(&path).map_err(|e| err(&path, e))?;
-    if !meta.is_dir() || meta.file_attributes() & 0x400 != 0 {
+    // The OS-managed LOCALAPPDATA root may itself be a reparse point (redirected profiles,
+    // OneDrive or VM junctions); check that it resolves to a directory, and enforce the
+    // non-reparse-point invariant on the app-owned subdirectories below it.
+    let meta = fs::metadata(&path).map_err(|e| err(&path, e))?;
+    if !meta.is_dir() {
         return Err(format!(
             "{} is not a regular lock directory",
             path.display()
@@ -175,6 +179,7 @@ impl ProjectGuard {
                 ));
             }
             let file = Rc::new(file);
+            locks.retain(|_, weak| weak.strong_count() > 0);
             locks.insert(root.clone(), Rc::downgrade(&file));
             let guard = Self { _file: file };
             recover(&root)?;
@@ -221,12 +226,12 @@ fn err(path: &Path, error: impl std::fmt::Display) -> String {
 }
 fn safe_path(path: &str) -> Result<(), String> {
     validate_portable_path("path", path).map_err(|e| e.to_string())?;
-    if path.split('/').any(|p| p.starts_with('.')) || path == MANIFEST_FILE {
+    if crate::project_tree::internal_path(path) {
         return Err(format!("invalid transaction path `{path}`"));
     }
     Ok(())
 }
-fn no_links(root: &Path, path: &str) -> Result<(), String> {
+pub(crate) fn no_links(root: &Path, path: &str) -> Result<(), String> {
     let mut p = root.to_path_buf();
     for c in path.split('/') {
         p.push(c);
@@ -251,10 +256,34 @@ fn mapped(path: &str, moves: &[Move]) -> String {
         |m| format!("{}{}", m.to, &path[m.from.len()..]),
     )
 }
+const MAX_FINGERPRINT_DEPTH: usize = 64;
+
+fn is_reparse_point(meta: &fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+        meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = meta;
+        false
+    }
+}
+
 fn fingerprint(path: &Path) -> Result<BTreeMap<String, String>, String> {
-    fn walk(path: &Path, rel: &str, out: &mut BTreeMap<String, String>) -> Result<(), String> {
+    fn walk(
+        path: &Path,
+        rel: &str,
+        depth: usize,
+        out: &mut BTreeMap<String, String>,
+    ) -> Result<(), String> {
+        if depth > MAX_FINGERPRINT_DEPTH {
+            return Err(format!("{} exceeds maximum folder depth", path.display()));
+        }
         let meta = fs::symlink_metadata(path).map_err(|e| err(path, e))?;
-        if meta.file_type().is_symlink() {
+        if meta.file_type().is_symlink() || is_reparse_point(&meta) {
             return Err(format!("{} contains a symbolic link", path.display()));
         }
         if meta.is_dir() {
@@ -270,7 +299,7 @@ fn fingerprint(path: &Path) -> Result<BTreeMap<String, String>, String> {
                 } else {
                     format!("{rel}/{name}")
                 };
-                walk(&entry.path(), &child, out)?;
+                walk(&entry.path(), &child, depth + 1, out)?;
             }
         } else if meta.is_file() {
             let mut file = File::open(path).map_err(|e| err(path, e))?;
@@ -298,7 +327,7 @@ fn fingerprint(path: &Path) -> Result<BTreeMap<String, String>, String> {
         Ok(())
     }
     let mut out = BTreeMap::new();
-    walk(path, "", &mut out)?;
+    walk(path, "", 0, &mut out)?;
     Ok(out)
 }
 fn bytes_fingerprint(bytes: &[u8]) -> String {

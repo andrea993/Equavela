@@ -817,8 +817,14 @@ async fn repl_restart(
 
 /// interrupts the REPL evaluation.
 #[tauri::command]
-fn repl_interrupt(service: Shared<'_>, project: Option<String>) -> Result<bool, CommandError> {
-    service.repl_interrupt(project.as_deref())
+async fn repl_interrupt(
+    service: Shared<'_>,
+    project: Option<String>,
+) -> Result<bool, CommandError> {
+    let service = Arc::clone(service.inner());
+    tauri::async_runtime::spawn_blocking(move || service.repl_interrupt(project.as_deref()))
+        .await
+        .map_err(|e| CommandError::internal(e.to_string()))?
 }
 
 /// the module name of every open worksheet, by worksheet id.
@@ -2085,8 +2091,11 @@ fn redo(service: Shared<'_>, worksheet: String) -> Result<EditResult, CommandErr
 }
 
 #[tauri::command]
-fn close_worksheet(service: Shared<'_>, worksheet: String) -> Result<(), CommandError> {
-    service.close_worksheet(&worksheet)
+async fn close_worksheet(service: Shared<'_>, worksheet: String) -> Result<(), CommandError> {
+    let service = Arc::clone(service.inner());
+    tauri::async_runtime::spawn_blocking(move || service.close_worksheet(&worksheet))
+        .await
+        .map_err(|e| CommandError::internal(e.to_string()))?
 }
 
 /// Replaces the math text of a region; returns the regions that became stale.
@@ -2109,8 +2118,11 @@ fn recalculate(service: Shared<'_>, worksheet: String, all: bool) -> Result<(), 
 
 /// Interrupts the running calculation.
 #[tauri::command]
-fn interrupt(service: Shared<'_>, worksheet: String) -> Result<bool, CommandError> {
-    service.interrupt(&worksheet)
+async fn interrupt(service: Shared<'_>, worksheet: String) -> Result<bool, CommandError> {
+    let service = Arc::clone(service.inner());
+    tauri::async_runtime::spawn_blocking(move || service.interrupt(&worksheet))
+        .await
+        .map_err(|e| CommandError::internal(e.to_string()))?
 }
 
 /// Names, references, include tree and unit warnings of a worksheet.
@@ -2131,12 +2143,15 @@ fn inspect_warnings(
 
 /// Current values of definitions (name as written and version), read from the kernel.
 #[tauri::command]
-fn definition_values(
+async fn definition_values(
     service: Shared<'_>,
     worksheet: String,
     items: Vec<DefinitionRef>,
 ) -> Result<Vec<DefinitionValue>, CommandError> {
-    service.definition_values(&worksheet, items)
+    let service = Arc::clone(service.inner());
+    tauri::async_runtime::spawn_blocking(move || service.definition_values(&worksheet, items))
+        .await
+        .map_err(|e| CommandError::internal(e.to_string()))?
 }
 
 #[tauri::command]

@@ -27,9 +27,9 @@ use std::path::Path;
 /// internal name, kept in this one constant (GitHub ).
 const WORKSHEET_NAMESPACE: &str = "http://schemas.mathsoft.com/worksheet";
 
-/// Unit names of our table that are not units of the same meaning in an `.xmcd`: `g` is
-/// the acceleration of gravity there, the gram here.
-const NOT_UNITS: &[&str] = &["g"];
+/// Implicit `.xmcd` constants: `g` is standard gravity in `.xmcd` (mapped to `g@const`), while
+/// `g@unit` is the gram here.
+const IMPLICIT_CONSTANTS: &[&str] = &["g"];
 
 /// Imports the `.xmcd` at `path`.
 pub fn import_xmcd(path: &Path) -> Result<Imported, ImportError> {
@@ -471,6 +471,11 @@ fn kind_of(source: &Source) -> &'static str {
         Some("picture") | Some("png") => "picture",
         Some("area") => "area",
         Some("reference") => "include",
+        Some("component")
+            if source.primary.and_then(|c| c.attribute("clsid-buddy")) == Some(FILE_INPUT) =>
+        {
+            "fileInput"
+        }
         _ => "other",
     }
 }
@@ -543,6 +548,7 @@ fn convert_regions(
             "text" => text_region(source, at, &id, page, styles, &definitions, report),
             "picture" => picture_region(source, at, &id, items, resources, report),
             "include" => include_region(source, at, &id, base, report),
+            "fileInput" => file_input_region(source, at, &id, items, base, report),
             "plot" => {
                 let item = source
                     .primary
@@ -812,10 +818,10 @@ fn other_region(source: &Source, report: &mut ImportReport) {
 
 /// The names the worksheet defines, for the implicit units of .
 struct Definitions {
-    /// The unit names that stay units: our table less what the worksheet defines anywhere (a
-    /// definition, a function head, an element assignment, a parameter, a local variable, a
-    /// range variable).
-    units: std::rc::Rc<HashSet<String>>,
+    /// The unlabelled names that receive `@unit` or `@const`: our unit table (except `g`) and
+    /// standard gravity `g`, less what the worksheet defines anywhere (a definition, a function
+    /// head, an element assignment, a parameter, a local variable, a range variable).
+    units: std::rc::Rc<HashMap<String, &'static str>>,
     /// the range variables defined so far, in reading order, with the range each holds.
     ranges: std::cell::RefCell<Vec<(Name, Expr)>>,
     /// the names a definition of an earlier region gives a value to.
@@ -832,10 +838,16 @@ impl Definitions {
                 }
             }
         }
-        let units = crate::units::unit_names()
+        let mut units: HashMap<String, &'static str> = crate::units::unit_names()
             .into_iter()
-            .filter(|n| !everywhere.contains(n) && !NOT_UNITS.contains(&n.as_str()))
+            .filter(|n| !everywhere.contains(n) && !IMPLICIT_CONSTANTS.contains(&n.as_str()))
+            .map(|n| (n, "@unit"))
             .collect();
+        for &name in IMPLICIT_CONSTANTS {
+            if !everywhere.contains(name) {
+                units.insert(name.to_owned(), "@const");
+            }
+        }
         Definitions {
             units: std::rc::Rc::new(units),
             ranges: Default::default(),
@@ -843,8 +855,9 @@ impl Definitions {
         }
     }
 
-    /// The unit names that are units in `math`: none in a symbolic evaluation.
-    fn units_in(&self, math: Node) -> std::rc::Rc<HashSet<String>> {
+    /// The unlabelled names that receive `@unit` or `@const` in `math`: none in a symbolic
+    /// evaluation.
+    fn units_in(&self, math: Node) -> std::rc::Rc<HashMap<String, &'static str>> {
         if math
             .descendants()
             .any(|n| n.is_element() && n.tag_name().name() == "symEval")
@@ -854,9 +867,8 @@ impl Definitions {
         self.units()
     }
 
-    /// The unit names the worksheet leaves as units: every unit of our table that the
-    /// worksheet does not define.
-    fn units(&self) -> std::rc::Rc<HashSet<String>> {
+    /// The unlabelled names the worksheet leaves as units or constants.
+    fn units(&self) -> std::rc::Rc<HashMap<String, &'static str>> {
         self.units.clone()
     }
 
@@ -1075,7 +1087,7 @@ fn math_statement(math: Node, definitions: &Definitions) -> Result<String, (Stri
         return Err(("math-empty".into(), "the math region is empty".into()));
     };
     let (linear, dropped) = math::with_xmcd_overrides(|| {
-        math::with_implicit_units(definitions.units_in(math), || math::statement_text(content))
+        math::with_implicit_labels(definitions.units_in(math), || math::statement_text(content))
     });
     if dropped > 0 {
         DROPPED_DISPLAY.with(|c| c.set(c.get() + dropped));
@@ -1155,6 +1167,102 @@ fn math_region(
             None
         }
     }
+}
+
+// ---- File Input --------------------------------------------------------------------------
+
+/// The component that reads a data file into its output variable.
+const FILE_INPUT: &str = "01350083-1122-11DB-9380-000D56C6051A";
+
+/// A File Input component becomes the definition that reads its file with `READFILE`.
+fn file_input_region(
+    source: &Source,
+    at: Placement,
+    id: &str,
+    items: &HashMap<String, (bool, &str)>,
+    base: Option<&Path>,
+    report: &mut ImportReport,
+) -> Option<DocumentRegion> {
+    let component = source.primary?;
+    let not_imported = |report: &mut ImportReport, why: &str| {
+        report.issue(
+            "component-not-imported",
+            Some(&source.id),
+            format!("the File Input component is not imported: {why}"),
+        );
+        None
+    };
+    let outputs: Vec<Node> = child(component, "outputs")
+        .map(child_elements)
+        .unwrap_or_default();
+    let [output] = outputs.as_slice() else {
+        return not_imported(report, "it has no single output variable");
+    };
+    let Ok(name) = math::target_name(*output) else {
+        return not_imported(report, "its output variable cannot be read");
+    };
+    let Some(input) = component
+        .attribute("item-idref")
+        .and_then(|r| item_bytes(items, r))
+        .and_then(|item| super::ole::stream(&item, "Contents"))
+        .and_then(|contents| super::ole::FileInput::read(&contents))
+    else {
+        return not_imported(report, "its settings cannot be read");
+    };
+    let kind = match input.format {
+        1 => "delimited",
+        3 => "Excel",
+        2 => return not_imported(report, "MATLAB files have no reader"),
+        4 => return not_imported(report, "Lotus 1-2-3 files have no reader"),
+        6 => return not_imported(report, "dBase III files have no reader"),
+        _ => return not_imported(report, "its file format is not known"),
+    };
+    let path = input.path.replace('\\', "/");
+    let range = |(start, stop): (u32, Option<u32>)| match stop {
+        Some(stop) => format!("[{start}; {stop}]"),
+        None => start.to_string(),
+    };
+    let whole = input.rows == (1, None) && input.cols == (1, None);
+    let mut arguments = vec![math::quoted(&path), math::quoted(kind)];
+    if !whole || input.decimal_comma {
+        arguments.push(range(input.rows));
+        arguments.push(range(input.cols));
+    }
+    if input.decimal_comma {
+        arguments.push("NaN".into());
+        arguments.push(math::quoted(","));
+    }
+    let text = format!("{name} := READFILE({})", arguments.join(", "));
+    let statement = parse_statement(&text).ok()?;
+    if let Some(folder) = base {
+        let file = if input.relative {
+            folder.join(&path)
+        } else {
+            Path::new(&path).to_path_buf()
+        };
+        if !file.is_file() {
+            report.issue(
+                "component-file-missing",
+                Some(&source.id),
+                format!("the File Input data file `{path}` does not exist"),
+            );
+        }
+    }
+    if component.attribute("disable-calc") == Some("true") {
+        report.note(
+            "disabled-region",
+            Some(&source.id),
+            "the region was disabled for calculation; it is imported enabled",
+        );
+    }
+    Some(DocumentRegion::Math(Box::new(crate::graph::Region {
+        id: id.to_owned(),
+        page: at.page,
+        x: at.x,
+        y: at.y,
+        enabled: true,
+        statement: std::sync::Arc::new(statement),
+    })))
 }
 
 // ---- pictures ----------------------------------------------------------------------------

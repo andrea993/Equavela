@@ -253,8 +253,8 @@ export function TitleBar({
   onSaveAs: () => void;
   onUndo: () => void;
   onRedo: () => void;
-  /** Local math-editor history takes precedence while its region is open. */
-  history?: { canUndo: boolean; canRedo: boolean; undoLabel: string; redoLabel: string };
+  /** Active editor history takes precedence while non-empty; omitted labels fall back to worksheet. */
+  history?: { canUndo: boolean; canRedo: boolean; undoLabel?: string; redoLabel?: string };
   /** The Save button's tooltip: `Save project` while a project is open. */
   saveTitle?: string;
   /** the project commands, in a group of their own on the right of the title bar.

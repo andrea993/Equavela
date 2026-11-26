@@ -26,6 +26,8 @@ import {
   printableArea,
   resizeImage,
   reflow,
+  reflowIncremental,
+  type ReflowState,
   type FlowRect,
   type FlowItem,
   ptToPx,
@@ -94,7 +96,7 @@ type Props = {
   /** The pointer is over a name of a math region (null when it leaves). */
   onNameHover?: (hover: NameHover | null) => void;
   /** Ctrl+click on a name: true when it was handled (a definition was found). */
-  onNameClick?: (regionId: string, start: number, end: number, name: string) => boolean;
+  onNameClick?: (regionId: string, start: number | null, end: number | null, name: string) => boolean;
   /** Receives the drawn rectangles (after reflow), for paste placement. */
   layoutRef?: MutableRefObject<FlowRect[]>;
   /** Receives a function that maps a client point to the page position under it (dropped files). */
@@ -169,12 +171,34 @@ type DragState = {
   inline?: InlineDrag;
 };
 
+let selectTextTimer: ReturnType<typeof setTimeout> | null = null;
+
+function cancelSelectText(): void {
+  if (selectTextTimer !== null) {
+    clearTimeout(selectTextTimer);
+    selectTextTimer = null;
+  }
+}
+
+const AREA_PARTS = {
+  start: { header: true, end: false },
+  single: { header: true, end: true },
+  middle: { header: false, end: false },
+  end: { header: false, end: true },
+} as const;
+
+function areaPartOf(header: boolean, end: boolean): { header: boolean; end: boolean } {
+  if (header) return end ? AREA_PARTS.single : AREA_PARTS.start;
+  return end ? AREA_PARTS.end : AREA_PARTS.middle;
+}
+
 /**
  * Selects the text of the open text editor from one client point to another, as a drag does in a word
  * processor. The editor reads the DOM selection back. Nothing happens while
  * the editor is not open yet or a point has no caret position inside it.
  */
 function selectTextBetween(from: { x: number; y: number }, to: { x: number; y: number }, wait = 0): void {
+  cancelSelectText();
   const root = document.querySelector<HTMLElement>("[data-testid=text-editor]");
   const caret = document.caretRangeFromPoint?.bind(document);
   if (!caret) return;
@@ -183,11 +207,11 @@ function selectTextBetween(from: { x: number; y: number }, to: { x: number; y: n
   if (root && start && end && root.contains(start.startContainer) && root.contains(end.startContainer)) {
     window.getSelection()?.setBaseAndExtent(start.startContainer, start.startOffset, end.startContainer, end.startOffset);
     // The editor puts its caret at the press point when it takes the focus, which can come after this.
-    if (wait > 0) setTimeout(() => selectTextBetween(from, to), 60);
+    if (wait > 0) selectTextTimer = setTimeout(() => selectTextBetween(from, to), 60);
     return;
   }
   // After the release the editor may not be on screen yet: look again for a moment.
-  if (wait > 0) setTimeout(() => selectTextBetween(from, to, wait - 1), 30);
+  if (wait > 0) selectTextTimer = setTimeout(() => selectTextBetween(from, to, wait - 1), 30);
 }
 
 /**
@@ -468,6 +492,7 @@ export default function PageView({
   // Reflow: regions drawn from stored positions and measured sizes. The
   // measured sizes live in a ref; `bump` re-renders when one changes.
   const lastFlow = useRef<{
+    state: ReflowState;
     flow: ReturnType<typeof reflow>;
     /** What the placement was computed from: the index's layout counter, sizes, page setup, hidden set. */
     layout: number;
@@ -503,7 +528,8 @@ export default function PageView({
         rise: size.rise,
       };
     });
-    const next = reflow(setup, items);
+    const state = reflowIncremental(setup, items, previous?.state);
+    const next = state.flow;
     // A size change that moves nothing (typing widens the edited region) keeps the previous placement:
     // the region list is rebuilt only when a region really moves.
     if (previous && previous.flow.size === next.size) {
@@ -516,11 +542,11 @@ export default function PageView({
         }
       }
       if (same) {
-        lastFlow.current = { flow: previous.flow, layout: index.geometry, sizes: sizeVersion, setup, hidden };
+        lastFlow.current = { state, flow: previous.flow, layout: index.geometry, sizes: sizeVersion, setup, hidden };
         return previous.flow;
       }
     }
-    lastFlow.current = { flow: next, layout: index.geometry, sizes: sizeVersion, setup, hidden };
+    lastFlow.current = { state, flow: next, layout: index.geometry, sizes: sizeVersion, setup, hidden };
     return next;
     // `sizeVersion` is the dependency that stands for the measured sizes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -812,17 +838,45 @@ export default function PageView({
         if (stored.page !== region.page || stored.x !== region.x || stored.y !== region.y) {
           moves.push({ region_id: id, ...stored });
           if (isArea(region)) {
+            const frame = flowFrame(setup);
+            const distance = flowOf(frame, stored.page, stored.y) - flowOf(frame, region.page, region.y);
             for (const memberId of withMembers(view.regions, [id], setup)) {
               const member = view.regions.find((r) => r.id === memberId);
               if (!member || memberId === id || state.ids.includes(memberId)) continue;
-              moves.push({ region_id: memberId, page: member.page + (stored.page - region.page), x: member.x, y: member.y + (stored.y - region.y) });
+              const offset = Math.max(0, flowOf(frame, member.page, member.y) + distance);
+              const page = Math.floor(offset / frame.step) + 1;
+              const y = snapToGrid(frame.top + offset - (page - 1) * frame.step);
+              moves.push({ region_id: memberId, page, x: member.x, y });
             }
           }
         }
       }
+      if (moves.some((move) => view.regions.some((region) => region.id === move.region_id && isArea(region)))) {
+        // Keep unrelated regions at their drawn position if releasing an area would otherwise
+        // pull them upward merely because an earlier collision no longer pushes them.
+        const planned = new Map(moves.map((move) => [move.region_id, move]));
+        const futureRegions = view.regions.map((region) => {
+          const move = planned.get(region.id);
+          return move ? { ...region, page: move.page, x: move.x, y: move.y } : region;
+        });
+        const futureIndex = sheetIndexOf(futureRegions, view.page, view.settings);
+        const future = reflow(setup, futureRegions.filter((region) => !futureIndex.hidden.has(region.id)).map((region) => {
+          const size = region.kind === "area" ? { w: 0, h: 0 } : (sizes.current.get(region.id) ?? estimatedSize(region, setup));
+          return { id: region.id, page: region.page, x: region.x, y: futureIndex.drawnY(region.page, region.y), ...size };
+        }));
+        const frame = flowFrame(setup);
+        for (const region of view.regions) {
+          if (planned.has(region.id) || isArea(region)) continue;
+          const old = flow.get(region.id);
+          const next = future.get(region.id);
+          if (!old?.pushed || !next || flowOf(frame, next.page, next.y) >= flowOf(frame, old.page, old.y) - 1e-6) continue;
+          const rise = sizes.current.get(region.id)?.rise ?? 0;
+          moves.push({ region_id: region.id, page: old.page, x: region.x, y: storedY(futureRegions, setup, old.page, old.y + rise) });
+        }
+      }
       if (moves.length > 0) onMove(moves);
     },
-    [draft, layout, onMove, placedOf, setup, sizeOf, view.regions],
+    [draft, flow, layout, onMove, placedOf, setup, sizeOf, view],
   );
 
   const onRegionPointerDown = useCallback(
@@ -914,6 +968,15 @@ export default function PageView({
         event.stopPropagation();
         return;
       }
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && id !== DRAFT_ID && onNameClick) {
+        const name = (event.target as Element).closest?.<HTMLElement>(".name");
+        const span = parseSpan(name?.closest<HTMLElement>(".node")?.dataset.span);
+        const editingThis = !!(editing && editing.regionId === id);
+        if (name && (span || editingThis) && onNameClick(nameRegionId(id, name), span?.start ?? null, span?.end ?? null, name.dataset.name ?? "")) {
+          event.preventDefault();
+          return;
+        }
+      }
       if (editing && (editing.regionId === id || id === DRAFT_ID)) {
         // A click inside the region being edited moves the caret; off the math but inside its frame it
         // goes to the nearest point of the expression, and a drag from there selects.
@@ -924,14 +987,6 @@ export default function PageView({
           selectPress.current = { container: event.currentTarget, anchor: at };
         }
         return;
-      }
-      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && onNameClick) {
-        const name = (event.target as Element).closest?.<HTMLElement>(".name");
-        const span = parseSpan(name?.closest<HTMLElement>(".node")?.dataset.span);
-        if (name && span && onNameClick(nameRegionId(id, name), span.start, span.end, name.dataset.name ?? "")) {
-          event.preventDefault();
-          return;
-        }
       }
       // A press on the math of a math region that is not selected is a press into the expression:
       // the caret goes where it
@@ -1289,14 +1344,25 @@ export default function PageView({
     [onResultSelect, pressBackground],
   );
 
+  const inlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearInlineTimer = () => {
+    if (inlineTimer.current !== null) {
+      clearTimeout(inlineTimer.current);
+      inlineTimer.current = null;
+    }
+  };
   useEffect(() => {
-    const resetInlineDrag = () => { inlineDrag.current = null; };
+    const resetInlineDrag = () => {
+      inlineDrag.current = null;
+      clearInlineTimer();
+    };
     const selectInline = (drag: InlineDrag, point: globalThis.PointerEvent, attempts = 0) => {
+      clearInlineTimer();
       if (inlineDrag.current !== drag || !drag.region.isConnected) return;
       const math = drag.region.querySelectorAll<HTMLElement>('[data-testid="text-editor"] .tx-inline')[drag.index];
       if (math && selectInlineMath(math, { from: drag.anchor, to: { x: point.clientX, y: point.clientY }, target: point.target })) return;
       // A rapid release can precede the mounting of the Lexical decorator.
-      if (attempts > 0) setTimeout(() => selectInline(drag, point, attempts - 1), 30);
+      if (attempts > 0) inlineTimer.current = setTimeout(() => selectInline(drag, point, attempts - 1), 30);
     };
     // Always attached (the handlers ignore events without a press): attaching them after the press
     // rendered could miss a quick release.
@@ -1509,6 +1575,27 @@ export default function PageView({
     };
   }, [placeAt, placeAtRef]);
 
+  const zoomAnchor = useRef<{ x: number; y: number; offsetX: number; offsetY: number; zoom: number } | null>(null);
+  const zoomAnchorTimer = useRef<number | null>(null);
+  const clearZoomAnchorTimer = () => {
+    if (zoomAnchorTimer.current !== null) {
+      window.clearTimeout(zoomAnchorTimer.current);
+      zoomAnchorTimer.current = null;
+    }
+  };
+  useEffect(
+    () => () => {
+      clearZoomAnchorTimer();
+      clearInlineTimer();
+      cancelSelectText();
+      if (scrollFrame.current) {
+        cancelAnimationFrame(scrollFrame.current);
+        scrollFrame.current = 0;
+      }
+    },
+    [],
+  );
+
   const onWheel = useCallback(
     (event: React.WheelEvent) => {
       if (!event.ctrlKey) return;
@@ -1521,19 +1608,23 @@ export default function PageView({
         const at = toSheet(event.clientX, event.clientY);
         zoomAnchor.current = { ...at, offsetX: event.clientX - box.left, offsetY: event.clientY - box.top, zoom };
         // A wheel that changes nothing (the zoom is at its limit) must not leave a stale point behind.
-        window.setTimeout(() => (zoomAnchor.current = null), 250);
+        clearZoomAnchorTimer();
+        zoomAnchorTimer.current = window.setTimeout(() => {
+          zoomAnchor.current = null;
+          zoomAnchorTimer.current = null;
+        }, 250);
       }
       onZoomWheel(event.deltaY < 0 ? 1 : -1);
     },
     [onZoomWheel, toSheet, zoom],
   );
 
-  const zoomAnchor = useRef<{ x: number; y: number; offsetX: number; offsetY: number; zoom: number } | null>(null);
   useLayoutEffect(() => {
     const anchor = zoomAnchor.current;
     const area = areaRef.current;
     if (!anchor || !area || anchor.zoom === zoom) return;
     zoomAnchor.current = null;
+    clearZoomAnchorTimer();
     const padding = draft && !printing ? 0 : EQUAVELA_PADDING_PX;
     area.scrollTop = Math.max(0, padding + anchor.y * zoom - anchor.offsetY);
     area.scrollLeft = Math.max(0, left + anchor.x * zoom - anchor.offsetX);
@@ -1565,15 +1656,19 @@ export default function PageView({
   const textEditingHere = textEditing && textEditing.docId === doc.id ? textEditing : null;
   // The region being typed at the crosshair, so that leaving it with an arrow knows its box.
   useEffect(() => {
+    const drafts = draftRegions(editingHere, textEditingHere);
+    if (drafts.length === 0) sizes.current.delete(DRAFT_ID);
     if (!layoutRef) return;
     const placed = layoutRef.current.filter((rect) => rect.id !== DRAFT_ID);
-    for (const draft of draftRegions(editingHere, textEditingHere)) {
+    for (const draft of drafts) {
       const size = sizeOf(draft.id);
-      const rise = size.rise ?? 0;
-      placed.push({ id: draft.id, page: draft.page, x: snapToGrid(draft.x), y: draft.y - rise, w: size.w, h: size.h, ...(rise ? { rise } : {}) });
+      const rise = draft.kind === "math" ? (size.rise ?? 0) : 0;
+      const anchor = snapToGrid(draft.y);
+      const y = draft.kind === "math" ? Math.max(anchor - rise, Math.min(anchor, setup.margins.top)) : draft.y;
+      placed.push({ id: draft.id, page: draft.page, x: snapToGrid(draft.x), y, w: size.w, h: size.h, ...(rise ? { rise } : {}) });
     }
     layoutRef.current = placed;
-  }, [layoutRef, shown, editingHere, textEditingHere, sizeOf, sizeVersion]);
+  }, [setup.margins.top, layoutRef, shown, editingHere, textEditingHere, sizeOf, sizeVersion]);
   const dragMoved = drag !== null && drag.moved;
   // A finished drag whose move has not reached the view yet: same stored positions as at the drop.
   const settling = dropped && !drag && positionsKey(view.regions, dropped.ids, setup) === dropped.key ? dropped : null;
@@ -1581,6 +1676,10 @@ export default function PageView({
     () => (dragMoved && drag ? { x: drag.dx, y: drag.dy } : settling ? { x: settling.dx, y: settling.dy } : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [dragMoved, drag?.dx, drag?.dy, settling?.dx, settling?.dy, settling?.key],
+  );
+  const verticalDragOffset = useMemo(
+    () => (dragOffset ? { x: 0, y: dragOffset.y } : null),
+    [dragOffset],
   );
   // The regions that follow the pointer during a drag: the members of a dragged area move with it
   //, and the region being edited is moved from the border of its active frame while it stays
@@ -1705,7 +1804,15 @@ export default function PageView({
   ) => {
       const drawn = part ? { page: part.page, y: part.top } : placedOf(source);
       let region = source;
-      if (source.id !== DRAFT_ID) {
+      if (source.id === DRAFT_ID) {
+        if (source.kind === "math") {
+          const rise = sizes.current.get(DRAFT_ID)?.rise ?? 0;
+          if (rise > 0) {
+            const anchor = snapToGrid(source.y);
+            region = { ...source, y: Math.max(anchor - rise, Math.min(anchor, area.top)) };
+          }
+        }
+      } else {
         // A part of a band keeps a key of its own, so two parts of one area never share a cached view.
         const key = part
           ? `${source.id}#${part.page}:${part.header ? "start" : part.end ? "end" : "middle"}`
@@ -1733,7 +1840,7 @@ export default function PageView({
         <RegionView
           key={part ? `${region.id}:part:${part.page}:${part.header ? "start" : part.end ? "end" : "middle"}` : continued ? `${region.id}:continued` : region.id}
           continued={continued}
-          areaPart={part ? { header: part.header, end: part.end } : undefined}
+          areaPart={part ? areaPartOf(part.header, part.end) : undefined}
           region={region}
           fastSymbolicBusy={fastSymbolicBusy === region.id}
           setup={setup}
@@ -1742,7 +1849,7 @@ export default function PageView({
           dragOffset={
             dragged.has(region.id) && dragOffset && (!part || part.header)
               ? (region.kind === "text" && region.full_width) || region.kind === "area"
-                ? { x: 0, y: dragOffset.y }
+                ? verticalDragOffset
                 : dragOffset
               : null
           }
@@ -1998,7 +2105,7 @@ export default function PageView({
       if (!best || y < best.y) best = { id: region.id, y };
     }
     anchor.current = best;
-  });
+  }, [virtual, mounted, layout, placedOf, regionById, zoom]);
   const probeElements = probing.map((region) => (
     <RegionView
       key={`probe:${region.id}`}
@@ -2048,7 +2155,7 @@ export default function PageView({
       ),
     // `renderRegion` reads exactly these values.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mounted, placedOf, layout, selected, resultSelection, dragged, dragOffset, resize, entries, regionFormats, format, diagnosticsByRegion, warningsByRegion, setup, textEditingId, onSize, fastSymbolicBusy],
+    [mounted, placedOf, layout, selected, resultSelection, dragged, dragOffset, resize, sizeSettling, entries, regionFormats, format, view.settings, diagnosticsByRegion, warningsByRegion, setup, textEditingId, onSize, fastSymbolicBusy],
   );
 
   return (
@@ -2071,10 +2178,11 @@ export default function PageView({
         if (draft && viewport) {
           const right = (viewport.scrollLeft + viewport.clientWidth) / zoom;
           const bottom = (viewport.scrollTop + viewport.clientHeight) / zoom;
-          setDraftExtent((extent) => ({
-            width: right > extent.width - 400 ? Math.max(extent.width, right + 800) : extent.width,
-            height: bottom > extent.height - 400 ? Math.max(extent.height, bottom + 800) : extent.height,
-          }));
+          setDraftExtent((extent) => {
+            const width = right > extent.width - 400 ? Math.max(extent.width, right + 800) : extent.width;
+            const height = bottom > extent.height - 400 ? Math.max(extent.height, bottom + 800) : extent.height;
+            return width === extent.width && height === extent.height ? extent : { width, height };
+          });
         }
         hoveredName.current = null;
         onNameHover?.(null);

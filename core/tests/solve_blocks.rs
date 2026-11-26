@@ -279,6 +279,49 @@ fn minimize_and_maximize_accept_zero_constraints_after_given() {
 }
 
 #[test]
+fn minimize_and_maximize_work_without_given() {
+    let text = sheet(&[
+        ("r1", 100.0, "x := 1"),
+        ("r2", 110.0, "f(t) := (t - 2)^2"),
+        ("r3", 120.0, "h(t) := -(t - 4)^2"),
+        ("m1", 130.0, "p_min := Minimize(f, x)"),
+        ("m2", 140.0, "maximize(h, x) ="),
+        ("g", 150.0, "Given"),
+        ("c", 160.0, "x >= 3"),
+        ("m3", 170.0, "Minimize(f, x) ="),
+    ]);
+    let worksheet = assembled(&text);
+    assert_eq!(constraints_of(&worksheet, "m1"), Some(0));
+    assert_eq!(constraints_of(&worksheet, "m2"), Some(0));
+    assert_eq!(constraints_of(&worksheet, "m3"), Some(1));
+    let mut twice = worksheet.clone();
+    twice.assemble_solve_blocks();
+    assert_eq!(worksheet, twice);
+
+    let graph = DependencyGraph::build(&worksheet).unwrap();
+    assert!(
+        graph.unresolved_references().is_empty(),
+        "{:?}",
+        graph.unresolved_references()
+    );
+    assert_eq!(graph.dependencies_of("m1").unwrap(), ["r1", "r2"]);
+    assert_eq!(graph.dependencies_of("m2").unwrap(), ["r1", "r3"]);
+
+    let generated = generate_worksheet(&worksheet, GenOptions::default()).unwrap();
+    let m1 = code_of(&generated, "m1");
+    assert!(m1.contains("eq_minimize(") && m1.contains("[]"), "{m1}");
+    assert!(!m1.contains("eq_error"), "{m1}");
+    let m2 = code_of(&generated, "m2");
+    assert!(m2.contains("eq_maximize(") && m2.contains("[]"), "{m2}");
+    assert!(!m2.contains("eq_error"), "{m2}");
+    let m3 = code_of(&generated, "m3");
+    assert!(
+        m3.contains("eq_minimize(") && m3.contains("eq_constraint(:ge,"),
+        "{m3}"
+    );
+}
+
+#[test]
 fn a_call_closes_the_block_whatever_the_statement_form() {
     for (call, expected_defined) in [
         ("Find(x) =", 0),

@@ -109,6 +109,7 @@ describe(": editing a trace expression leaves the limits unselected", () => {
   it("does not move the focus to a limit when a trace is added with Shift+Enter or the tab", async () => {
     const plot = await insertPlot();
     await press(slotNamed(plot, S.plot.yExpression));
+    fireEvent.click(screen.getByRole("tab", { name: S.ribbon.tabs.trace }));
     fireEvent.click(screen.getByRole("button", { name: S.ribbon.commands.addTrace }));
     await waitFor(() => expect(within(plot).getAllByRole("group", { name: S.plot.yExpression })).toHaveLength(2));
     for (const limit of [S.plot.yMax, S.plot.yMin, S.plot.xMin, S.plot.xMax]) {

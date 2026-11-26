@@ -89,9 +89,10 @@ fn resolves_contextual_and_explicit_variable_and_function_labels() {
         region("context_call", 0, 0.0, 5.0, "f(2) ="),
     ]);
 
-    assert_eq!(graph.dependencies_of("value").unwrap(), ["var"]);
+    // Variables and functions share one namespace: `f(x) := x + 1` replaces `f := 3`.
+    assert_eq!(graph.dependencies_of("value").unwrap(), ["fn"]);
     assert_eq!(graph.dependencies_of("call").unwrap(), ["fn"]);
-    assert_eq!(graph.dependencies_of("context_value").unwrap(), ["var"]);
+    assert_eq!(graph.dependencies_of("context_value").unwrap(), ["fn"]);
     assert_eq!(graph.dependencies_of("context_call").unwrap(), ["fn"]);
 }
 
@@ -296,4 +297,18 @@ fn a_plain_unit_like_name_is_a_reference_to_the_variable() {
             .collect::<Vec<_>>(),
         [Some("L")]
     );
+}
+
+#[test]
+fn variable_and_function_share_one_namespace() {
+    let sheet = graph(vec![
+        region("x_mat", 0, 0.0, 0.0, "X := [1; 2]"),
+        region("x_fn", 0, 0.0, 1.0, "X(t) := t^2"),
+        region("use_fn", 0, 0.0, 2.0, "y := apply(X, 3)"),
+        region("x_val", 0, 0.0, 3.0, "X := 5"),
+        region("use_val", 0, 0.0, 4.0, "z := X + 1"),
+    ]);
+
+    assert_eq!(sheet.dependencies_of("use_fn").unwrap(), ["x_fn"]);
+    assert_eq!(sheet.dependencies_of("use_val").unwrap(), ["x_val"]);
 }

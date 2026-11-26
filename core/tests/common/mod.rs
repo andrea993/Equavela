@@ -239,6 +239,7 @@ pub fn sx_expr(e: &Expr) -> String {
         K::Integral {
             var,
             bounds,
+            domain,
             algorithm,
             body,
         } => {
@@ -246,6 +247,8 @@ pub fn sx_expr(e: &Expr) -> String {
             if let Some(b) = bounds {
                 items.push(sx_expr(&b.lo));
                 items.push(sx_expr(&b.hi));
+            } else if let Some(d) = domain {
+                items.push(sx_expr(d));
             }
             if let Some(a) = algorithm {
                 items.push(format!("[{}]", print_name(&a.name)));
@@ -257,13 +260,26 @@ pub fn sx_expr(e: &Expr) -> String {
             let names: Vec<String> = vars.iter().map(|v| print_name(&v.name)).collect();
             format!("(∇ [{}] {})", names.join(" "), sx_expr(body))
         }
-        K::Deriv { var, order, body } | K::Partial { var, order, body } => {
+        K::Deriv {
+            var,
+            var_expr,
+            order,
+            body,
+        }
+        | K::Partial {
+            var,
+            var_expr,
+            order,
+            body,
+        } => {
             let head = if matches!(e.kind, K::Deriv { .. }) {
                 "ⅆ"
             } else {
                 "∂"
             };
-            let mut items = vec![print_name(&var.name)];
+            let mut items = vec![var_expr
+                .as_deref()
+                .map_or_else(|| print_name(&var.name), sx_expr)];
             if let Some(o) = order {
                 items.push(sx_expr(o));
             }
