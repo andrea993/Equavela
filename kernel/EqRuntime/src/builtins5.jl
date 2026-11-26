@@ -29,13 +29,13 @@ function _flag(value, name)
 end
 
 """
-`a test worksheet(M [, p [, u]])`: nested `[P; L]`. `p = 0` turns pivoting off (then `P`
+`Cholesky(M [, p [, u]])`: nested `[P; L]`. `p = 0` turns pivoting off (then `P`
 is the identity); `u` nonzero returns the upper factor `L^H` instead. With
 pivoting `P M P^T = L L^H`.
 """
 function eq_Cholesky(matrix, pivot=1.0, upper=0.0)
     numeric = _numeric_square(matrix, "Cholesky")
-    isempty(numeric) && eqerror("a test worksheet needs a non-empty matrix")
+    isempty(numeric) && eqerror("Cholesky needs a non-empty matrix")
     _eltype_plain(numeric, "Cholesky")
     pivoting, want_upper = _flag(pivot, "Cholesky"), _flag(upper, "Cholesky")
     hermitian = Hermitian(float(numeric))
@@ -48,7 +48,7 @@ function eq_Cholesky(matrix, pivot=1.0, upper=0.0)
         end
     catch error
         (error isa PosDefException || error isa RankDeficientException) &&
-            eqerror("a test worksheet: the matrix is not positive definite")
+            eqerror("Cholesky: the matrix is not positive definite")
         rethrow()
     end
     _nested(factor_p, want_upper ? Matrix(factor_l') : factor_l)

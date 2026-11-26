@@ -92,6 +92,22 @@ impl Worksheet {
                 continue;
             }
             let Some(constraints) = open.as_mut() else {
+                if calls_only_unconstrained_optimizer(statement) {
+                    let region = &mut self.regions[index];
+                    let call = std::mem::replace(
+                        &mut region.statement,
+                        Arc::new(Statement::synth(StatementKind::ExprRegion {
+                            expr: Expr::synth(ExprKind::Placeholder),
+                        })),
+                    );
+                    region.statement = Arc::new(Statement {
+                        span: call.span,
+                        kind: StatementKind::Solve {
+                            constraints: Vec::new(),
+                            call: Box::new(Statement::clone(&call)),
+                        },
+                    });
+                }
                 continue;
             };
             if calls_solving_function(statement) {
@@ -544,6 +560,29 @@ fn is_solving_function(name: &Name) -> bool {
     )
 }
 
+/// `Minimize` and `Maximize` (any case), which can run without a `Given` block.
+fn is_unconstrained_optimizer(name: &Name) -> bool {
+    matches!(
+        crate::syntax::print_name(name).to_lowercase().as_str(),
+        "minimize" | "maximize"
+    )
+}
+
+/// Whether a statement calls `Minimize` or `Maximize` without also calling a block-only solver.
+fn calls_only_unconstrained_optimizer(statement: &Statement) -> bool {
+    let mut occurrences = Vec::new();
+    collect_statement_references(statement, &mut occurrences);
+    let mut has_optimizer = false;
+    for occurrence in &occurrences {
+        if is_unconstrained_optimizer(&occurrence.name) {
+            has_optimizer = true;
+        } else if is_solving_function(&occurrence.name) {
+            return false;
+        }
+    }
+    has_optimizer
+}
+
 /// The names an `odesolve` call declares for its block: the unknown functions and the variable
 /// of integration (`odesolve(y(t), 10)`, `odesolve([x(t); y(t)], 10)`). They are local to the
 /// block, so they are not worksheet references (the call may even define `y` itself).
@@ -663,6 +702,19 @@ fn install_definitions(
             version: *version,
             kind,
         });
+        // Variables and functions share one worksheet namespace: redefining a name as a
+        // function replaces any earlier variable binding of that name, and vice versa.
+        if key.label == Label::Var {
+            bindings.remove(&NameKey {
+                segments: key.segments.clone(),
+                label: Label::Fn,
+            });
+        } else if key.label == Label::Fn {
+            bindings.remove(&NameKey {
+                segments: key.segments.clone(),
+                label: Label::Var,
+            });
+        }
         bindings.insert(
             key,
             Binding {
@@ -1285,7 +1337,19 @@ enum ReferenceRole {
 /// is a variable reference and a later `L := 3` is a dependency of it.
 fn reference_keys(name: &Name, role: ReferenceRole) -> Vec<NameKey> {
     if let Some(label) = name.label {
-        return vec![NameKey::new(name, label)];
+        return match label {
+            Label::Var | Label::Fn => vec![
+                NameKey {
+                    segments: name.segments.clone(),
+                    label: Label::Var,
+                },
+                NameKey {
+                    segments: name.segments.clone(),
+                    label: Label::Fn,
+                },
+            ],
+            other => vec![NameKey::new(name, other)],
+        };
     }
     let labels: &[Label] = match role {
         ReferenceRole::Value => &[Label::Var, Label::Fn, Label::Sys, Label::Const],

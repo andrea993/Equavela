@@ -226,18 +226,18 @@ pub fn write_bytes_atomic(path: &Path, content: &[u8]) -> Result<(), WriteError>
         .ok_or_else(|| fail("the path has no file name".into()))?
         .to_string_lossy()
         .into_owned();
-    let temporary = directory.join(format!(".{name}.{}.tmp", std::process::id()));
-    let result = (|| -> std::io::Result<()> {
-        let mut file = std::fs::File::create(&temporary)?;
-        file.write_all(content)?;
-        file.sync_all()?;
-        drop(file);
-        std::fs::rename(&temporary, path)
-    })();
-    if let Err(error) = result {
-        let _ = std::fs::remove_file(&temporary);
-        return Err(fail(error.to_string()));
-    }
+    let mut temporary = tempfile::Builder::new()
+        .prefix(&format!(".{name}."))
+        .suffix(".tmp")
+        .tempfile_in(&directory)
+        .map_err(|error| fail(error.to_string()))?;
+    temporary
+        .write_all(content)
+        .and_then(|()| temporary.as_file().sync_all())
+        .map_err(|error| fail(error.to_string()))?;
+    temporary
+        .persist(path)
+        .map_err(|error| fail(error.error.to_string()))?;
     Ok(())
 }
 

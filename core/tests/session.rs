@@ -1689,3 +1689,61 @@ fn stored_results_show_again_until_a_region_changes() {
         pending[2].state
     );
 }
+
+#[test]
+fn interrupt_before_pass_run_is_not_lost() {
+    let s = session(broken_kernel(), &[("a", "a := 1"), ("b", "a = ")]);
+    let handle = s.interrupt_handle();
+    let pass = s.pass(RecalcMode::Changed);
+    assert!(!handle.interrupt());
+    let summary = pass.run(&mut |_| {}).unwrap();
+    assert!(summary.incomplete);
+    assert_eq!(summary.evaluated, 0);
+}
+
+#[test]
+fn interrupt_from_other_session_does_not_stop_shared_kernel_pass() {
+    let Some(kernel) = kernel() else {
+        return;
+    };
+    let ws_b = session(
+        Arc::clone(&kernel),
+        &[
+            (
+                "slow",
+                "slow := program\n  s ← 0\n  for i ∈ 1..200000\n    s ← s + i\n    v ← augment(s, i)\n  s",
+            ),
+            ("out", "slow = "),
+        ],
+    );
+    let ws_a = session(Arc::clone(&kernel), &[("x", "x := 1")]);
+    let handle_a = ws_a.interrupt_handle();
+    kernel.start().unwrap();
+
+    let (started_tx, started_rx) = std::sync::mpsc::channel();
+    let pass_b = ws_b.pass(RecalcMode::Changed);
+    let worker = std::thread::spawn(move || {
+        pass_b
+            .run(&mut |event| {
+                if matches!(event, SessionEvent::RegionStarted { key } if key.region_id == "slow") {
+                    let _ = started_tx.send(());
+                }
+            })
+            .unwrap()
+    });
+    started_rx
+        .recv_timeout(Duration::from_secs(30))
+        .expect("ws_b should start evaluating");
+    // Wait briefly for the request to become active in the kernel so handle_a.interrupt()
+    // exercises the live active-request check on the shared kernel.
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while kernel.active_request().is_none() && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    // Interrupting an idle sibling worksheet on the same kernel must not hit ws_b's request.
+    assert!(!handle_a.interrupt());
+    let summary = worker.join().unwrap();
+    assert!(!summary.incomplete, "ws_b should complete uninterrupted");
+    assert_eq!(summary.failed, 0);
+    assert!(real(&state(&ws_b, "out")) > 0.0);
+}

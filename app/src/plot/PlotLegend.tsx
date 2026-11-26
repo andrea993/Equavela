@@ -5,7 +5,8 @@
 // same nodes render on screen and in the PDF, and because it is part of the plot it is
 // never editing chrome and holds no control.
 
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState, type CSSProperties } from "react";
+import { ptToPx } from "../layout/geometry";
 import { isNode, type Expr } from "../math/ast";
 import { MathExpr } from "../math/render";
 import type { PlotSpec } from "../equavelaApi";
@@ -85,15 +86,27 @@ export function PlotLegend({
 }) {
   const entries = legendEntries(spec, frame);
   if (entries.length === 0) return null;
+  const position = spec.legend_position ?? "top-right";
+  const isBottom = position.startsWith("bottom");
+  const isLeft = position.endsWith("left");
+  const fontPx = spec.legend_font_size != null ? ptToPx(spec.legend_font_size) : undefined;
+  const style: CSSProperties = {
+    ...(isBottom ? { bottom: margin.b } : { top: margin.t }),
+    left: margin.l,
+    right: margin.r,
+    alignItems: isLeft ? "flex-start" : "flex-end",
+    ...(fontPx !== undefined ? ({ "--legend-fs": `${fontPx}px`, "--fs": `${fontPx}px` } as CSSProperties) : {}),
+  };
   return (
     <div
       className="plot-legend"
       data-testid="plot-legend"
+      data-position={position}
       role="list"
       aria-label={S.plot.legend}
       // Inside the plot area, between the margins the drawing library leaves for the axes
-      // (adapter.ts MARGIN): over the data, top right, in trace order.
-      style={{ top: margin.t, left: margin.l, right: margin.r }}
+      // (adapter.ts MARGIN): over the data, in the chosen corner, in trace order.
+      style={style}
     >
       {entries.map((entry) => (
         <span

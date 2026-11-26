@@ -320,38 +320,158 @@ export type Flowed = { page: number; y: number; pushed: boolean };
 
 const EPS = 1e-6;
 
+type PlacedRect = { x0: number; x1: number; y0: number; y1: number };
+
 /**
- * Reflow. Stored positions are the author's intent and are never
- * rewritten by a size change; the drawn position is derived from them and the measured sizes, so
- * a region that shrinks lets the regions below it return to where they were stored.
- *
- * Regions are visited in reading order (stored page, y, x, then list order). A region is pushed
- * down to the bottom edge (rounded up to the 3 pt grid) of every region already placed that
- * overlaps it in both x and y, repeatedly until nothing overlaps it. No region is ever drawn
- * over an earlier one, and regions that do not collide never move (so a growing region moves only
- * what it would otherwise cover, and everything that is not below it stays).
- *
- * Page breaks: a region that had to be pushed and would then reach below the bottom margin moves
- * to the top of the next page (the page is added when needed). A region that was not pushed keeps
- * its stored place even when it straddles the break (it is flagged, as before); a region taller
- * than the printable height is never moved to another page.
+ * Reusable per-page state of a completed reflow, allowing a later pass to start at the first
+ * stored page whose items changed and stop as soon as the spill onto later pages matches.
  */
-export function reflow(setup: PageSetup, items: FlowItem[]): Map<string, Flowed> {
+export type ReflowState = {
+  readonly setup: PageSetup;
+  readonly pages: ReadonlyMap<number, readonly FlowItem[]>;
+  readonly spillOut: ReadonlyMap<number, ReadonlyMap<number, readonly PlacedRect[]>>;
+  readonly pageFlow: ReadonlyMap<number, ReadonlyMap<string, Flowed>>;
+  readonly flow: Map<string, Flowed>;
+  /** Number of stored pages recomputed in this pass. */
+  readonly pagesRecomputed: number;
+};
+
+function samePageSetup(a: PageSetup, b: PageSetup): boolean {
+  return (
+    a === b ||
+    (a.width === b.width &&
+      a.height === b.height &&
+      a.margins.top === b.margins.top &&
+      a.margins.right === b.margins.right &&
+      a.margins.bottom === b.margins.bottom &&
+      a.margins.left === b.margins.left)
+  );
+}
+
+function sameItems(a: readonly FlowItem[] | undefined, b: readonly FlowItem[] | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (
+      x.id !== y.id ||
+      x.page !== y.page ||
+      x.x !== y.x ||
+      x.y !== y.y ||
+      x.w !== y.w ||
+      x.h !== y.h ||
+      (x.rise ?? 0) !== (y.rise ?? 0)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function sameSpill(
+  a: ReadonlyMap<number, readonly PlacedRect[]>,
+  b: ReadonlyMap<number, readonly PlacedRect[]> | undefined,
+): boolean {
+  if (!b) return a.size === 0;
+  if (a.size !== b.size) return false;
+  for (const [page, rectsA] of a) {
+    const rectsB = b.get(page);
+    if (!rectsB || rectsA.length !== rectsB.length) return false;
+    for (let i = 0; i < rectsA.length; i++) {
+      const rA = rectsA[i];
+      const rB = rectsB[i];
+      if (rA.x0 !== rB.x0 || rA.x1 !== rB.x1 || rA.y0 !== rB.y0 || rA.y1 !== rB.y1) return false;
+    }
+  }
+  return true;
+}
+
+/** Inserts `rect` into `list` keeping `list` sorted by `y0` ascending (O(1) in the common case). */
+function insertSortedY(list: PlacedRect[], rect: PlacedRect): void {
+  let pos = list.length;
+  while (pos > 0 && list[pos - 1].y0 > rect.y0) pos--;
+  if (pos === list.length) list.push(rect);
+  else list.splice(pos, 0, rect);
+}
+
+/**
+ * Incremental reflow: starts from the first stored page whose items changed relative to `previous`
+ * and stops as soon as the rectangles spilled onto later pages match `previous`. Produces the exact
+ * same placement as a full `reflow(setup, items)`.
+ */
+export function reflowIncremental(
+  setup: PageSetup,
+  items: FlowItem[],
+  previous?: ReflowState | null,
+): ReflowState {
   const area = printableArea(setup);
-  const order = items
-    .map((item, index) => ({ item, index }))
-    .sort(
-      (a, b) =>
-        a.item.page - b.item.page ||
-        a.item.y - b.item.y ||
-        a.item.x - b.item.x ||
-        a.index - b.index,
-    )
-    .map((entry) => entry.item);
-  // The rectangles already placed, per page: a region can only collide with regions on its own page, so
-  // it is compared with those only.
-  const placed = new Map<number, { x0: number; x1: number; y0: number; y1: number }[]>();
-  const result = new Map<string, Flowed>();
+  // Group items by stored page and sort each page in reading order (y, x, list order).
+  const grouped = new Map<number, { item: FlowItem; index: number }[]>();
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index];
+    const bucket = grouped.get(item.page);
+    if (bucket) bucket.push({ item, index });
+    else grouped.set(item.page, [{ item, index }]);
+  }
+  const pageNumbers = [...grouped.keys()].sort((a, b) => a - b);
+  const pages = new Map<number, readonly FlowItem[]>();
+  for (const p of pageNumbers) {
+    const bucket = grouped.get(p)!;
+    bucket.sort((a, b) => a.item.y - b.item.y || a.item.x - b.item.x || a.index - b.index);
+    pages.set(p, bucket.map((entry) => entry.item));
+  }
+
+  const canReuse = !!previous && samePageSetup(setup, previous.setup);
+  let firstChanged = Infinity;
+  let lastChanged = -Infinity;
+  if (canReuse) {
+    for (const p of pageNumbers) {
+      if (!sameItems(pages.get(p), previous.pages.get(p))) {
+        if (p < firstChanged) firstChanged = p;
+        if (p > lastChanged) lastChanged = p;
+      }
+    }
+    for (const p of previous.pages.keys()) {
+      if (!pages.has(p)) {
+        if (p < firstChanged) firstChanged = p;
+        if (p > lastChanged) lastChanged = p;
+      }
+    }
+    if (firstChanged === Infinity) {
+      return { ...previous, setup, pagesRecomputed: 0 };
+    }
+  } else {
+    firstChanged = -Infinity;
+    lastChanged = Infinity;
+  }
+
+  const pageFlow = new Map<number, ReadonlyMap<string, Flowed>>();
+  const spillOut = new Map<number, ReadonlyMap<number, readonly PlacedRect[]>>();
+  // Seed placed rectangles from the spill of the last unchanged page before `firstChanged`.
+  let lastUnchangedPage: number | null = null;
+  if (canReuse) {
+    for (const p of pageNumbers) {
+      if (p >= firstChanged) break;
+      pageFlow.set(p, previous.pageFlow.get(p)!);
+      spillOut.set(p, previous.spillOut.get(p)!);
+      lastUnchangedPage = p;
+    }
+  }
+
+  const placed = new Map<number, PlacedRect[]>();
+  const pageMaxY1 = new Map<number, number>();
+  const seedSpill = lastUnchangedPage !== null ? previous!.spillOut.get(lastUnchangedPage) : undefined;
+  if (seedSpill) {
+    for (const [targetPage, rects] of seedSpill) {
+      const copy = rects.slice();
+      placed.set(targetPage, copy);
+      let maxY1 = -Infinity;
+      for (const r of copy) if (r.y1 > maxY1) maxY1 = r.y1;
+      pageMaxY1.set(targetPage, maxY1);
+    }
+  }
+
   /** Where `item`'s box lands from `start` down: below what it would cover, on the next page when pushed past the margin. */
   const land = (item: FlowItem, start: number): { page: number; y: number } => {
     const x0 = snapToGrid(item.x);
@@ -360,14 +480,16 @@ export function reflow(setup: PageSetup, items: FlowItem[]): Map<string, Flowed>
     let y = start;
     for (let guard = 0; guard < 10_000 && item.w > 0 && item.h > 0; guard++) {
       let bottom = -Infinity;
-      for (const other of placed.get(page) ?? []) {
-        if (
-          other.x0 < x1 - EPS &&
-          x0 < other.x1 - EPS &&
-          other.y0 < y + item.h - EPS &&
-          y < other.y1 - EPS
-        ) {
-          bottom = Math.max(bottom, other.y1);
+      const maxY1 = pageMaxY1.get(page);
+      if (maxY1 !== undefined && y < maxY1 - EPS) {
+        const onPage = placed.get(page)!;
+        const limit = y + item.h - EPS;
+        for (let j = 0; j < onPage.length; j++) {
+          const other = onPage[j];
+          if (other.y0 >= limit) break;
+          if (other.x0 < x1 - EPS && x0 < other.x1 - EPS && y < other.y1 - EPS) {
+            if (other.y1 > bottom) bottom = other.y1;
+          }
         }
       }
       if (bottom === -Infinity) {
@@ -390,40 +512,127 @@ export function reflow(setup: PageSetup, items: FlowItem[]): Map<string, Flowed>
   // The top of a box with its line at the stored y: a rising result is drawn above the stored y, but
   // not above the top margin.
   const top = (item: FlowItem, anchor: number) => Math.max(anchor - (item.rise ?? 0), Math.min(anchor, area.top));
-  for (let i = 0; i < order.length; ) {
-    // The regions stored on one line of one page are one row: a push moves the whole row, so their
-    // lines stay aligned.
-    let end = i + 1;
-    while (end < order.length && order[end].page === order[i].page && snapToGrid(order[end].y) === snapToGrid(order[i].y)) end++;
-    const row = order.slice(i, end);
-    const anchor = snapToGrid(order[i].y);
-    let delta = 0;
-    for (let round = 0; round < 10; round++) {
-      let next = delta;
-      for (const item of row) {
-        if (item.w <= 0 || item.h <= 0) continue;
-        const own = top(item, anchor);
-        const landed = land(item, own + delta);
-        // A row that a push carries onto another page is placed one region at a time.
-        if (landed.page !== Math.max(1, Math.round(item.page))) continue;
-        next = Math.max(next, landed.y - own);
+
+  const recomputedPages = new Set<number>();
+  let pagesRecomputed = 0;
+  let stoppedEarlyAt = -1;
+
+  for (let pIdx = 0; pIdx < pageNumbers.length; pIdx++) {
+    const storedPage = pageNumbers[pIdx];
+    if (canReuse && storedPage < firstChanged) continue;
+    const order = pages.get(storedPage)!;
+    const thisPageFlow = new Map<string, Flowed>();
+    for (let i = 0; i < order.length; ) {
+      // The regions stored on one line of one page are one row: a push moves the whole row, so their
+      // lines stay aligned.
+      let end = i + 1;
+      while (end < order.length && snapToGrid(order[end].y) === snapToGrid(order[i].y)) end++;
+      const row = order.slice(i, end);
+      const anchor = snapToGrid(order[i].y);
+      let delta = 0;
+      for (let round = 0; round < 10; round++) {
+        let next = delta;
+        for (const item of row) {
+          if (item.w <= 0 || item.h <= 0) continue;
+          const own = top(item, anchor);
+          const landed = land(item, own + delta);
+          // A row that a push carries onto another page is placed one region at a time.
+          if (landed.page !== Math.max(1, Math.round(item.page))) continue;
+          next = Math.max(next, landed.y - own);
+        }
+        if (next <= delta + EPS) break;
+        delta = next;
       }
-      if (next <= delta + EPS) break;
-      delta = next;
+      for (const item of row) {
+        const own = top(item, anchor);
+        const { page, y } = land(item, own + delta);
+        const x0 = snapToGrid(item.x);
+        const rect: PlacedRect = { x0, x1: x0 + item.w, y0: y, y1: y + item.h };
+        const onPage = placed.get(page);
+        if (onPage) insertSortedY(onPage, rect);
+        else placed.set(page, [rect]);
+        const prevMax = pageMaxY1.get(page);
+        if (prevMax === undefined || rect.y1 > prevMax) pageMaxY1.set(page, rect.y1);
+        thisPageFlow.set(item.id, { page, y, pushed: page !== item.page || y !== own });
+      }
+      i = end;
     }
-    for (const item of row) {
-      const own = top(item, anchor);
-      const { page, y } = land(item, own + delta);
-      const x0 = snapToGrid(item.x);
-      const rect = { x0, x1: x0 + item.w, y0: y, y1: y + item.h };
-      const onPage = placed.get(page);
-      if (onPage) onPage.push(rect);
-      else placed.set(page, [rect]);
-      result.set(item.id, { page, y, pushed: page !== item.page || y !== own });
+
+    const basePage = Math.max(1, Math.round(storedPage));
+    const nextSpill = new Map<number, readonly PlacedRect[]>();
+    for (const [targetPage, rects] of placed) {
+      if (targetPage > basePage && rects.length > 0) {
+        nextSpill.set(targetPage, rects.slice());
+      }
     }
-    i = end;
+    // Rectangles on pages <= basePage are never consulted by stored pages > storedPage.
+    for (const targetPage of [...placed.keys()]) {
+      if (targetPage <= basePage) {
+        placed.delete(targetPage);
+        pageMaxY1.delete(targetPage);
+      }
+    }
+
+    pageFlow.set(storedPage, thisPageFlow);
+    spillOut.set(storedPage, nextSpill);
+    recomputedPages.add(storedPage);
+    pagesRecomputed += 1;
+
+    if (
+      canReuse &&
+      storedPage >= lastChanged &&
+      previous.pages.has(storedPage) &&
+      sameSpill(nextSpill, previous.spillOut.get(storedPage))
+    ) {
+      stoppedEarlyAt = pIdx;
+      for (let rest = pIdx + 1; rest < pageNumbers.length; rest++) {
+        const q = pageNumbers[rest];
+        pageFlow.set(q, previous.pageFlow.get(q)!);
+        spillOut.set(q, previous.spillOut.get(q)!);
+      }
+      break;
+    }
   }
-  return result;
+
+  let flow: Map<string, Flowed>;
+  if (canReuse && (lastUnchangedPage !== null || stoppedEarlyAt >= 0)) {
+    flow = new Map(previous.flow);
+    for (const [p, oldMap] of previous.pageFlow) {
+      if (!pages.has(p) || recomputedPages.has(p)) {
+        for (const id of oldMap.keys()) flow.delete(id);
+      }
+    }
+    for (const p of recomputedPages) {
+      for (const [id, placedItem] of pageFlow.get(p)!) flow.set(id, placedItem);
+    }
+  } else {
+    flow = new Map<string, Flowed>();
+    for (const p of pageNumbers) {
+      for (const [id, placedItem] of pageFlow.get(p)!) flow.set(id, placedItem);
+    }
+  }
+
+  return { setup, pages, spillOut, pageFlow, flow, pagesRecomputed };
+}
+
+/**
+ * Reflow. Stored positions are the author's intent and are never
+ * rewritten by a size change; the drawn position is derived from them and the measured sizes, so
+ * a region that shrinks lets the regions below it return to where they were stored.
+ *
+ * Regions are visited in reading order (stored page, y, x, then list order). A region is pushed
+ * down to the bottom edge (rounded up to the 3 pt grid) of every region already placed that
+ * overlaps it in both x and y, repeatedly until nothing overlaps it. No region is ever drawn
+ * over an earlier one, and regions that do not collide never move (so a growing region moves only
+ * what it would otherwise cover, and everything that is not below it stays).
+ *
+ * Page breaks: a region that had to be pushed and would then reach below the bottom margin moves
+ * to the top of the next page (the page is added when needed). A region that was not pushed keeps
+ * its stored place even when it straddles the break (it is flagged, as before); a region taller
+ * than the printable height is never moved to another page.
+ */
+export function reflow(setup: PageSetup, items: FlowItem[]): Map<string, Flowed> {
+  return reflowIncremental(setup, items).flow;
 }
 
 /**

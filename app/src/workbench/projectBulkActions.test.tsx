@@ -31,6 +31,20 @@ it("sends one batch move and rejects the whole batch when one worksheet is unsav
   expect(moveMany).toHaveBeenCalledWith("/work/project", ["worksheets/Checks.eqv", "worksheets/main.eqv"], "");
 });
 
+it("copies project files through the import operation and refuses unsaved sources", async () => {
+  const { backend, hook } = await project();
+  const importFiles = vi.spyOn(backend, "projectImport");
+  await act(async () => hook.result.current.actions.copyProjectFiles(["julia/src/Project.jl"], "worksheets"));
+  expect(importFiles).toHaveBeenCalledWith("/work/project", "worksheets", ["/work/project/julia/src/Project.jl"]);
+
+  await act(async () => hook.result.current.actions.createProjectItem("worksheets", "Checks.eqv", "worksheet"));
+  await act(async () => hook.result.current.actions.addRegion("plot"));
+  importFiles.mockClear();
+  await act(async () => hook.result.current.actions.copyProjectFiles(["worksheets/Checks.eqv"], ""));
+  expect(importFiles).not.toHaveBeenCalled();
+  expect(hook.result.current.state.message).toContain("Save");
+});
+
 it("asks once for bulk delete, sends one batch on confirmation, and sends none on cancel", async () => {
   const { backend, hook } = await project();
   await act(async () => hook.result.current.actions.createProjectItem("", "notes.txt", "folder"));

@@ -6,7 +6,79 @@
 // A Julia region is written as its `julia:` block. A plot is written as its `plot:` mapping in
 // JSON form, which the worksheet reader accepts as it does the file's own flow style.
 
-import type { ViewRegion } from "../equavelaApi";
+import type { PageSetup, ViewRegion } from "../equavelaApi";
+import { flowFrame, flowOf, isArea, memberIds, type FlowFrame } from "../layout/areas";
+import type { FlowRect } from "../layout/geometry";
+
+/** Converts a flow offset back into a `(page, y)` point inside `frame`. */
+function fromFlow(frame: FlowFrame, flow: number): { page: number; y: number } {
+  if (!(frame.step > 1e-6)) return { page: 1, y: frame.top + flow };
+  const pageIndex = Math.max(0, Math.floor(flow / frame.step));
+  return { page: pageIndex + 1, y: frame.top + (flow - pageIndex * frame.step) };
+}
+
+/**
+ * Replaces saved coordinates with the displayed (reflowed) coordinates from `layout` so copying
+ * multiple reflowed regions preserves their visible arrangement while retaining area membership
+ * for both expanded and collapsed areas.
+ */
+export function withDisplayedLayout(
+  chosen: readonly ViewRegion[],
+  layout: readonly FlowRect[],
+  setup: PageSetup,
+): ViewRegion[] {
+  if (layout.length === 0 || chosen.length === 0) return [...chosen];
+  const byId = new Map(layout.map((rect) => [rect.id, rect]));
+  const frame = flowFrame(setup);
+  const membersByArea = new Map<string, Set<string>>();
+  const collapsedOwner = new Map<string, Extract<ViewRegion, { kind: "area" }>>();
+
+  for (const area of chosen.filter(isArea)) {
+    const members = new Set(memberIds(chosen, area, frame));
+    membersByArea.set(area.id, members);
+    if (area.collapsed && byId.has(area.id)) {
+      for (const id of members) {
+        if (!byId.has(id)) collapsedOwner.set(id, area);
+      }
+    }
+  }
+
+  const placed = chosen.map((region): ViewRegion => {
+    const rect = byId.get(region.id);
+    if (rect) {
+      return { ...region, page: rect.page, x: rect.x, y: rect.y };
+    }
+    const owner = collapsedOwner.get(region.id);
+    if (owner) {
+      const ownerRect = byId.get(owner.id)!;
+      const offset = flowOf(frame, region.page, region.y) - flowOf(frame, owner.page, owner.y);
+      const shifted = fromFlow(frame, flowOf(frame, ownerRect.page, ownerRect.y) + offset);
+      return { ...region, page: shifted.page, y: shifted.y };
+    }
+    return region;
+  });
+
+  // Ensure every expanded area's height still encloses its reflowed members so area membership
+  // is preserved when the snippet is pasted.
+  const placedById = new Map(placed.map((region) => [region.id, region]));
+  return placed.map((region): ViewRegion => {
+    if (region.kind !== "area" || region.collapsed) return region;
+    const members = membersByArea.get(region.id);
+    if (!members || members.size === 0) return region;
+    const areaStart = flowOf(frame, region.page, region.y);
+    let maxMemberOffset = 0;
+    for (const id of members) {
+      const member = placedById.get(id);
+      if (!member) continue;
+      const offset = flowOf(frame, member.page, member.y) - areaStart;
+      if (offset > maxMemberOffset) maxMemberOffset = offset;
+    }
+    if (maxMemberOffset >= region.height - 1) {
+      return { ...region, height: Math.max(region.height, Math.ceil(maxMemberOffset + 12)) };
+    }
+    return region;
+  });
+}
 
 export type RegionsSnippet = { snippet: string; copied: number; skipped: number };
 

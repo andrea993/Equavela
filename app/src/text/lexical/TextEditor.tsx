@@ -52,6 +52,7 @@ import { enterInlineMath, TextEnvContext } from "../InlineMath";
 import { isEmptyText, lineHeightPx, NO_FORMAT, sizeCss, textWidthStyle, type InlineActive, type InlineResult, type TextWidth, type MathClipboard, type MathTarget, type TextFormatKind, type TextFormatState, type TextHandle, type TextHistory } from "../value";
 import { $readValue, $setAlign, $setParagraphStyle, $setRunColor, $setRunHighlight, $writeValue } from "./convert";
 import { $createMathNode, MathNode } from "./MathNode";
+import { $copyMixedSelection, $pasteMixedSelection, clearMixedClipboard, normalizeInlineSelection } from "./inlineClipboard";
 import { $isTextParagraphNode, TextParagraphNode } from "./TextParagraphNode";
 
 export type TextEditorProps = {
@@ -72,6 +73,10 @@ export type TextEditorProps = {
   onFormat: (state: TextFormatState) => void;
   /** The editor's own history changed. */
   onHistory?: (history: TextHistory) => void;
+  /** Undo was triggered while the text editor's local history is empty. */
+  onEmptyUndo?: () => void;
+  /** Redo was triggered while the text editor's local history is empty. */
+  onEmptyRedo?: () => void;
   /** Where the inline math editor that has the keyboard registers for the ribbon palettes. */
   mathTarget: MutableRefObject<MathTarget | null>;
   /** Copy, cut and paste for the inline math editor. */
@@ -249,10 +254,41 @@ function Behaviour({ props }: { props: TextEditorProps }) {
     };
     const offUndo = editor.registerCommand(CAN_UNDO_COMMAND, report("canUndo"), COMMAND_PRIORITY_LOW);
     const offRedo = editor.registerCommand(CAN_REDO_COMMAND, report("canRedo"), COMMAND_PRIORITY_LOW);
+    // When the text editor's own history is empty, let Ctrl+Z / Ctrl+Y fall through to the
+    // worksheet history (e.g. undoing a move of the text box while it stays open).
+    const offUndoCmd = editor.registerCommand(
+      UNDO_COMMAND,
+      () => {
+        if (history.canUndo || !live.current.onEmptyUndo) return false;
+        live.current.onEmptyUndo();
+        return true;
+      },
+      COMMAND_PRIORITY_LOW,
+    );
+    const offRedoCmd = editor.registerCommand(
+      REDO_COMMAND,
+      () => {
+        if (history.canRedo || history.canUndo || !live.current.onEmptyRedo) return false;
+        live.current.onEmptyRedo();
+        return true;
+      },
+      COMMAND_PRIORITY_LOW,
+    );
     return () => {
       offUndo();
       offRedo();
+      offUndoCmd();
+      offRedoCmd();
     };
+  }, [editor]);
+
+  useEffect(() => {
+    const normalize = () => {
+      const root = editor.getRootElement();
+      if (root) normalizeInlineSelection(root, window.getSelection());
+    };
+    document.addEventListener("selectionchange", normalize);
+    return () => document.removeEventListener("selectionchange", normalize);
   }, [editor]);
 
   // The keymap of the `text` context, before Lexical's own shortcuts; and the
@@ -349,8 +385,9 @@ function Behaviour({ props }: { props: TextEditorProps }) {
         let text: string | null = null;
         editor.getEditorState().read(() => {
           const selection = $getSelection();
-          if (!$isRangeSelection(selection) || selection.isCollapsed() || selection.getNodes().some((node) => node instanceof MathNode)) return;
-          text = selection.getTextContent();
+          if (!$isRangeSelection(selection) || selection.isCollapsed()) return;
+          text = $copyMixedSelection(selection, editor);
+          if (text === null) { clearMixedClipboard(); text = selection.getTextContent(); }
         });
         if (text === null) return false;
         if (event && "clipboardData" in event && event.clipboardData) {
@@ -378,6 +415,9 @@ function Behaviour({ props }: { props: TextEditorProps }) {
         if ($isRangeSelection(selection)) insert(selection);
       });
     const pasteText = (source: string, saved: RangeSelection | null) => {
+      let inserted = false;
+      insertAtCaret(saved, (selection) => { inserted = $pasteMixedSelection(selection, source); });
+      if (inserted) return;
       const math = mathOfPaste(source);
       const statement = live.current.clipboard?.statement;
       if (math !== null && statement) {
@@ -411,11 +451,15 @@ function Behaviour({ props }: { props: TextEditorProps }) {
       PASTE_COMMAND,
       (event) => {
         const data = (event as ClipboardEvent).clipboardData;
+        const text = data?.getData("text/plain") ?? "";
+        const saved = currentSelection();
+        let inserted = false;
+        insertAtCaret(saved, (selection) => { inserted = $pasteMixedSelection(selection, text); });
+        if (inserted) { event.preventDefault(); return true; }
         const source = data ? mathOfPaste(data.getData("text/plain") ?? "") : null;
         const statement = live.current.clipboard?.statement;
         if (source === null || !statement) return false;
         event.preventDefault();
-        const saved = currentSelection();
         void statement(source).then((tree) =>
           insertAtCaret(saved, (selection) => {
             // A text that does not parse as math is still what the user pasted: it goes in as text.

@@ -617,6 +617,9 @@ end
     @test eq_locate(eq_locate(e, 3), 9).statement == 3     # innermost statement wins
     @test eq_locate(ErrorException("raw"), 2) isa EqError
     @test eq_locate(ErrorException("raw"), 2).message == "raw"
+    not_fn = eq_locate(MethodError([1.0, 2.0], (1.0,)), 4)
+    @test not_fn isa EqError && not_fn.statement == 4
+    @test not_fn.message == "cannot call a value that is not a function"
     interrupt = InterruptException()
     @test eq_locate(interrupt, 1) === interrupt
     @test occursin("statement 3", sprint(showerror, eq_locate(e, 3)))

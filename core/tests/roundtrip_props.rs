@@ -426,6 +426,7 @@ fn expr() -> BoxedStrategy<Expr> {
                         ExprKind::Integral {
                             var,
                             bounds,
+                            domain: None,
                             algorithm,
                             body: b(body),
                         }
@@ -439,12 +440,14 @@ fn expr() -> BoxedStrategy<Expr> {
                     .prop_map(|(var, order, body, d)| Expr::synth(if d {
                         ExprKind::Deriv {
                             var,
+                            var_expr: None,
                             order: order.map(b),
                             body: b(body),
                         }
                     } else {
                         ExprKind::Partial {
                             var,
+                            var_expr: None,
                             order: order.map(b),
                             body: b(body),
                         }

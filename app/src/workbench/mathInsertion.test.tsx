@@ -78,3 +78,35 @@ it("commits a new region with the crosshair already where the caller puts it", a
   expect(hook.result.current.state.editing).toBeNull();
   expect(hook.result.current.active!.crosshair).toEqual({ page: 1, x: 153, y: 180 });
 });
+
+it("does not duplicate a new region when commitEdit runs while live preview is in flight", async () => {
+  const backend = createMockBackend({ fast: true });
+  const realAdd = backend.addMathRegion.bind(backend);
+  let addCalls = 0;
+  let releaseAdd!: () => void;
+  let addStarted!: () => void;
+  const started = new Promise<void>((resolve) => { addStarted = resolve; });
+  backend.addMathRegion = async (...args) => {
+    addCalls += 1;
+    addStarted();
+    await new Promise<void>((resolve) => { releaseAdd = resolve; });
+    return realAdd(...args);
+  };
+  const hook = renderHook(() => useWorkbench(backend));
+  await waitFor(() => expect(hook.result.current.state.ready).toBe(true));
+  await act(async () => { await hook.result.current.actions.create(); });
+  act(() => hook.result.current.actions.setCrosshair({ page: 1, x: 120, y: 180 }));
+  await act(async () => { await hook.result.current.actions.beginNew(); });
+  act(() => hook.result.current.actions.updateEditor(initialState({ type: "Evaluate", expr: { type: "Num", text: "2" }, unit: null })));
+  // Wait for the 200ms live-eval preview timer to start addMathRegion.
+  await started;
+  // User commits while preview's addMathRegion is still in flight.
+  const committing = hook.result.current.actions.commitEdit();
+  await act(async () => {
+    releaseAdd();
+    expect(await committing).toBe(true);
+  });
+  expect(addCalls).toBe(1);
+  expect(hook.result.current.active!.view.regions).toHaveLength(1);
+  expect(hook.result.current.state.editing).toBeNull();
+});

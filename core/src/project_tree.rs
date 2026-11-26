@@ -26,6 +26,7 @@ pub enum EntryKind {
     Julia,
     Image,
     Other,
+    Link,
 }
 
 /// One folder or file of the tree, by its project-relative `/` path.
@@ -60,25 +61,96 @@ fn kind_of(name: &str, folder: bool) -> EntryKind {
     }
 }
 
-/// every folder and file under `root` except hidden names, links, non-regular items
-/// and the manifest, folders first and then files, each by name case-insensitively.
+/// Whether a path belongs to the project's own metadata or transaction state.
+pub fn internal_path(path: &str) -> bool {
+    let first = path.split('/').next().unwrap_or("").to_ascii_lowercase();
+    matches!(
+        first.as_str(),
+        MANIFEST_FILE
+            | ".equavela"
+            | ".equavela-references"
+            | ".equavela-relocation"
+            | ".equavela-trash.json"
+    ) || first.starts_with(".equavela-project.yaml.")
+}
+
+/// Every regular file and folder except project metadata, sorted folders first.
 pub fn list_tree(root: &Path) -> Result<Vec<TreeEntry>, String> {
-    fn walk(root: &Path, relative: &str, out: &mut Vec<TreeEntry>) -> Result<(), String> {
+    list_entries(root, false)
+}
+
+/// The explorer also shows project metadata, which remains protected from file operations.
+pub fn list_explorer(root: &Path) -> Result<Vec<TreeEntry>, String> {
+    list_entries(root, true)
+}
+
+/// Maximum directory depth walked when listing a project tree.
+const MAX_WALK_DEPTH: usize = 64;
+
+fn is_reparse_point(meta: &fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+        meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = meta;
+        false
+    }
+}
+
+fn list_entries(root: &Path, show_internal: bool) -> Result<Vec<TreeEntry>, String> {
+    fn walk(
+        root: &Path,
+        relative: &str,
+        show_internal: bool,
+        depth: usize,
+        out: &mut Vec<TreeEntry>,
+    ) -> Result<(), String> {
+        if depth >= MAX_WALK_DEPTH {
+            return Ok(());
+        }
         let folder = if relative.is_empty() {
             root.to_path_buf()
         } else {
             root.join(relative)
         };
         let mut items = Vec::new();
-        for item in fs::read_dir(&folder).map_err(describe(&folder))? {
+        let directory = match fs::read_dir(&folder) {
+            Err(error) if !relative.is_empty() && error.kind() == io::ErrorKind::NotFound => {
+                return Ok(())
+            }
+            result => result.map_err(describe(&folder))?,
+        };
+        for item in directory {
             let item = item.map_err(describe(&folder))?;
             let name = item.file_name().to_string_lossy().into_owned();
-            if name.starts_with('.') || (relative.is_empty() && name == MANIFEST_FILE) {
+            let child = if relative.is_empty() {
+                name.clone()
+            } else {
+                format!("{relative}/{name}")
+            };
+            if !show_internal && (internal_path(&child) || name.eq_ignore_ascii_case(".git")) {
                 continue;
             }
-            let file_type = item.file_type().map_err(describe(&item.path()))?;
-            if file_type.is_dir() || file_type.is_file() {
-                items.push((name, file_type.is_dir(), item.path()));
+            let file_type = match item.file_type() {
+                Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+                result => result.map_err(describe(&item.path()))?,
+            };
+            if file_type.is_dir() || file_type.is_file() || file_type.is_symlink() {
+                let path = item.path();
+                // On Windows, directory junctions report `is_dir() == true` and
+                // `is_symlink() == false`; treat reparse points as links so we never loop.
+                let is_reparse = file_type.is_dir()
+                    && !file_type.is_symlink()
+                    && fs::symlink_metadata(&path)
+                        .map(|m| is_reparse_point(&m))
+                        .unwrap_or(false);
+                let is_link = file_type.is_symlink() || is_reparse;
+                let is_folder = file_type.is_dir() && !is_link;
+                items.push((name, is_folder, is_link, path));
             }
         }
         items.sort_by(|a, b| {
@@ -86,30 +158,39 @@ pub fn list_tree(root: &Path) -> Result<Vec<TreeEntry>, String> {
                 .then_with(|| a.0.to_lowercase().cmp(&b.0.to_lowercase()))
                 .then_with(|| a.0.cmp(&b.0))
         });
-        for (name, is_folder, path) in items {
+        for (name, is_folder, is_link, path) in items {
             let child = if relative.is_empty() {
                 name.clone()
             } else {
                 format!("{relative}/{name}")
             };
-            let size = if is_folder {
+            let size = if is_folder || is_link {
                 0
             } else {
-                fs::metadata(&path).map_err(describe(&path))?.len()
+                match fs::metadata(&path) {
+                    Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+                    result => result.map_err(describe(&path))?.len(),
+                }
             };
             out.push(TreeEntry {
                 path: child.clone(),
-                kind: kind_of(&name, is_folder),
+                kind: if is_link {
+                    EntryKind::Link
+                } else if !is_folder && internal_path(&child) {
+                    EntryKind::Other
+                } else {
+                    kind_of(&name, is_folder)
+                },
                 size,
             });
             if is_folder {
-                walk(root, &child, out)?;
+                walk(root, &child, show_internal, depth + 1, out)?;
             }
         }
         Ok(())
     }
     let mut out = Vec::new();
-    walk(root, "", &mut out)?;
+    walk(root, "", show_internal, 0, &mut out)?;
     Ok(out)
 }
 
@@ -123,6 +204,12 @@ pub(crate) fn tree_worksheets(entries: &[TreeEntry], environment: Option<&str>) 
     let mut paths: Vec<String> = entries
         .iter()
         .filter(|entry| entry.kind == EntryKind::Worksheet)
+        .filter(|entry| {
+            !entry
+                .path
+                .split('/')
+                .any(|part| part.eq_ignore_ascii_case(".git"))
+        })
         .filter(|entry| !environment.is_some_and(|env| within(&entry.path, env)))
         .map(|entry| entry.path.clone())
         .collect();
@@ -166,6 +253,8 @@ pub(crate) fn read_manifest(root: &Path) -> Result<ProjectManifest, String> {
 /// brings the manifest's worksheet index in step with the tree. `moved` maps the old
 /// paths of worksheets Equavela just moved to their new ones, so they keep their UUIDs.
 /// Writes the manifest only when it changed.
+pub const NO_WORKSHEETS: &str = "the project has no worksheet (.eqv file) left";
+
 pub fn sync_manifest(
     root: &Path,
     moved: &BTreeMap<String, String>,
@@ -175,7 +264,7 @@ pub fn sync_manifest(
     let tree = list_tree(root)?;
     let paths = tree_worksheets(&tree, manifest.environment.as_deref());
     if paths.is_empty() {
-        return Err("the project has no worksheet (.eqv file) left".into());
+        return Err(NO_WORKSHEETS.into());
     }
     let mut ids: BTreeMap<String, String> = BTreeMap::new();
     for sheet in &manifest.worksheets {
@@ -208,12 +297,10 @@ fn load(root: &Path) -> Result<(PathBuf, ProjectManifest), String> {
     Ok((root, manifest))
 }
 
-/// Checks a project-relative path given by the explorer: portable, not hidden, existing.
+/// Checks a project-relative path given by the explorer: portable and existing.
 pub(crate) fn existing(root: &Path, path: &str) -> Result<PathBuf, String> {
     validate_portable_path("path", path).map_err(|error| error.to_string())?;
-    if path.split('/').any(|part| part.starts_with('.')) {
-        return Err(format!("`{path}` is hidden"));
-    }
+    crate::project_transaction::check_path(root, path)?;
     let full = root.join(path);
     // The message names the portable path: on Windows `full` may be a verbatim path with `\`.
     let metadata = fs::symlink_metadata(&full).map_err(|error| format!("`{path}`: {error}"))?;
@@ -451,10 +538,22 @@ pub fn import_files(root: &Path, folder: &str, sources: &[PathBuf]) -> Result<Ve
     folder_path(&root, folder)?;
     let mut payloads = Vec::new();
     for source in sources {
-        let metadata = fs::metadata(source).map_err(describe(source))?;
-        if !metadata.is_file() {
+        let metadata = fs::symlink_metadata(source).map_err(describe(source))?;
+        if !metadata.is_file() || metadata.file_type().is_symlink() {
             return Err(format!("`{}` is not a file", source.display()));
         }
+        let canonical_source = fs::canonicalize(source).map_err(describe(source))?;
+        let from_project = if let Ok(relative) = canonical_source.strip_prefix(&root) {
+            let relative = relative.to_string_lossy().replace('\\', "/");
+            if internal_path(&relative) {
+                return Err(format!(
+                    "`{relative}` is project metadata and cannot be copied"
+                ));
+            }
+            true
+        } else {
+            false
+        };
         let bytes = fs::read(source).map_err(describe(source))?;
         let name = source
             .file_name()
@@ -484,15 +583,37 @@ pub fn import_files(root: &Path, folder: &str, sources: &[PathBuf]) -> Result<Ve
             Some(dot) if dot > 0 => (&name[..dot], &name[dot..]),
             _ => (name.as_str(), ""),
         };
+        let hidden = stem.starts_with('.');
+        let stem = if from_project {
+            stem.to_owned()
+        } else {
+            let cleaned = portable_file_stem(stem.trim_start_matches('.'), "file");
+            if hidden {
+                format!(".{cleaned}")
+            } else {
+                cleaned
+            }
+        };
         payloads.push((
-            portable_file_stem(stem, "file"),
-            extension.to_ascii_lowercase(),
+            stem,
+            if from_project {
+                extension.to_owned()
+            } else {
+                extension.to_ascii_lowercase()
+            },
             bytes,
         ));
+    }
+    for (stem, extension, _) in &payloads {
+        crate::project_transaction::check_path(
+            &root,
+            &join(folder, &format!("{stem}{extension}")),
+        )?;
     }
     let mut created = Vec::new();
     for (stem, extension, bytes) in payloads {
         let path = free_name(&root, folder, &stem, &extension);
+        crate::project_transaction::check_path(&root, &path)?;
         create_new(&root.join(&path), &bytes)?;
         created.push(path);
     }
@@ -518,7 +639,9 @@ pub fn file_version(bytes: &[u8]) -> String {
 /// Reads a regular file of the tree, refusing one over `limit` bytes.
 fn read_tree_file(root: &Path, path: &str, limit: u64) -> Result<Vec<u8>, String> {
     let (root, _) = load(root)?;
-    let full = existing(&root, path)?;
+    validate_portable_path("path", path).map_err(|error| error.to_string())?;
+    crate::project_transaction::no_links(&root, path)?;
+    let full = root.join(path);
     let metadata = fs::metadata(&full).map_err(describe(&full))?;
     if !metadata.is_file() {
         return Err(format!("`{path}` is not a file"));
@@ -536,7 +659,14 @@ fn read_tree_file(root: &Path, path: &str, limit: u64) -> Result<Vec<u8>, String
 pub fn read_text_file(root: &Path, path: &str) -> Result<(String, String), String> {
     let bytes = read_tree_file(root, path, TEXT_FILE_BYTES)?;
     let version = file_version(&bytes);
-    let text = String::from_utf8(bytes).map_err(|_| format!("`{path}` is not UTF-8 text"))?;
+    if bytes
+        .iter()
+        .any(|byte| *byte < 0x20 && !matches!(*byte, b'\t' | b'\n' | b'\r' | 0x0c))
+    {
+        return Err(format!("`{path}` cannot be displayed as text"));
+    }
+    let text = String::from_utf8(bytes)
+        .map_err(|_| format!("`{path}` cannot be displayed as text: not UTF-8"))?;
     Ok((text, version))
 }
 
@@ -719,29 +849,90 @@ mod tests {
     }
 
     #[test]
-    fn the_tree_lists_folders_first_and_hides_hidden_links_and_the_manifest() {
+    fn the_tree_lists_hidden_files_folders_and_links_but_not_internal_data() {
         let (_temp, root) = project();
         fs::create_dir_all(root.join(".git/objects")).unwrap();
         fs::write(root.join(".notes"), "x").unwrap();
+        fs::create_dir_all(root.join(".equavela/results")).unwrap();
+        fs::write(root.join(".equavela/results/cache"), "x").unwrap();
         fs::write(root.join("Readme.txt"), "hi").unwrap();
         fs::write(root.join("worksheets/b.png"), "png").unwrap();
         #[cfg(unix)]
         std::os::unix::fs::symlink(root.join("Readme.txt"), root.join("link.txt")).unwrap();
-        assert_eq!(
-            paths(&root),
-            [
-                "julia",
-                "julia/Project.toml",
-                "worksheets",
-                "worksheets/b.png",
-                "worksheets/main.eqv",
-                "Readme.txt"
-            ]
-        );
+        let mut expected = vec![
+            "julia",
+            "julia/Project.toml",
+            "worksheets",
+            "worksheets/b.png",
+            "worksheets/main.eqv",
+            ".notes",
+        ];
+        #[cfg(unix)]
+        expected.push("link.txt");
+        expected.push("Readme.txt");
+        assert_eq!(paths(&root), expected);
         let tree = list_tree(&root).unwrap();
         assert_eq!(tree[4].kind, EntryKind::Worksheet);
         assert_eq!(tree[3].kind, EntryKind::Image);
-        assert_eq!(tree[5].size, 2);
+        assert_eq!(tree.last().unwrap().size, 2);
+        #[cfg(unix)]
+        assert_eq!(tree[6].kind, EntryKind::Link);
+        let shown = list_explorer(&root).unwrap();
+        assert!(shown.iter().any(|entry| entry.path == ".git/objects"));
+        assert!(shown
+            .iter()
+            .any(|entry| entry.path == "equavela-project.yaml"));
+        assert!(shown
+            .iter()
+            .any(|entry| entry.path == ".equavela/results/cache"));
+    }
+
+    #[test]
+    fn hidden_files_can_be_moved_copied_and_opened_without_access_to_metadata() {
+        let (_temp, root) = project();
+        fs::create_dir_all(root.join(".config")).unwrap();
+        fs::write(root.join(".config/.env"), "name=value").unwrap();
+        fs::write(root.join(".config/table.v1.CSV"), "1,2").unwrap();
+        assert_eq!(
+            read_text_file(&root, ".config/.env").unwrap().0,
+            "name=value"
+        );
+        assert_eq!(
+            import_files(&root, "", &[root.join(".config/.env")]).unwrap(),
+            [".env"]
+        );
+        assert_eq!(
+            import_files(&root, "", &[root.join(".config/table.v1.CSV")]).unwrap(),
+            ["table.v1.CSV"]
+        );
+        move_item(&root, ".env", "worksheets").unwrap();
+        assert_eq!(
+            fs::read(root.join("worksheets/.env")).unwrap(),
+            b"name=value"
+        );
+        assert!(existing(&root, "equavela-project.yaml").is_err());
+        assert!(import_files(&root, "worksheets", &[root.join("equavela-project.yaml")]).is_err());
+        let (_, manifest_version) = read_text_file(&root, "equavela-project.yaml").unwrap();
+        assert!(
+            write_text_file(&root, "equavela-project.yaml", "changed", &manifest_version).is_err()
+        );
+        assert!(crate::project_transaction::check_path(&root, ".equavela/results/data").is_err());
+        assert!(crate::project_transaction::check_path(&root, ".EQUAVELA/results/data").is_err());
+        assert!(crate::project_transaction::check_path(&root, "C:\\project\\file").is_err());
+        let source = root.parent().unwrap();
+        fs::write(source.join("safe.txt"), "safe").unwrap();
+        fs::write(source.join(".equavela"), "reserved").unwrap();
+        assert!(import_files(
+            &root,
+            "",
+            &[source.join("safe.txt"), source.join(".equavela")]
+        )
+        .is_err());
+        assert!(!root.join("safe.txt").exists());
+        fs::write(root.join("binary"), b"hello\0world").unwrap();
+        assert!(read_text_file(&root, "binary")
+            .unwrap_err()
+            .contains("cannot be displayed"));
     }
 
     #[test]

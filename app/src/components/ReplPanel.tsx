@@ -163,17 +163,24 @@ export function ReplPanel({ target, height, onHeight, run, complete, stop, onClo
   };
 
   // the separator above the panel sets its height.
+  const dragCleanup = useRef<(() => void) | null>(null);
+  useEffect(() => () => dragCleanup.current?.(), []);
   const drag = (event: PointerEvent<HTMLDivElement>) => {
+    dragCleanup.current?.();
     const startY = event.clientY;
     const startHeight = height;
     const move = (moved: globalThis.PointerEvent) =>
       onHeight(Math.min(REPL_MAX, Math.max(REPL_MIN, startHeight + startY - moved.clientY)));
-    const up = () => {
+    const stopDrag = () => {
       window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointerup", stopDrag);
+      window.removeEventListener("pointercancel", stopDrag);
+      if (dragCleanup.current === stopDrag) dragCleanup.current = null;
     };
+    dragCleanup.current = stopDrag;
     window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
+    window.addEventListener("pointerup", stopDrag);
+    window.addEventListener("pointercancel", stopDrag);
   };
 
   return (

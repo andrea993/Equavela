@@ -219,6 +219,16 @@ struct WindowsJob(isize);
 #[cfg(windows)]
 impl WindowsJob {
     fn assign(child: &dyn portable_pty::Child) -> io::Result<Self> {
+        let process = child.as_raw_handle().unwrap_or(std::ptr::null_mut());
+        Self::assign_raw_handle(process)
+    }
+
+    fn assign_std_child(child: &Child) -> io::Result<Self> {
+        use std::os::windows::io::AsRawHandle;
+        Self::assign_raw_handle(child.as_raw_handle())
+    }
+
+    fn assign_raw_handle(process: *mut std::ffi::c_void) -> io::Result<Self> {
         use windows_sys::Win32::Foundation::CloseHandle;
         use windows_sys::Win32::System::JobObjects::*;
         unsafe {
@@ -234,7 +244,6 @@ impl WindowsJob {
                 &limits as *const _ as *const _,
                 std::mem::size_of_val(&limits) as u32,
             );
-            let process = child.as_raw_handle().unwrap_or(std::ptr::null_mut());
             if configured == 0
                 || process.is_null()
                 || AssignProcessToJobObject(job, process as _) == 0
@@ -257,14 +266,27 @@ impl Drop for WindowsJob {
     }
 }
 
+struct StdioProcess {
+    child: Child,
+    #[cfg(windows)]
+    _job: Option<WindowsJob>,
+}
+
+impl Drop for StdioProcess {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
 enum Process {
-    Stdio(Child),
+    Stdio(StdioProcess),
     Pty(PtyProcess),
 }
 impl Process {
     fn try_wait(&mut self) -> io::Result<Option<String>> {
         match self {
-            Self::Stdio(c) => c.try_wait().map(|s| s.map(|s| s.to_string())),
+            Self::Stdio(c) => c.child.try_wait().map(|s| s.map(|s| s.to_string())),
             Self::Pty(c) => {
                 let status = c.child.try_wait()?;
                 if status.is_some() {
@@ -276,7 +298,7 @@ impl Process {
     }
     fn kill(&mut self) -> io::Result<()> {
         match self {
-            Self::Stdio(c) => c.kill(),
+            Self::Stdio(c) => c.child.kill(),
             Self::Pty(c) => {
                 c.cleanup_group();
                 c.child.kill()
@@ -285,7 +307,7 @@ impl Process {
     }
     fn wait(&mut self) -> io::Result<()> {
         match self {
-            Self::Stdio(c) => c.wait().map(|_| ()),
+            Self::Stdio(c) => c.child.wait().map(|_| ()),
             Self::Pty(c) => c.child.wait().map(|_| ()),
         }
     }
@@ -503,15 +525,27 @@ impl KernelManager {
         request: &EvaluateRequest,
         progress: &mut dyn FnMut(&ProgressParams),
     ) -> Result<EvaluateResponse, KernelError> {
+        self.evaluate_with_options(request, &RequestOptions::default(), progress)
+    }
+
+    /// Evaluates generated Julia for one worksheet with explicit request options (such as a
+    /// pre-allocated request id for targeted interruption).
+    pub fn evaluate_with_options(
+        &self,
+        request: &EvaluateRequest,
+        options: &RequestOptions,
+        progress: &mut dyn FnMut(&ProgressParams),
+    ) -> Result<EvaluateResponse, KernelError> {
         let params = serde_json::to_value(request)
             .map_err(|error| KernelError::InvalidResponse(error.to_string()))?;
-        let response = self.request_with(
-            "evaluate",
-            Some(params),
-            &RequestOptions::default(),
-            progress,
-        )?;
+        let response = self.request_with("evaluate", Some(params), options, progress)?;
         EvaluateResponse::from_response(&response)
+    }
+
+    /// Allocates a unique request id for use with [`RequestOptions::id`] and
+    /// [`interrupt_request`](Self::interrupt_request).
+    pub fn next_request_id(&self) -> RpcId {
+        self.allocate_id()
     }
 
     /// Adds `packages` to the Julia environment in the directory `environment` and
@@ -787,11 +821,13 @@ impl KernelManager {
         if self.config.terminal {
             return self.spawn_terminal(&julia, sysimage);
         }
+        let mut project_flag = OsString::from("--project=");
+        project_flag.push(&self.config.project);
         let mut command = Command::new(&julia);
         command
             .arg("--startup-file=no")
             .arg("--color=no")
-            .arg(format!("--project={}", self.config.project.display()));
+            .arg(project_flag);
         if let Some(image) = sysimage {
             let mut flag = OsString::from("--sysimage=");
             flag.push(image);
@@ -822,8 +858,14 @@ impl KernelManager {
         let (sender, events) = mpsc::channel();
         spawn_reader(stdout, sender);
 
+        #[cfg(windows)]
+        let job = WindowsJob::assign_std_child(&child).ok();
         let mut running = Running {
-            child: Process::Stdio(child),
+            child: Process::Stdio(StdioProcess {
+                child,
+                #[cfg(windows)]
+                _job: job,
+            }),
             stdin: Box::new(stdin),
             terminal: None,
             events,
@@ -887,10 +929,12 @@ impl KernelManager {
                 pixel_height: 0,
             })
             .map_err(|e| KernelError::Spawn(io::Error::other(e.to_string())))?;
+        let mut project_flag = OsString::from("--project=");
+        project_flag.push(&self.config.project);
         let mut command = CommandBuilder::new(julia);
         command.arg("--startup-file=no");
         command.arg("-i");
-        command.arg(format!("--project={}", self.config.project.display()));
+        command.arg(project_flag);
         if let Some(image) = sysimage {
             let mut flag = OsString::from("--sysimage=");
             flag.push(image);
@@ -1321,17 +1365,44 @@ fn terminate(mut running: Running) {
     let _ = running.child.wait();
 }
 
+/// Upper bound on a single binary payload read from the kernel protocol stream.
+const MAX_BINARY_PAYLOAD_BYTES: usize = 512 * 1024 * 1024;
+
+/// Maximum time to wait when probing a launcher (such as `juliaup`) for the real Julia binary.
+const RESOLVE_REAL_JULIA_TIMEOUT: Duration = Duration::from_secs(10);
+
 fn resolve_real_julia(julia: &PathBuf) -> Option<PathBuf> {
-    let output = Command::new(julia)
+    let mut command = Command::new(julia);
+    command
         .args(["--startup-file=no", "-e", "print(Base.julia_cmd().exec[1])"])
         .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .ok()?;
-    if !output.status.success() {
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    let mut child = command.spawn().ok()?;
+    let deadline = Instant::now() + RESOLVE_REAL_JULIA_TIMEOUT;
+    let status = loop {
+        match child.try_wait().ok()? {
+            Some(status) => break status,
+            None if Instant::now() >= deadline => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+            None => thread::sleep(Duration::from_millis(20)),
+        }
+    };
+    if !status.success() {
         return None;
     }
-    let path = PathBuf::from(String::from_utf8(output.stdout).ok()?.trim());
+    let mut stdout = Vec::new();
+    child.stdout.take()?.read_to_end(&mut stdout).ok()?;
+    let path = PathBuf::from(String::from_utf8(stdout).ok()?.trim());
     path.is_file().then_some(path)
 }
 
@@ -1403,6 +1474,13 @@ fn spawn_reader(stdout: impl Read + Send + 'static, sender: Sender<Event>) {
             };
             let mut payloads = Vec::with_capacity(header.binary.len());
             for descriptor in &header.binary {
+                if descriptor.bytes > MAX_BINARY_PAYLOAD_BYTES {
+                    let _ = sender.send(Event::Closed(format!(
+                        "binary payload of {} bytes exceeds limit",
+                        descriptor.bytes
+                    )));
+                    return;
+                }
                 let mut payload = vec![0_u8; descriptor.bytes];
                 if let Err(error) = reader.read_exact(&mut payload) {
                     let _ = sender.send(Event::Closed(format!("truncated payload: {error}")));

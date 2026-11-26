@@ -45,7 +45,10 @@ export function unionRect(element: Element): DOMRect | null {
   };
   // The element's own boxes run on over an inline result that follows the expression: leave them out then.
   const clipOf = (e: Element) => e.parentElement?.closest(CLIPPING) ?? null;
-  if (element.closest(".result") || !element.querySelector(".result")) {
+  // Program lines fill the block for hit testing, but their editing lines belong to
+  // the instruction they contain, not to the empty space after it.
+  const programLine = element.matches(".prog-lines > .line[data-path]");
+  if (!programLine && (element.closest(".result") || !element.querySelector(".result"))) {
     const clip = clipOf(element);
     for (const r of element.getClientRects()) add(r, clip);
   }
@@ -53,6 +56,10 @@ export function unionRect(element: Element): DOMRect | null {
     if (child.closest(".result") && !element.closest(".result")) continue;
     const clip = clipOf(child);
     for (const r of child.getClientRects()) add(r, clip);
+  }
+  if (!box && programLine) {
+    const clip = clipOf(element);
+    for (const r of element.getClientRects()) add(r, clip);
   }
   if (!box) return null;
   const b = box as { l: number; t: number; r: number; b: number };

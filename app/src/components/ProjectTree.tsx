@@ -32,7 +32,8 @@ export type ProjectTreeActions = {
   move: (path: string, folder: string) => void;
   delete: (path: string, folder: boolean, files: number) => void;
   openMany?: (paths: string[]) => void;
-  moveMany?: (paths: string[], folder: string) => void;
+  moveMany?: (paths: string[], folder: string) => void | Promise<boolean>;
+  copyFiles?: (paths: string[], folder: string) => void;
   deleteMany?: (items: { path: string; folder: boolean; files: number }[]) => void;
   import: (folder: string) => void;
   reveal: (path: string) => void;
@@ -51,9 +52,6 @@ export type ProjectTreeActions = {
 /** Transient editor status for one project-relative file path. */
 export type ProjectFileStatus = { modified?: boolean; errors?: number; missingResources?: number };
 
-/** The text files a text tab opens. */
-const TEXT_FILE = /\.(jl|toml|txt|csv|tsv|md|json|ya?ml)$/i;
-
 /** A small icon by kind, drawn in the current text colour. */
 function ItemIcon({ kind, open }: { kind: TreeEntry["kind"]; open?: boolean }) {
   const paths: Record<TreeEntry["kind"], ReactNode> = {
@@ -64,6 +62,7 @@ function ItemIcon({ kind, open }: { kind: TreeEntry["kind"]; open?: boolean }) {
     julia: <><circle cx="8" cy="4.5" r="2.2" /><circle cx="4.5" cy="10.5" r="2.2" /><circle cx="11.5" cy="10.5" r="2.2" /></>,
     image: <><path d="M1.5 2.5h13v11h-13z" /><path d="M2.5 12l3.5-4 2.5 3 2-2 3 3z" className="fill" /></>,
     other: <path d="M3.5 1.5h6l3 3v10h-9z" />,
+    link: <><path d="M3.5 1.5h6l3 3v10h-9z" /><path d="M5 10h6M8 7l3 3-3 3" className="stroke" /></>,
   };
   return <svg className={`tree-icon ${kind}`} viewBox="0 0 16 16" aria-hidden="true">{paths[kind]}</svg>;
 }
@@ -141,7 +140,7 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
   useEffect(() => {
     if (opened.current || entries.length === 0) return;
     opened.current = true;
-    setExpanded((current) => new Set([...current, ...entries.filter((e) => e.kind === "folder" && !e.path.includes("/")).map((e) => e.path)]));
+    setExpanded((current) => new Set([...current, ...entries.filter((e) => e.kind === "folder" && !e.path.includes("/") && !e.path.startsWith(".")).map((e) => e.path)]));
   }, [entries]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [lead, setLead] = useState<string | null>(null);
@@ -149,6 +148,19 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
   const [editing, setEditing] = useState<Editing | null>(null);
   const [menu, setMenu] = useState<Menu | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [dragGhost, setDragGhost] = useState<{
+    x: number;
+    y: number;
+    label: string;
+    kind: TreeEntry["kind"];
+    count: number;
+    copy: boolean;
+    paths: readonly string[];
+  } | null>(null);
+  const pointerDrag = useRef<{ id: number; x: number; y: number; paths: string[]; active: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  const [clipboard, setClipboard] = useState<{ paths: string[]; cut: boolean } | null>(null);
+  useEffect(() => setClipboard(null), [root]);
   const tree = useRef<HTMLDivElement>(null);
   const kinds = useMemo(() => new Map(entries.map((entry) => [entry.path, entry.kind])), [entries]);
   const activePath = entries.find((entry) => entry.kind !== "folder" && activeRoot !== null && sameFile(activeRoot, projectWorksheetPath(root, entry.path)))?.path ?? null;
@@ -205,9 +217,9 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
     if (entry.kind === "folder") toggle(entry.path);
     else if (entry.kind === "worksheet") actions.open(projectWorksheetPath(root, entry.path));
     else if (entry.kind === "image") actions.openFile(entry.path, "image");
-    else if (TEXT_FILE.test(entry.path)) actions.openFile(entry.path, "text");
+    else actions.openFile(entry.path, "text");
   };
-  const isSupportedOpen = (entry: TreeEntry) => entry.kind === "worksheet" || entry.kind === "image" || TEXT_FILE.test(entry.path);
+  const isSupportedOpen = (entry: TreeEntry) => entry.kind !== "folder";
   const selectedInOrder = () => visible.filter((entry) => selected.has(entry.path));
   const compactPaths = (paths: string[]) => paths.filter((path) => !paths.some((other) => other !== path && path.startsWith(`${other}/`) && kinds.get(other) === "folder"));
   const remove = (path: string) => actions.delete(path, kinds.get(path) === "folder", filesIn(path));
@@ -224,6 +236,26 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
   const openSelection = () => {
     const paths = selectedInOrder().filter(isSupportedOpen).map((entry) => entry.path);
     if (paths.length) actions.openMany?.(paths);
+  };
+  const remember = (cut: boolean) => {
+    const paths = compactPaths(selectedInOrder().map((entry) => entry.path));
+    if (paths.length && paths.every((path) => kinds.get(path) !== "link") && (cut || paths.every((path) => kinds.get(path) !== "folder"))) setClipboard({ paths, cut });
+  };
+  const paste = (target: string | null) => {
+    if (!clipboard) return;
+    const folder = targetFolder(target);
+    if (clipboard.cut) {
+      if (clipboard.paths.some((path) => path === folder || (kinds.get(path) === "folder" && folder.startsWith(`${path}/`)))) return;
+      const paths = clipboard.paths.filter((path) => parentOf(path) !== folder);
+      if (paths.length && actions.moveMany) {
+        void Promise.resolve(actions.moveMany(paths, folder)).then((moved) => {
+          if (moved !== false) setClipboard((current) => current === clipboard ? null : current);
+        });
+      }
+    } else {
+      actions.copyFiles?.(clipboard.paths, folder);
+    }
+    if (folder) toggle(folder, true);
   };
   const rangeTo = (path: string, union: boolean) => {
     const anchorPath = anchor.current && visiblePaths.has(anchor.current) ? anchor.current : (lead ?? path);
@@ -258,7 +290,7 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
       if (extend) rangeTo(entry.path, union);
       else selectOnly(entry.path);
     };
-    const modifier = event.ctrlKey || event.metaKey;
+    const modifier = (event.ctrlKey || event.metaKey) && !event.altKey && !event.getModifierState("AltGraph");
     switch (event.key) {
       case "ArrowDown": event.preventDefault(); select(at + 1, event.shiftKey, modifier); break;
       case "ArrowUp": event.preventDefault(); select(at < 0 ? 0 : at - 1, event.shiftKey, modifier); break;
@@ -266,6 +298,9 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
       case "End": event.preventDefault(); select(visible.length - 1, event.shiftKey, modifier); break;
       case "a":
       case "A": if (modifier) { event.preventDefault(); setSelected(new Set(visible.map((entry) => entry.path))); if (lead === null && visible[0]) { setLead(visible[0].path); anchor.current = visible[0].path; } } break;
+      case "c": case "C": if (modifier) { event.preventDefault(); remember(false); } break;
+      case "x": case "X": if (modifier) { event.preventDefault(); remember(true); } break;
+      case "v": case "V": if (modifier) { event.preventDefault(); paste(current?.path ?? null); } break;
       case "Escape": if (selected.size > 1) { event.preventDefault(); setSelected(lead ? new Set([lead]) : new Set()); anchor.current = lead; } break;
       case "ArrowRight":
         event.preventDefault();
@@ -304,7 +339,7 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
     if (!event.dataTransfer.types.includes("application/x-equavela-path") && !event.dataTransfer.types.includes("application/x-equavela-paths")) return;
     event.preventDefault();
     event.stopPropagation();
-    event.dataTransfer.dropEffect = "move";
+    event.dataTransfer.dropEffect = event.ctrlKey || event.metaKey ? "copy" : "move";
     setDropTarget(folder);
   };
   const drop = (folder: string) => (event: DragEvent) => {
@@ -317,12 +352,30 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
     event.preventDefault();
     event.stopPropagation();
     paths = compactPaths(paths);
+    transferPaths(paths, folder, event.ctrlKey || event.metaKey, !!rawPaths);
+  };
+
+  const transferPaths = (source: string[], folder: string, copy: boolean, group: boolean) => {
+    let paths = compactPaths(source);
     if (paths.some((path) => path === folder || (kinds.get(path) === "folder" && folder.startsWith(`${path}/`)))) return;
-    paths = paths.filter((path) => parentOf(path) !== folder);
-    if (!paths.length) return;
-    if (rawPaths) actions.moveMany?.(paths, folder);
-    else if (paths.length > 1) actions.moveMany?.(paths, folder);
-    else if (paths[0]) actions.move(paths[0], folder);
+    if (copy) {
+      if (paths.every((path) => kinds.get(path) !== "folder" && kinds.get(path) !== "link")) actions.copyFiles?.(paths, folder);
+    } else {
+      paths = paths.filter((path) => parentOf(path) !== folder);
+      if (!paths.length) return;
+      if (group || paths.length > 1) actions.moveMany?.(paths, folder);
+      else actions.move(paths[0], folder);
+    }
+    if (folder) toggle(folder, true);
+  };
+
+  const folderAt = (x: number, y: number): string | null => {
+    const target = document.elementFromPoint(x, y);
+    if (!target || !tree.current?.contains(target)) return null;
+    const row = target.closest<HTMLElement>(".tree-row[data-path]");
+    if (!row) return "";
+    const path = row.dataset.path ?? "";
+    return kinds.get(path) === "folder" ? path : parentOf(path);
   };
 
   const newField = (folder: string) => editing?.kind === "new" && editing.folder === folder && (
@@ -375,29 +428,61 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
         aria-selected={selected.has(entry.path)}
         aria-current={entry.path === activePath ? "page" : undefined}
         tabIndex={lead === entry.path || (lead === null && entry === visible[0]) ? 0 : -1}
-        className={`tree-row${dropTarget === entry.path ? " drop" : ""}`}
+        className={`tree-row${dropTarget === entry.path ? " drop" : ""}${dragGhost?.paths.includes(entry.path) ? " dragging" : ""}`}
         style={{ paddingLeft: 8 + depth * 12 }}
-        draggable
+        draggable={false}
+        onPointerDown={(event) => {
+          if (event.button !== 0 || entry.kind === "link") return;
+          pointerDrag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, paths: selected.has(entry.path) ? compactPaths(selectedInOrder().map((item) => item.path)) : [entry.path], active: false };
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const drag = pointerDrag.current;
+          if (!drag || drag.id !== event.pointerId) return;
+          if (!drag.active && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5) return;
+          drag.active = true;
+          setDropTarget(folderAt(event.clientX, event.clientY));
+          const firstPath = drag.paths[0] ?? entry.path;
+          setDragGhost({
+            x: event.clientX,
+            y: event.clientY,
+            label: nameOf(firstPath),
+            kind: kinds.get(firstPath) ?? entry.kind,
+            count: drag.paths.length,
+            copy: event.ctrlKey || event.metaKey,
+            paths: drag.paths,
+          });
+        }}
+        onPointerUp={(event) => {
+          const drag = pointerDrag.current;
+          if (!drag || drag.id !== event.pointerId) return;
+          pointerDrag.current = null;
+          if (!drag.active) return;
+          const folder = folderAt(event.clientX, event.clientY);
+          setDropTarget(null);
+          setDragGhost(null);
+          suppressClick.current = true;
+          setTimeout(() => { suppressClick.current = false; }, 0);
+          if (folder !== null) transferPaths(drag.paths, folder, event.ctrlKey || event.metaKey, drag.paths.length > 1);
+        }}
+        onPointerCancel={() => { pointerDrag.current = null; setDropTarget(null); setDragGhost(null); }}
         onDragStart={(event) => {
           const paths = selected.has(entry.path) ? compactPaths(selectedInOrder().map((item) => item.path)) : [entry.path];
           if (selected.has(entry.path) && selected.size > 1) event.dataTransfer.setData("application/x-equavela-paths", JSON.stringify(paths));
           else event.dataTransfer.setData("application/x-equavela-path", paths[0] ?? entry.path);
-          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.effectAllowed = "copyMove";
         }}
         onDragOver={folder ? dragOver(entry.path) : undefined}
         onDragLeave={() => setDropTarget((target) => (target === entry.path ? null : target))}
         onDrop={folder ? drop(entry.path) : undefined}
         onClick={(event) => {
+          if (suppressClick.current) { event.preventDefault(); return; }
           // the first click of a double click already toggled the folder; the second
           // must not fold it back. A file takes every click: a repeated one joins its opening.
           if (folder && event.detail > 1 && !event.shiftKey && !event.ctrlKey && !event.metaKey) return;
           if (event.shiftKey) rangeTo(entry.path, event.ctrlKey || event.metaKey);
           else if (event.ctrlKey || event.metaKey) toggleSelection(entry.path);
           else choose(entry);
-        }}
-        onDoubleClick={() => {
-          // a file no tab opens goes to the system's app.
-          if (entry.kind !== "folder" && entry.kind !== "worksheet" && entry.kind !== "image" && !TEXT_FILE.test(entry.path)) actions.openExternal(entry.path);
         }}
         onContextMenu={(event) => {
           event.preventDefault();
@@ -454,6 +539,19 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
     >
       {rows}
     </div>
+    {dragGhost && (
+      <div
+        className="tree-drag-ghost no-print"
+        data-testid="tree-drag-ghost"
+        aria-hidden="true"
+        style={{ left: dragGhost.x + 12, top: dragGhost.y + 12 }}
+      >
+        <ItemIcon kind={dragGhost.kind} />
+        <span className="tree-drag-label">{dragGhost.label}</span>
+        {dragGhost.count > 1 && <span className="tree-drag-count">{dragGhost.count}</span>}
+        {dragGhost.copy && <span className="tree-drag-copy">+</span>}
+      </div>
+    )}
     {selected.size > 1 && <div className="tree-selection-summary" role="status">{S.project.selectedCount(selected.size)}</div>}
     {references && <ReferencesSection references={references.references} actions={actions} />}
     {menu && <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)}>
@@ -466,6 +564,10 @@ export function ProjectTree({ project, entries, activeRoot, actions, fileStatus,
       <button type="button" role="menuitem" onClick={command(() => startNew(menuTarget, "julia"))}>{S.project.newJulia}</button>
       <button type="button" role="menuitem" onClick={command(() => startNew(menuTarget, "folder"))}>{S.project.newFolder}</button>
       <button type="button" role="menuitem" onClick={command(() => actions.import(targetFolder(menuTarget)))}>{S.project.importFiles}</button>
+      <hr />
+      <button type="button" role="menuitem" disabled={!menuSelection.length || menuSelection.some((entry) => entry.kind === "folder" || entry.kind === "link") || !actions.copyFiles} onClick={command(() => remember(false))}>{S.project.copyFiles}</button>
+      <button type="button" role="menuitem" disabled={!menuSelection.length || menuSelection.some((entry) => entry.kind === "link") || !actions.moveMany} onClick={command(() => remember(true))}>{S.project.cutFiles}</button>
+      <button type="button" role="menuitem" disabled={!clipboard} onClick={command(() => paste(menuTarget))}>{S.project.pasteFiles}</button>
       {menuTarget !== null && <>
         <hr />
         {!menuIsGroup && menuKind !== "folder" && <button type="button" role="menuitem" onClick={command(() => actions.openExternal(menuTarget))}>{S.project.openExternal}</button>}

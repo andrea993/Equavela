@@ -98,6 +98,23 @@ async function command(label: string) {
   fireEvent.keyDown(search, { key: "Enter" });
 }
 
+it("refreshes external additions and removals while a project is open", async () => {
+  const backend = createMockBackend({ fast: true });
+  render(<App backend={backend} />);
+  await screen.findByRole("button", { name: S.quickAccess.new });
+  await command("new project");
+  const dialog = await screen.findByRole("dialog", { name: "New project" });
+  fireEvent.change(within(dialog).getByLabelText("Project name"), { target: { value: "Refresh" } });
+  fireEvent.change(within(dialog).getByLabelText(S.project.newDirectory), { target: { value: "C:\\work\\refresh" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Create" }));
+  const explorer = await screen.findByRole("navigation", { name: S.project.explorer });
+  await waitFor(() => expect(explorer.querySelector('[data-path="worksheets/main.eqv"]')).toBeTruthy());
+  await backend.projectCreate("C:\\work\\refresh", "", "external", "folder");
+  await waitFor(() => expect(explorer.querySelector('[data-path="external"]')).toBeTruthy(), { timeout: 5000 });
+  await backend.projectDelete("C:\\work\\refresh", "external");
+  await waitFor(() => expect(explorer.querySelector('[data-path="external"]')).toBeNull(), { timeout: 5000 });
+}, 12000);
+
 it("creates and reopens a project, and reports existing and missing destinations", async () => {
   const backend = createMockBackend({ fast: true });
   render(<App backend={backend} />);
@@ -426,7 +443,7 @@ it("manages the project tree like a code editor's explorer", async () => {
   fireEvent.dragOver(row("data"), { dataTransfer });
   fireEvent.drop(row("data"), { dataTransfer });
   await waitFor(() => expect(rows()).not.toContain("julia/src"));
-  fireEvent.click(row("data"));
+  if (row("data").getAttribute("aria-expanded") !== "true") fireEvent.click(row("data"));
   await waitFor(() => expect(rows()).toContain("data/src"));
 });
 

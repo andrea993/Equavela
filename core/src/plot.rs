@@ -421,6 +421,20 @@ fn is_default_marker_style(value: &TraceMarkerStyle) -> bool {
     value == &TraceMarkerStyle::default()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LegendPosition {
+    #[default]
+    TopRight,
+    TopLeft,
+    BottomRight,
+    BottomLeft,
+}
+
+fn is_default_legend_position(value: &LegendPosition) -> bool {
+    *value == LegendPosition::default()
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlotSpec {
     #[serde(default = "plot_version")]
@@ -437,6 +451,11 @@ pub struct PlotSpec {
     /// Shared explicit linear tick spacing; `None` uses Plotly's automatic spacing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grid_spacing: Option<f64>,
+    #[serde(default, skip_serializing_if = "is_default_legend_position")]
+    pub legend_position: LegendPosition,
+    /// Legend font size in points; `None` uses the default (12 pt).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legend_font_size: Option<f64>,
     pub traces: Vec<PlotTrace>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reference_lines: Vec<PlotReferenceLine>,
@@ -452,6 +471,8 @@ impl PlotSpec {
             size: default_plot_size(),
             axes: PlotAxes::default(),
             grid_spacing: None,
+            legend_position: LegendPosition::default(),
+            legend_font_size: None,
             traces: vec![PlotTrace {
                 id: "trace-1".into(),
                 x: String::new(),
@@ -567,6 +588,12 @@ impl PlotSpec {
             .is_some_and(|step| !step.is_finite() || step <= 0.0)
         {
             return Err("plot grid spacing must be a finite positive number".into());
+        }
+        if self
+            .legend_font_size
+            .is_some_and(|pt| !pt.is_finite() || !(6.0..=36.0).contains(&pt))
+        {
+            return Err("plot legend font size must be between 6 and 36 pt".into());
         }
         validate_axis("y2", &self.axes.y2)?;
         if self.traces.is_empty() {

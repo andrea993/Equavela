@@ -28,10 +28,12 @@ export interface TrackedKey {
   key: string;
   code: string;
   timeStamp: number;
+  repeat?: boolean;
 }
 
 /** Feeds the tracker with a `keydown` or `keyup`. */
 export function trackKey(event: TrackedKey): void {
+  if (event.repeat) return;
   const down = event.type === "keydown";
   if (event.key === "Control") {
     if (event.code === "ControlRight") rightDown = down;

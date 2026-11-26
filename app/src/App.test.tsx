@@ -117,6 +117,26 @@ describe("first-run progress notice", () => {
 });
 
 describe("Fast Symbolic", () => {
+  it("sends a selected expression to Collect", async () => {
+    const backend = createMockBackend({ fast: true });
+    const evaluate = vi.spyOn(backend, "fastSymbolic").mockResolvedValue({ type: "ExprRegion", expr: { type: "Num", text: "1" } });
+    render(<App backend={backend} />);
+    await waitFor(() => expect(region("m1")).not.toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "New" }));
+    await waitFor(() => expect(region("m1")).toBeNull());
+    const area = screen.getByTestId("worksheet-area");
+    for (const [key, code] of [["a", "KeyA"], ["+", "Equal"], ["b", "KeyB"]]) {
+      fireEvent.keyDown(area, { key, code, shiftKey: key === "+" });
+    }
+    fireEvent.keyDown(area, { key: "ArrowLeft", code: "ArrowLeft", shiftKey: true });
+    fireEvent.keyDown(area, { key: "ArrowLeft", code: "ArrowLeft", shiftKey: true });
+    fireEvent.keyDown(area, { key: "s", code: "KeyS", altKey: true });
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Fast Symbolic" }), { key: "c", code: "KeyC" });
+    expect(evaluate).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      operation: "collect", collectExpression: expect.objectContaining({ type: "Add" }),
+    }));
+  });
+
   it("inserts the first Z transform after the source draft is committed while the engine loads", async () => {
     const backend = createMockBackend({ fast: true });
     let finish: (value: unknown) => void = () => {};
@@ -584,8 +604,9 @@ describe("worksheet window (mock backend)", () => {
     expect(region("m1")!.classList.contains("editing")).toBe(true);
     expect(region("m1")!.classList.contains("selected")).toBe(false);
     const undo = within(screen.getByRole("toolbar", { name: S.quickAccess.label })).getByRole("button", { name: S.quickAccess.undo }) as HTMLButtonElement;
-    expect(undo.disabled).toBe(true);
-    expect(undo.title).toBe(S.quickAccess.nothingToUndo);
+    // With an empty local math history, Undo falls through to the worksheet move.
+    expect(undo.disabled).toBe(false);
+    expect(undo.title).toContain("Move");
     // The caret is where it was: typing continues after the whole definition.
     await act(async () => {
       fireEvent.keyDown(window, { key: "+", code: "Equal" });
@@ -609,12 +630,11 @@ describe("worksheet window (mock backend)", () => {
       expect((screen.getByTestId("math-m1").textContent ?? "").replace(/\s+/g, "")).toContain("3.5m"),
     );
     expect(region("m1")!.style.top).not.toBe(before);
-    expect(undo.disabled).toBe(true);
-    await act(async () => fireEvent.keyDown(window, { key: "Escape", code: "Escape" }));
-    await waitFor(() => expect(region("m1")!.classList.contains("editing")).toBe(false));
+    // Local math history is empty again, so Undo falls through to the worksheet move.
+    expect(undo.disabled).toBe(false);
     expect(undo.title).toContain("Move region");
-    // Once closed, worksheet history undoes the move and restores the stored place.
     fireEvent.click(undo);
+    await waitFor(() => expect(region("m1")!.classList.contains("editing")).toBe(false));
     await waitFor(() => expect(region("m1")!.style.top).toBe(before));
   });
 
@@ -1226,16 +1246,14 @@ describe("worksheet window (mock backend)", () => {
       fireEvent.pointerUp(window, { button: 0, clientX: 600, clientY: 100 });
     });
     expect(view().style.width).toBe(during);
-    // The text editor is still open and owns Undo; once it is left, Undo undoes the resize.
+    // The text editor is still open with an empty local history, so Undo already targets the resize.
     const editor = region("t1")!.querySelector<HTMLElement>("[data-testid=text-editor]")!;
     expect(editor).not.toBeNull();
-    expect((within(screen.getByRole("toolbar", { name: S.quickAccess.label })).getByRole("button", { name: S.quickAccess.undo }) as HTMLButtonElement).disabled).toBe(true);
-    await act(async () => fireEvent.keyDown(editor, { key: "Escape", code: "Escape" }));
+    const undo = within(screen.getByRole("toolbar", { name: S.quickAccess.label })).getByRole("button", { name: S.quickAccess.undo }) as HTMLButtonElement;
+    expect(undo.disabled).toBe(false);
+    expect(undo.title).toContain("Resize region");
+    fireEvent.click(undo);
     await waitFor(() => expect(region("t1")!.querySelector("[data-testid=text-editor]")).toBeNull());
-    await waitFor(() => expect((within(screen.getByRole("toolbar", { name: S.quickAccess.label })).getByRole("button", { name: S.quickAccess.undo }) as HTMLButtonElement).disabled).toBe(false));
-    expect(view().style.width).toBe(during);
-    expect(within(screen.getByRole("toolbar", { name: S.quickAccess.label })).getByRole("button", { name: S.quickAccess.undo }).getAttribute("title")).toContain("Resize region");
-    fireEvent.click(within(screen.getByRole("toolbar", { name: S.quickAccess.label })).getByRole("button", { name: S.quickAccess.undo }));
     await waitFor(() => expect(view().style.width).toBe(before));
   });
 
@@ -1493,6 +1511,17 @@ describe("worksheet window (mock backend)", () => {
     fireEvent.keyDown(within(dialog).getByLabelText(S.catalogue.search), { key: "Enter" });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: S.catalogue.title })).toBeNull());
     await waitFor(() => expect(region("__new")?.textContent).toContain("stack"));
+  });
+
+  it("finds and inserts a solve function from the function catalogue", async () => {
+    await openDemo();
+    fireEvent.keyDown(window, { key: "F2", code: "F2" });
+    const dialog = screen.getByRole("dialog", { name: S.catalogue.title });
+    fireEvent.change(within(dialog).getByLabelText(S.catalogue.search), { target: { value: "odesolve" } });
+    expect(within(dialog).getByRole("option", { name: /odesolve/ }).textContent).toContain("odesolve(vf, b, [intvls])");
+    expect(dialog.textContent).toContain("initial condition");
+    fireEvent.keyDown(within(dialog).getByLabelText(S.catalogue.search), { key: "Enter" });
+    await waitFor(() => expect(region("__new")?.textContent).toContain("odesolve"));
   });
 
   it("opens the help entry of the function under the caret with F1", async () => {
@@ -2564,6 +2593,25 @@ describe("inspection only when something shows it", () => {
     expect(inspect).toHaveBeenCalled();
     // It was asked for on demand only: the side panel is still closed.
     expect(screen.queryByTestId("side-panel")).toBeNull();
+  });
+
+  it("follows a Ctrl+click on a name to its definition even while editing that math region", async () => {
+    await openRecording();
+    // Click into m3 to enter edit mode first.
+    const qInM3 = [...region("m3")!.querySelectorAll<HTMLElement>(".name")].find((n) => n.dataset.name === "q")!;
+    await act(async () => {
+      fireEvent.pointerDown(qInM3, { button: 0 });
+      fireEvent.pointerUp(window, { button: 0 });
+    });
+    await waitFor(() => expect(region("m3")?.classList.contains("editing")).toBe(true));
+
+    // Ctrl+click on `q` inside the region currently being edited: leaves edit mode and jumps to m2.
+    const qEditing = [...region("m3")!.querySelectorAll<HTMLElement>(".name")].find((n) => n.dataset.name === "q")!;
+    await act(async () => {
+      fireEvent.pointerDown(qEditing, { button: 0, ctrlKey: true });
+    });
+    await waitFor(() => expect(region("m2")?.classList.contains("selected")).toBe(true));
+    expect(region("m3")?.classList.contains("editing")).toBe(false);
   });
 
   it("counts a unit warning in the status bar and lists it without the full inspection", async () => {

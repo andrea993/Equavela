@@ -151,6 +151,28 @@ describe("legend labels are typeset math", () => {
       leavePrint();
     }
   });
+
+  it("places the legend in any of the four corners and scales its font size", async () => {
+    const cases = [
+      { position: "top-right" as const, align: "flex-end", edge: "top" as const },
+      { position: "top-left" as const, align: "flex-start", edge: "top" as const },
+      { position: "bottom-right" as const, align: "flex-end", edge: "bottom" as const },
+      { position: "bottom-left" as const, align: "flex-start", edge: "bottom" as const },
+    ];
+    for (const c of cases) {
+      const calls: Calls = { selectTrace: [], selectRegion: [] };
+      const plot: PlotSpec = { ...spec(), legend_position: c.position, legend_font_size: 18 };
+      const { container, unmount } = renderPlot(plot, env(calls));
+      await waitFor(() => expect(entries(container)).toHaveLength(2));
+      const legend = container.querySelector<HTMLElement>(".plot-legend")!;
+      expect(legend.dataset.position).toBe(c.position);
+      expect(legend.style.alignItems).toBe(c.align);
+      expect(legend.style[c.edge]).not.toBe("");
+      expect(legend.style.getPropertyValue("--legend-fs")).toBe("24px");
+      expect(legend.style.getPropertyValue("--fs")).toBe("24px");
+      unmount();
+    }
+  });
 });
 
 describe("legend selection", () => {

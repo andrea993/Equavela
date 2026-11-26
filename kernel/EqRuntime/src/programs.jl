@@ -197,6 +197,10 @@ statement id. Interrupts and already located errors pass unchanged.
 eq_locate(exception::InterruptException, ::Integer) = exception
 eq_locate(exception::EqError, statement::Integer) =
     exception.statement === nothing ? EqError(exception.message, Int(statement)) : exception
+eq_locate(exception::MethodError, statement::Integer) =
+    !(exception.f isa Function) && !(exception.f isa Type) ?
+        EqError("cannot call a value that is not a function", Int(statement)) :
+        EqError(sprint(showerror, exception), Int(statement))
 eq_locate(exception::Exception, statement::Integer) =
     EqError(sprint(showerror, exception), Int(statement))
 

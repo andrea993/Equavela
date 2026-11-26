@@ -691,6 +691,52 @@ textarea {
 
 .project-tree .tree-row.drop { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 
+.project-tree .tree-row.dragging { opacity: 0.45; }
+
+.tree-drag-ghost {
+  position: fixed;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 240px;
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--chrome-panel);
+  color: var(--chrome-text);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+.tree-drag-ghost .tree-drag-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-drag-ghost .tree-drag-count,
+.tree-drag-ghost .tree-drag-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.tree-drag-ghost .tree-drag-copy {
+  background: var(--ok);
+}
+
 .project-tree .tree-chevron { flex: 0 0 12px; width: 12px; height: 12px; position: relative; }
 
 .project-tree .tree-chevron:not(.none)::before {
@@ -812,8 +858,13 @@ textarea {
   .workspace {
     display: block;
   }
-  .sheet-host {
+  .sheet-host,
+  .file-tab.sheet-frame,
+  .sheet-frame .sheet-under-bar {
+    display: block;
     position: static;
+    height: auto;
+    overflow: visible;
   }
 }
 
@@ -2375,8 +2426,8 @@ textarea {
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: repeat(3, 18px);
-  grid-auto-columns: 132px;
-  gap: 1px 2px;
+  grid-auto-columns: 220px;
+  gap: 1px 4px;
   align-content: start;
   margin-left: 4px;
 }
@@ -2434,6 +2485,12 @@ textarea {
   display: flex;
 }
 
+.ribbon-fields.ribbon-trace-style {
+  grid-template-rows: repeat(2, auto);
+  align-content: center;
+  gap: 8px 8px;
+}
+
 .ribbon-field-row {
   display: flex;
   align-items: center;
@@ -2450,6 +2507,15 @@ textarea {
   height: 18px;
   padding-top: 0;
   padding-bottom: 0;
+}
+
+.ribbon-field-row .color-button {
+  height: 18px;
+  padding: 0 4px;
+}
+
+.ribbon-field-row .color-chip {
+  height: 12px;
 }
 
 .ribbon-field-label {
@@ -2565,12 +2631,20 @@ textarea {
 
 /* Compact ribbon (by choice or below 900 px): narrower trace entries so the next group stays in reach. */
 .ribbon.compact .plot-trace-list {
-  grid-auto-columns: 104px;
+  grid-auto-columns: 150px;
+}
+
+.ribbon.compact .ribbon-fields.ribbon-trace-style {
+  grid-template-rows: auto;
 }
 
 @media (max-width: 900px) {
   .ribbon .plot-trace-list {
-    grid-auto-columns: 104px;
+    grid-auto-columns: 150px;
+  }
+
+  .ribbon .ribbon-fields.ribbon-trace-style {
+    grid-template-rows: auto;
   }
 }
 

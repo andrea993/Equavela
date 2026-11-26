@@ -1294,3 +1294,35 @@ fn julia_code_keeps_its_trailing_empty_lines() {
     assert_eq!(julia_code(plain).as_deref(), Some("x = 1"));
     assert!(written(plain).contains("      code: |\n        x = 1\n"));
 }
+
+#[test]
+fn write_bytes_atomic_handles_concurrent_same_process_writes() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("beam.eqv");
+    let handles: Vec<_> = (0..8)
+        .map(|worker| {
+            let path = target.clone();
+            std::thread::spawn(move || {
+                for step in 0..20 {
+                    let payload = format!("worker-{worker}-step-{step}\n");
+                    equavela_core::worksheet_writer::write_bytes_atomic(&path, payload.as_bytes())
+                        .unwrap();
+                }
+            })
+        })
+        .collect();
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    let final_text = std::fs::read_to_string(&target).unwrap();
+    assert!(
+        final_text.starts_with("worker-") && final_text.ends_with('\n'),
+        "{final_text:?}"
+    );
+    // No leftover temp files in the directory.
+    let entries: Vec<_> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name())
+        .collect();
+    assert_eq!(entries.len(), 1, "{entries:?}");
+}

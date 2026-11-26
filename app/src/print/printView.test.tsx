@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
+import { SheetFrame } from "../components/FileTabView";
 import type { ViewRegion } from "../equavelaApi";
 import { createMockBackend } from "../mock/mockBackend";
 import { S } from "../strings";
@@ -414,5 +416,20 @@ describe("a region that straddles a page edge is printed split", () => {
       height.mockRestore();
       width.mockRestore();
     }
+  });
+
+  it("hides the project file bar above a worksheet in print and unwraps its frame container", () => {
+    const { container } = render(
+      <SheetFrame path="sheets/beam.eqv" modified={false} onSave={() => undefined}>
+        <div className="worksheet-area" />
+      </SheetFrame>,
+    );
+    const bar = container.querySelector<HTMLElement>(".file-bar")!;
+    expect(bar).not.toBeNull();
+    expect(bar.classList.contains("chrome")).toBe(true);
+    expect(bar.classList.contains("no-print")).toBe(true);
+
+    const chromeCss = readFileSync("src/styles/chrome.css", "utf8");
+    expect(chromeCss).toMatch(/@media print\s*\{[\s\S]*?\.file-tab\.sheet-frame[\s\S]*?\.sheet-frame \.sheet-under-bar[\s\S]*?display:\s*block[\s\S]*?position:\s*static/);
   });
 });

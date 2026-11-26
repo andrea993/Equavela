@@ -1,12 +1,12 @@
 import { allPaths, childRefs, get, type Node } from "./tree";
-import type { EditorState } from "./model";
+import { selectedTerms, type EditorState } from "./model";
 
 export const FAST_SYMBOLIC = [
   { id: "simplify", key: "s", label: "Simplify", needs: "expression" },
   { id: "expand", key: "e", label: "Expand", needs: "expression" },
   { id: "factor", key: "f", label: "Factor", needs: "expression" },
   { id: "solve", key: "v", label: "Solve", needs: "equation" },
-  { id: "collect", key: "c", label: "Collect", needs: "variable" },
+  { id: "collect", key: "c", label: "Collect", needs: "collect" },
   { id: "differentiate", key: "d", label: "Differentiate", needs: "variable" },
   { id: "integrate", key: "i", label: "Integrate", needs: "variable" },
   { id: "partial_fractions", key: "p", label: "Partial Fractions", needs: "variable" },
@@ -38,6 +38,7 @@ export type FastSymbolicInput = {
   statement: unknown;
   operation: FastSymbolicOperation;
   variable: FastSymbolicVariable | null;
+  collectExpression?: unknown;
   worksheetVariables: boolean;
 };
 
@@ -56,6 +57,14 @@ export function fastSymbolicContext(editor: EditorState | null) {
     (expr?.type === "Matrix" && expr.cells.length > 0 && expr.cells.every((cell: Node) => unparen(cell).type === "Eq"));
   const scalar = !equation && expr?.type !== "Matrix";
   let variable: FastSymbolicVariable | null = null;
+  let collectExpression: Node | null = null;
+  if (editor && root && editor.explicit && editor.focus[0] === body &&
+      !editor.argSelection && !editor.matrixSelection) {
+    const selected = selectedTerms(editor) ?? get(root, editor.focus);
+    const parent = get(root, editor.focus.slice(0, -1));
+    const role = childRefs(parent)[editor.focus.at(-1)!]?.[0];
+    if (selected.type !== "Placeholder" && role !== "callee") collectExpression = selected;
+  }
   if (editor && root && editor.explicit && editor.focus[0] === body &&
       !editor.argSelection && !editor.termSelection && !editor.matrixSelection) {
     const node = get(root, editor.focus);
@@ -83,9 +92,11 @@ export function fastSymbolicContext(editor: EditorState | null) {
     continued: scalar && (!!variable || names.size <= 1),
     equation: !!variable && equation,
     variable: scalar && !!variable,
+    collect: scalar && !!collectExpression,
   };
   return {
     variable,
+    collectExpression,
     entries: FAST_SYMBOLIC.map(item => ({ ...item, enabled: expression && !!eligible[item.needs] })),
   };
 }

@@ -983,16 +983,25 @@ fn with_keywords(call: String, keywords: &str) -> String {
 fn call_has_keywords(head: &str) -> bool {
     let mut depth = 0i32;
     let mut in_string = false;
-    let mut previous = ' ';
+    let mut escaped = false;
     for c in head.chars() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
         match c {
-            '"' if previous != '\\' => in_string = !in_string,
-            '(' | '[' | '{' if !in_string => depth += 1,
-            ')' | ']' | '}' if !in_string => depth -= 1,
-            ';' if !in_string && depth == 1 => return true,
+            '"' => in_string = true,
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            ';' if depth == 1 => return true,
             _ => {}
         }
-        previous = c;
     }
     false
 }
@@ -1029,16 +1038,11 @@ fn valid_julia_identifier(text: &str) -> bool {
 // Scopes
 // ---------------------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum Space {
-    Var,
-    Fn,
-}
-
 #[derive(Debug, Clone)]
 struct WorksheetBinding {
     ident: String,
     range: bool,
+    function: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1092,7 +1096,7 @@ pub struct Generator {
     /// the statement expression being generated.
     inline_read: HashSet<String>,
     versions: HashMap<String, u32>,
-    visible: HashMap<(String, Space), WorksheetBinding>,
+    visible: HashMap<String, WorksheetBinding>,
     frames: Vec<Frame>,
     captures: Vec<Vec<String>>,
     used_ranges: Vec<String>,
@@ -1180,9 +1184,9 @@ impl SolveFunction {
     }
 }
 
-type UndoEntry = ((String, Space), Option<WorksheetBinding>, Option<u32>);
+type UndoEntry = (String, Option<WorksheetBinding>, Option<u32>);
 
-type Defs = HashMap<(String, Space), String>;
+type Defs = HashMap<String, String>;
 
 impl Generator {
     pub fn new(options: GenOptions) -> Generator {
@@ -1195,23 +1199,23 @@ impl Generator {
     /// Declares a sheet variable (as if an earlier region defined it) and returns its
     /// identifier. For hosts and tests that generate single expressions.
     pub fn declare_variable(&mut self, name: &str) -> String {
-        self.declare(name, Space::Var, false)
+        self.declare(name, false, false)
     }
 
     /// Like [`Generator::declare_variable`] for a range variable (`i := 0..n`).
     pub fn declare_range(&mut self, name: &str) -> String {
-        self.declare(name, Space::Var, true)
+        self.declare(name, true, false)
     }
 
     /// Like [`Generator::declare_variable`] for a function.
     pub fn declare_function(&mut self, name: &str) -> String {
-        self.declare(name, Space::Fn, false)
+        self.declare(name, false, true)
     }
 
-    fn declare(&mut self, name: &str, space: Space, range: bool) -> String {
+    fn declare(&mut self, name: &str, range: bool, function: bool) -> String {
         let name = Name::plain(name);
         let mut defs = Defs::default();
-        self.bind_sheet(&name, space, &mut defs, range)
+        self.bind_sheet(&name, &mut defs, range, function)
     }
 
     pub fn diagnostics(&self) -> &[Diagnostic] {
@@ -1229,53 +1233,42 @@ impl Generator {
 
     // ------------------------------------------------------------------ sheet bindings
 
-    fn bind_sheet(&mut self, name: &Name, space: Space, defs: &mut Defs, range: bool) -> String {
+    fn bind_sheet(&mut self, name: &Name, defs: &mut Defs, range: bool, function: bool) -> String {
         let base = mangle(name);
-        let key = (base.clone(), space);
-        if let Some(ident) = defs.get(&key) {
+        if let Some(ident) = defs.get(&base) {
             let ident = ident.clone();
             if range {
-                if let Some(binding) = self.visible.get_mut(&key) {
+                if let Some(binding) = self.visible.get_mut(&base) {
                     binding.range = true;
                 }
             }
             return ident;
         }
         self.undo.push((
-            key.clone(),
-            self.visible.get(&key).cloned(),
+            base.clone(),
+            self.visible.get(&base).cloned(),
             self.versions.get(&base).copied(),
         ));
         let version = self.versions.entry(base.clone()).or_insert(0);
         *version += 1;
         let ident = format!("{base}_v{version}");
-        defs.insert(key.clone(), ident.clone());
+        defs.insert(base.clone(), ident.clone());
         self.visible.insert(
-            key,
+            base,
             WorksheetBinding {
                 ident: ident.clone(),
                 range,
+                function,
             },
         );
         ident
     }
 
-    fn worksheet_lookup(&self, name: &Name, role: Role) -> Option<WorksheetBinding> {
-        let base = mangle(name);
-        let spaces: &[Space] = match (name.label, role) {
-            // the reference application labels a function passed as an argument VARIABLE (`rkfixed(y, 0, 1, 10, dg)`);
-            // where the name is also a unit the importer keeps the label, and the
-            // label only says "not a unit": the function is found as an unlabelled value would be.
-            (Some(Label::Var), Role::Value) => &[Space::Var, Space::Fn],
-            (Some(Label::Var), Role::Callee) => &[Space::Var],
-            (Some(Label::Fn), _) => &[Space::Fn],
-            (Some(_), _) => return None,
-            (None, Role::Value) => &[Space::Var, Space::Fn],
-            (None, Role::Callee) => &[Space::Fn, Space::Var],
-        };
-        spaces
-            .iter()
-            .find_map(|space| self.visible.get(&(base.clone(), *space)).cloned())
+    fn worksheet_lookup(&self, name: &Name, _role: Role) -> Option<WorksheetBinding> {
+        if !matches!(name.label, None | Some(Label::Var) | Some(Label::Fn)) {
+            return None;
+        }
+        self.visible.get(&mangle(name)).cloned()
     }
 
     fn lookup_local(&self, ident: &str) -> Option<usize> {
@@ -1678,6 +1671,9 @@ impl Generator {
                 bounds,
                 body,
             } => self.big_operator("eq_prod", var, index, bounds, body, span)?,
+            K::Integral {
+                domain: Some(_), ..
+            } => self.error_node(span, "an integral over a domain cannot be evaluated"),
             K::Integral { var, .. } if var.name.segments.iter().all(|s| s.text.is_empty()) => {
                 self.error_node(span, "an empty placeholder cannot be evaluated")
             }
@@ -1690,14 +1686,23 @@ impl Generator {
             K::Integral { bounds: None, .. } => {
                 self.unsupported(span, "indefinite (symbolic) integration")
             }
+            K::Deriv {
+                var_expr: Some(_), ..
+            }
+            | K::Partial {
+                var_expr: Some(_), ..
+            } => self.error_node(span, "the variable of a derivative must be a name"),
             K::Deriv { var, .. } | K::Partial { var, .. } | K::Limit { var, .. }
                 if var.name.segments.iter().all(|s| s.text.is_empty()) =>
             {
                 self.error_node(span, "an empty placeholder cannot be evaluated")
             }
-            K::Deriv { var, order, body } | K::Partial { var, order, body } => {
-                self.derivative_form(var, order.as_deref(), body)?
+            K::Deriv {
+                var, order, body, ..
             }
+            | K::Partial {
+                var, order, body, ..
+            } => self.derivative_form(var, order.as_deref(), body)?,
             K::Gradient { vars, .. }
                 if vars
                     .iter()
@@ -1988,7 +1993,9 @@ impl Generator {
         }
         if self.region_solve.is_none() && matches!(resolution, Resolution::Undefined(_)) {
             if let Some(function) = simple_text(name).and_then(SolveFunction::from_name) {
-                // the specification : never solve without a block.
+                if function.has_objective() {
+                    return self.solve_call(function, args, span);
+                }
                 return Ok(self.error_node(
                     span,
                     &format!(
@@ -3154,8 +3161,8 @@ impl Generator {
                         None => self.visible.remove(&key),
                     };
                     match version {
-                        Some(version) => self.versions.insert(key.0, version),
-                        None => self.versions.remove(&key.0),
+                        Some(version) => self.versions.insert(key, version),
+                        None => self.versions.remove(&key),
                     };
                 }
                 self.diagnostics.push(Diagnostic {
@@ -3174,8 +3181,8 @@ impl Generator {
                 let mut defs = Defs::default();
                 let mut lines = Vec::new();
                 let mut defined = Vec::new();
-                for (name, space) in roots {
-                    let ident = self.bind_sheet(&name, space, &mut defs, false);
+                for (name, function) in roots {
+                    let ident = self.bind_sheet(&name, &mut defs, false, function);
                     lines.push(format!("{ident} = eq_error({message})"));
                     defined.push(ident);
                 }
@@ -3311,8 +3318,8 @@ impl Generator {
             if RESERVED.contains(&token.as_str()) || !bound.insert(token.clone()) {
                 continue;
             }
-            let key = (mangle(&crate::julia_code::math_name(&token)), Space::Var);
-            if let Some(binding) = self.visible.get(&key) {
+            let key = mangle(&crate::julia_code::math_name(&token));
+            if let Some(binding) = self.visible.get(&key).filter(|b| !b.function) {
                 let ident = binding.ident.clone();
                 self.capture(&ident, 0);
                 lines.push(format!("{token} = to_julia({ident})"));
@@ -3467,7 +3474,7 @@ impl Generator {
         let shows_value = matches!(tail, Some(Tail::Eval { .. }));
 
         if let TargetKind::FunctionHead { name, params } = &target.kind {
-            let ident = self.bind_sheet(&name.name, Space::Fn, &mut defs, false);
+            let ident = self.bind_sheet(&name.name, &mut defs, false, true);
             let idents: Vec<String> = params.iter().map(|p| local_ident(&p.name)).collect();
             let list = idents.join(", ");
             let code = if symbolic {
@@ -3544,7 +3551,7 @@ impl Generator {
         } else if let Some(iterated) = self.iterated(target) {
             // x[i] := e with a range variable i: one assignment per value of i.
             let (root, root_ident_old, index_ident, column) = iterated;
-            let new = self.bind_sheet(&root, Space::Var, &mut defs, false);
+            let new = self.bind_sheet(&root, &mut defs, false, false);
             let (body, _) = self.definition_value(rhs)?;
             let helper = if column {
                 "eq_iter_setcol"
@@ -3641,7 +3648,7 @@ impl Generator {
     /// The identifier a name has now and whether it comes from an earlier region (so an
     /// element assignment must copy it first).
     fn sheet_current(&self, name: &Name, defs: &Defs) -> (String, bool) {
-        let key = (mangle(name), Space::Var);
+        let key = mangle(name);
         if let Some(ident) = defs.get(&key) {
             return (ident.clone(), false);
         }
@@ -3671,7 +3678,7 @@ impl Generator {
                 false,
             ),
             TargetKind::Ident { name } => {
-                let ident = self.bind_sheet(name, Space::Var, defs, range);
+                let ident = self.bind_sheet(name, defs, range, false);
                 out.push(format!("{ident} = {value}"));
                 if !defined.contains(&ident) {
                     defined.push(ident);
@@ -3837,13 +3844,13 @@ fn may_alias(expr: &Expr) -> bool {
     }
 }
 
-fn target_roots(target: &Target, out: &mut Vec<(Name, Space)>) {
+fn target_roots(target: &Target, out: &mut Vec<(Name, bool)>) {
     if target.has_placeholder() {
         return;
     }
     match &target.kind {
-        TargetKind::Ident { name } => out.push((name.clone(), Space::Var)),
-        TargetKind::FunctionHead { name, .. } => out.push((name.name.clone(), Space::Fn)),
+        TargetKind::Ident { name } => out.push((name.clone(), false)),
+        TargetKind::FunctionHead { name, .. } => out.push((name.name.clone(), true)),
         TargetKind::Invalid { .. } => {}
         TargetKind::Index { base, .. }
         | TargetKind::Column { base, .. }
@@ -4100,4 +4107,25 @@ fn unregistered_julia_call(name: &str) -> String {
     format!(
         "the Julia function `{name}` is not registered on the worksheet: register it with `F(x) := julia.{short}` and call `F`"
     )
+}
+
+#[cfg(test)]
+mod keyword_tests {
+    use super::{call_has_keywords, with_keywords};
+
+    #[test]
+    fn call_has_keywords_handles_escaped_backslashes_and_quotes_in_strings() {
+        // A string ending in an escaped backslash (such as a Windows path) closes at the quote.
+        assert!(call_has_keywords(r#"f("C:\\"; a=1"#));
+        assert_eq!(
+            with_keywords(r#"f("C:\\"; a=1)"#.into(), "; b=2"),
+            r#"f("C:\\"; a=1, b=2)"#
+        );
+        // An escaped quote inside a string does not close the string, so `;` inside is ignored.
+        assert!(!call_has_keywords(r#"f("a\"b; c=1""#));
+        assert_eq!(
+            with_keywords(r#"f("a\"b; c=1")"#.into(), "; b=2"),
+            r#"f("a\"b; c=1"; b=2)"#
+        );
+    }
 }

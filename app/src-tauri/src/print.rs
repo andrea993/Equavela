@@ -179,11 +179,9 @@ impl PendingPdf {
     }
 }
 
-/// WebView2 wants a plain Win32 path, not the `\\?\` form.
+/// WebView2 wants a plain Win32 path, not the `\\?\` or `\\?\UNC\` form.
 pub fn plain_path(path: &Path) -> String {
-    path.to_string_lossy()
-        .trim_start_matches(r"\\?\")
-        .to_string()
+    equavela_core::project::strip_verbatim_prefix(&path.to_string_lossy())
 }
 
 #[cfg(windows)]

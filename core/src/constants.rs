@@ -123,6 +123,7 @@ mod tests {
     fn spellings_resolve_to_canonical_names() {
         assert_eq!(constant_name(&name(&[("c", false)])), Some("c"));
         assert_eq!(constant_name(&name(&[("e.c", false)])), Some("e.c"));
+        assert_eq!(constant_name(&name(&[("g", false)])), Some("g"));
         assert_eq!(
             constant_name(&name(&[("ε", false), ("0", true)])),
             Some("ε_0")
@@ -136,9 +137,10 @@ mod tests {
     #[test]
     fn dimensions_are_the_si_ones() {
         assert_eq!(constant_exponents("c"), Some([1, 0, -1, 0, 0, 0, 0]));
+        assert_eq!(constant_exponents("g"), Some([1, 0, -2, 0, 0, 0, 0]));
         assert_eq!(constant_exponents("α"), Some([0; 7]));
         assert_eq!(constant_exponents("R"), Some([2, 1, -2, 0, -1, -1, 0]));
-        assert_eq!(constant_names().len(), 14);
+        assert_eq!(constant_names().len(), 15);
     }
 
     /// The fixture is written by EqRuntime (`eq_constant_names()`); the Julia test compares

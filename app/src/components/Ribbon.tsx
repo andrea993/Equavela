@@ -107,17 +107,26 @@ export type RibbonProps = {
 
 const TASK_TABS = ["File", "Edit", "Insert", "Math", "Calculate", "View", "Help"] as const;
 type TaskTab = (typeof TASK_TABS)[number];
+type ContextTab = NonNullable<RibbonContext["kind"]> | "trace";
 
 export function Ribbon(props: RibbonProps) {
   const contextKind = props.context?.kind ?? null;
+  const contextTabs: readonly ContextTab[] =
+    contextKind === "plot" ? ["plot", "trace"] : contextKind ? [contextKind] : [];
   const [taskTab, setTaskTab] = useState<TaskTab>("Insert");
-  const [contextSelection, setContextSelection] = useState({ kind: contextKind, selected: true });
+  const [contextSelection, setContextSelection] = useState<{ kind: RibbonContext["kind"] | null; tab: ContextTab | null }>({
+    kind: contextKind,
+    tab: contextKind,
+  });
   const [collapsed, setCollapsed] = useState(false);
   const tabList = useRef<HTMLDivElement>(null);
   if (contextSelection.kind !== contextKind) {
-    setContextSelection({ kind: contextKind, selected: true });
+    setContextSelection({ kind: contextKind, tab: contextKind });
   }
-  const activeContext = contextSelection.kind === contextKind && contextSelection.selected ? contextKind : null;
+  const activeContext: ContextTab | null =
+    contextSelection.kind === contextKind && contextSelection.tab !== null && contextTabs.includes(contextSelection.tab)
+      ? contextSelection.tab
+      : null;
   const file = props.file ?? null;
   const fileLabel = file?.kind === "image" ? S.code.imageTab : S.code.tab;
   const searchKeys = shortcutLabel("commandPalette");
@@ -151,21 +160,21 @@ export function Ribbon(props: RibbonProps) {
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
                 setTaskTab(name);
-                setContextSelection({ kind: contextKind, selected: false });
+                setContextSelection({ kind: contextKind, tab: null });
                 setCollapsed(false);
               }}>{name}</button>
           ))}
-          {!file && contextKind && (
-            <button type="button" role="tab" aria-selected={activeContext !== null} tabIndex={activeContext ? 0 : -1}
-              className={`ribbon-tab contextual${activeContext ? " active" : ""}`} title={S.ribbon.contextual}
+          {!file && contextTabs.map((tab) => (
+            <button key={tab} type="button" role="tab" aria-selected={activeContext === tab} tabIndex={activeContext === tab ? 0 : -1}
+              className={`ribbon-tab contextual${activeContext === tab ? " active" : ""}`} title={S.ribbon.contextual}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
-                setContextSelection({ kind: contextKind, selected: true });
+                setContextSelection({ kind: contextKind, tab });
                 setCollapsed(false);
               }}>
-              {S.ribbon.tabs[contextKind]}
+              {S.ribbon.tabs[tab]}
             </button>
-          )}
+          ))}
         </div>
         <span className="grow" />
         {!file && <ToolButton className={props.running ? "command-stop" : "command-stop idle"} label="Stop calculation" icon={<RibbonIcon name="stop" />} iconOnly
@@ -207,7 +216,16 @@ export function Ribbon(props: RibbonProps) {
             <>
               {activeContext === "text" && <TextTab {...props} />}
               {activeContext === "matrix" && <MatrixTab {...props} />}
-              {activeContext === "plot" && props.context?.kind === "plot" && <PlotTab context={props.context} onCommand={props.onCommand} onPlotSpec={props.onPlotSpec} onPlotSelectTrace={props.onPlotSelectTrace} worksheetColors={props.worksheetColors} />}
+              {(activeContext === "plot" || activeContext === "trace") && props.context?.kind === "plot" && (
+                <PlotTab
+                  section={activeContext}
+                  context={props.context}
+                  onCommand={props.onCommand}
+                  onPlotSpec={props.onPlotSpec}
+                  onPlotSelectTrace={props.onPlotSelectTrace}
+                  worksheetColors={props.worksheetColors}
+                />
+              )}
               {activeContext === "area" && props.context?.kind === "area" && <AreaTab {...props} context={props.context} />}
               {activeContext === "image" && <ImageTab {...props} />}
               {activeContext === "solver" && props.context?.kind === "solver" && (

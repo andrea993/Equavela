@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { isPrinting, usePrinting } from "../print/printMode";
 import { S } from "../strings";
 import type { PlotSpec } from "../equavelaApi";
-import { buildFigure, crossesAtOrigin, NO_TEXT_WIDTHS, originPositions, referenceLineShapes, type AxisRange, type AxisRanges, type PlotlyFigure, type PlotTextWidths } from "./adapter";
+import { buildFigure, crossesAtOrigin, NO_TEXT_WIDTHS, NO_VERTICAL_EXPANSION, originPositions, referenceLineShapes, type AxisRange, type AxisRanges, type PlotlyFigure, type PlotTextWidths } from "./adapter";
 import type { PlotFrame } from "./frame";
 import { traceHitAt } from "./hitTest";
 import { cursorCoordinatesAt, type PlotLayout } from "./cursorCoordinates";
@@ -23,6 +23,8 @@ type Props = {
   height: number;
   /** The measured placeholder columns the plot margins keep. */
   textWidths?: PlotTextWidths;
+  /** Extra vertical margin (CSS px) above and below the plot area for a tall y-expression stack. */
+  extraY?: { top: number; bottom: number };
   /** Whether those widths belong to the current specification; false holds the draw. */
   measured?: boolean;
   /** The selected trace. */
@@ -128,6 +130,7 @@ export function PlotCanvas({
   width,
   height,
   textWidths = NO_TEXT_WIDTHS,
+  extraY = NO_VERTICAL_EXPANSION,
   measured = true,
   selectedTraceId = null,
   onSelectTrace,
@@ -211,7 +214,7 @@ export function PlotCanvas({
     const element = host.current;
     if (!near || !element || !measured) return undefined;
     let current = true;
-    const drawn = buildFigure(spec, frame, { width, height }, printing, selectedTraceId, ranges.current, textWidths);
+    const drawn = buildFigure(spec, frame, { width, height }, printing, selectedTraceId, ranges.current, textWidths, extraY);
     figure.current = drawn;
     loadPlotly()
       .then(async (plotly) => {
@@ -231,7 +234,7 @@ export function PlotCanvas({
     return () => {
       current = false;
     };
-  }, [near, measured, spec, frame, width, height, printing, selectedTraceId, textWidths.y, textWidths.y2, textWidths.x]);
+  }, [near, measured, spec, frame, width, height, printing, selectedTraceId, textWidths.y, textWidths.y2, textWidths.x, extraY.top, extraY.bottom]);
 
   // A click on a rendered SVG trace selects it; the legend is the app's own overlay and handles its
   // own clicks. The plot is a static image, so the native SVG element is the

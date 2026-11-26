@@ -280,6 +280,8 @@ export type PlotAxis = {
   show_grid: boolean;
   title: string;
 };
+export type PlotLegendPosition = "top-right" | "top-left" | "bottom-right" | "bottom-left";
+
 export type PlotSpec = {
   version: number;
   type: "xy" | "polar" | "contour";
@@ -288,6 +290,9 @@ export type PlotSpec = {
   size: [number, number];
   axes: { x: PlotAxis; y: PlotAxis; y2?: PlotAxis };
   grid_spacing?: number | null;
+  legend_position?: PlotLegendPosition;
+  /** Legend font size in points; null/omitted uses the default (12 pt). */
+  legend_font_size?: number | null;
   traces: {
     id: string;
     x: string;
@@ -485,7 +490,7 @@ export type OpenedProject = {
 /** One folder or file of the project tree, by its `/` path. */
 export type TreeEntry = {
   path: string;
-  kind: "folder" | "worksheet" | "julia" | "image" | "other";
+  kind: "folder" | "worksheet" | "julia" | "image" | "other" | "link";
   /** Bytes of a file, 0 for a folder. */
   size: number;
 };

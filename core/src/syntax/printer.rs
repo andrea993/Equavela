@@ -653,19 +653,45 @@ impl Printer {
             K::Integral {
                 var,
                 bounds,
+                domain,
                 algorithm,
                 body,
-            } => self.big(
-                "∫",
+            } => {
+                if let Some(domain) = domain {
+                    self.out.push_str("∫[");
+                    write_binder(&mut self.out, &var.name);
+                    self.out.push_str(" ∈ ");
+                    self.expr(domain, Ctx::default());
+                    if let Some(a) = algorithm {
+                        self.out.push_str("; ");
+                        write_name(&mut self.out, &a.name);
+                    }
+                    self.out.push_str("] ");
+                    self.expr(body, ctx.inner());
+                } else {
+                    self.big(
+                        "∫",
+                        var,
+                        None,
+                        bounds.as_ref(),
+                        algorithm.as_ref(),
+                        body,
+                        ctx,
+                    );
+                }
+            }
+            K::Deriv {
                 var,
-                None,
-                bounds.as_ref(),
-                algorithm.as_ref(),
+                var_expr,
+                order,
                 body,
-                ctx,
-            ),
-            K::Deriv { var, order, body } => self.deriv("ⅆ", var, order.as_deref(), body, ctx),
-            K::Partial { var, order, body } => self.deriv("∂", var, order.as_deref(), body, ctx),
+            } => self.deriv("ⅆ", var, var_expr.as_deref(), order.as_deref(), body, ctx),
+            K::Partial {
+                var,
+                var_expr,
+                order,
+                body,
+            } => self.deriv("∂", var, var_expr.as_deref(), order.as_deref(), body, ctx),
             K::Gradient { vars, body } => {
                 self.out.push_str("∇[");
                 for (index, var) in vars.iter().enumerate() {
@@ -798,10 +824,34 @@ impl Printer {
         self.expr(body, ctx.inner());
     }
 
-    fn deriv(&mut self, glyph: &str, var: &Ident, order: Option<&Expr>, body: &Expr, ctx: Ctx) {
+    fn deriv(
+        &mut self,
+        glyph: &str,
+        var: &Ident,
+        var_expr: Option<&Expr>,
+        order: Option<&Expr>,
+        body: &Expr,
+        ctx: Ctx,
+    ) {
         self.out.push_str(glyph);
         self.out.push('[');
-        write_binder(&mut self.out, &var.name);
+        match var_expr {
+            Some(expr) => {
+                // When an order follows, parenthesize lower-precedence expressions so `^order`
+                // stays the derivative order rather than binding to a sub-expression.
+                let needs_paren = order.is_some()
+                    && (super::prec::level(&expr.kind) < 13
+                        || matches!(expr.kind, ExprKind::Pow { .. }));
+                if needs_paren {
+                    self.out.push('(');
+                    self.expr(expr, Ctx::default());
+                    self.out.push(')');
+                } else {
+                    self.expr(expr, Ctx::default());
+                }
+            }
+            None => write_binder(&mut self.out, &var.name),
+        }
         if let Some(n) = order {
             self.out.push('^');
             self.boxed(BoxPos::Exponent, n, Ctx::default());

@@ -281,11 +281,78 @@ impl WorksheetSession {
             })
             .collect()
     }
+}
 
-    /// The current kernel value of the given definitions `(name as written, version)`: a read of
-    /// the worksheet module, no re-evaluation. A definition whose region has not produced a value
-    /// (not calculated, failed, blocked) or that is not a variable reports why.
-    pub fn definition_values(&self, wanted: &[(String, u32)]) -> Vec<DefinitionValue> {
+/// A prepared read of definition values from the kernel, decoupled from `&WorksheetSession` so
+/// callers can release the session lock before running the blocking kernel RPC.
+pub struct DefinitionValuesQuery {
+    kernel: std::sync::Arc<crate::kernel_manager::KernelManager>,
+    out: Vec<DefinitionValue>,
+    requests: Vec<(usize, RegionInput)>,
+    written_units: HashMap<usize, String>,
+    request: Option<EvaluateRequest>,
+}
+
+impl DefinitionValuesQuery {
+    /// Runs the prepared kernel read (if any definitions need fetching) and returns the values.
+    pub fn run(mut self) -> Vec<DefinitionValue> {
+        let Some(request) = self.request.take() else {
+            return self.out;
+        };
+        match self.kernel.evaluate(&request) {
+            Ok(response) => {
+                for (index, input) in &self.requests {
+                    if let (Some(text), Some(result)) =
+                        (self.written_units.get(index), response.region(&input.id))
+                    {
+                        if let Some(divisor) =
+                            result.display_unit.as_ref().and_then(|u| u.unit_divisor())
+                        {
+                            self.out[*index].display_unit = Some(DisplayUnit {
+                                text: text.clone(),
+                                divisor,
+                                offset: result.display_offset,
+                            });
+                        }
+                    }
+                    match response.region(&input.id).map(|r| r.outcome.clone()) {
+                        Some(RegionOutcome::Value(Some(value))) => {
+                            if let KernelValue::Matrix { rows, cols, .. } = &value {
+                                if rows * cols > PEEK_MAX_ELEMENTS {
+                                    self.out[*index].size = Some((*rows, *cols));
+                                    self.out[*index].error = None;
+                                    continue;
+                                }
+                            }
+                            self.out[*index].value = Some(value);
+                            self.out[*index].error = None;
+                        }
+                        Some(RegionOutcome::Error(error)) => {
+                            self.out[*index].error = Some(error.message);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Err(KernelError::Interrupted) | Err(KernelError::Timeout) => {
+                for (index, _) in &self.requests {
+                    self.out[*index].error = Some("interrupted".into());
+                }
+            }
+            Err(error) => {
+                for (index, _) in &self.requests {
+                    self.out[*index].error = Some(error.to_string());
+                }
+            }
+        }
+        self.out
+    }
+}
+
+impl WorksheetSession {
+    /// Prepares a read of the current kernel values of `wanted` (`(name as written, version)`).
+    /// Call [`DefinitionValuesQuery::run`] after dropping any lock on the session.
+    pub fn prepare_definition_values(&self, wanted: &[(String, u32)]) -> DefinitionValuesQuery {
         let derived = &self.derived;
         let mut requests: Vec<(usize, RegionInput)> = Vec::new();
         let mut written_units: HashMap<usize, String> = HashMap::new();
@@ -300,13 +367,14 @@ impl WorksheetSession {
                 display_unit: None,
             })
             .collect();
+        let mut definitions = HashMap::new();
+        for definition in derived.graph().definitions() {
+            definitions
+                .entry((print_name(&definition.name), definition.version))
+                .or_insert(definition);
+        }
         for (index, (name, version)) in wanted.iter().enumerate() {
-            let Some(definition) = derived
-                .graph()
-                .definitions()
-                .iter()
-                .find(|d| print_name(&d.name) == *name && d.version == *version)
-            else {
+            let Some(&definition) = definitions.get(&(name.clone(), *version)) else {
                 out[index].error = Some("not defined".into());
                 continue;
             };
@@ -347,10 +415,7 @@ impl WorksheetSession {
                 written_units.insert(index, text);
             }
         }
-        if requests.is_empty() {
-            return out;
-        }
-        let request = EvaluateRequest {
+        let request = (!requests.is_empty()).then(|| EvaluateRequest {
             worksheet: self.worksheet_id.clone(),
             reset: false,
             origin: None,
@@ -363,54 +428,21 @@ impl WorksheetSession {
             base_dir: self.kernel_base_dir(),
             module_name: None,
             regions: requests.iter().map(|(_, input)| input.clone()).collect(),
-        };
-        match self.kernel.evaluate(&request) {
-            Ok(response) => {
-                for (index, input) in &requests {
-                    if let (Some(text), Some(result)) =
-                        (written_units.get(index), response.region(&input.id))
-                    {
-                        if let Some(divisor) =
-                            result.display_unit.as_ref().and_then(|u| u.unit_divisor())
-                        {
-                            out[*index].display_unit = Some(DisplayUnit {
-                                text: text.clone(),
-                                divisor,
-                                offset: result.display_offset,
-                            });
-                        }
-                    }
-                    match response.region(&input.id).map(|r| r.outcome.clone()) {
-                        Some(RegionOutcome::Value(Some(value))) => {
-                            if let KernelValue::Matrix { rows, cols, .. } = &value {
-                                if rows * cols > PEEK_MAX_ELEMENTS {
-                                    out[*index].size = Some((*rows, *cols));
-                                    out[*index].error = None;
-                                    continue;
-                                }
-                            }
-                            out[*index].value = Some(value);
-                            out[*index].error = None;
-                        }
-                        Some(RegionOutcome::Error(error)) => {
-                            out[*index].error = Some(error.message);
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            Err(KernelError::Interrupted) | Err(KernelError::Timeout) => {
-                for (index, _) in &requests {
-                    out[*index].error = Some("interrupted".into());
-                }
-            }
-            Err(error) => {
-                for (index, _) in &requests {
-                    out[*index].error = Some(error.to_string());
-                }
-            }
+        });
+        DefinitionValuesQuery {
+            kernel: std::sync::Arc::clone(&self.kernel),
+            out,
+            requests,
+            written_units,
+            request,
         }
-        out
+    }
+
+    /// The current kernel value of the given definitions `(name as written, version)`: a read of
+    /// the worksheet module, no re-evaluation. A definition whose region has not produced a value
+    /// (not calculated, failed, blocked) or that is not a variable reports why.
+    pub fn definition_values(&self, wanted: &[(String, u32)]) -> Vec<DefinitionValue> {
+        self.prepare_definition_values(wanted).run()
     }
 }
 

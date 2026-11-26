@@ -1363,6 +1363,31 @@ impl<'s> Parser<'s> {
         })
     }
 
+    /// The variable slot of `ⅆ` / `∂`: a plain identifier with optional `^order`, or any
+    /// comparison-level expression (display-only free slot) with optional top-level `^order`.
+    #[allow(clippy::type_complexity)]
+    fn deriv_slot(&mut self) -> PResult<(Ident, Option<Box<Expr>>, Option<Box<Expr>>)> {
+        let saved = self.save();
+        if matches!(self.peek().tok, Tok::Ident(..) | Tok::Placeholder) {
+            let var = self.binder("a variable name")?;
+            let order = if self.eat(&Tok::Caret) {
+                Some(Box::new(unbox(self.exponent()?)))
+            } else {
+                None
+            };
+            if self.at(&Tok::RBrack) {
+                return Ok((var, None, order));
+            }
+            self.restore(saved);
+        }
+        let expr = self.cmp_expr()?;
+        let (var_expr, order) = match expr.kind {
+            ExprKind::Pow { left, right } => (*left, Some(right)),
+            _ => (expr, None),
+        };
+        Ok((Ident::new(Name::plain("")), Some(Box::new(var_expr)), order))
+    }
+
     fn big_op(&mut self) -> PResult<Expr> {
         let start = self.start();
         let head = self.bump();
@@ -1393,6 +1418,26 @@ impl<'s> Parser<'s> {
                     }
                 });
             }
+            if matches!(head.tok, Tok::DerivD | Tok::Partial) {
+                let (var, var_expr, order) = p.deriv_slot()?;
+                p.expect(Tok::RBrack, "`]`")?;
+                let body = Box::new(Expr::synth(ExprKind::Placeholder));
+                return Ok(if head.tok == Tok::DerivD {
+                    ExprKind::Deriv {
+                        var,
+                        var_expr,
+                        order,
+                        body,
+                    }
+                } else {
+                    ExprKind::Partial {
+                        var,
+                        var_expr,
+                        order,
+                        body,
+                    }
+                });
+            }
             let var = p.binder("a variable name")?;
             let placeholder = Box::new(Expr::synth(ExprKind::Placeholder));
             // The gradient takes a list of variables.
@@ -1409,17 +1454,23 @@ impl<'s> Parser<'s> {
             }
             let kind = match head.tok {
                 Tok::Sum | Tok::Prod | Tok::Integral => {
-                    let bounds = if p.eat(&Tok::In) {
+                    let (bounds, domain) = if p.eat(&Tok::In) {
                         let lo = p.add_expr()?;
-                        p.expect(Tok::DotDot, "`..`")?;
-                        let hi = p.add_expr()?;
-                        Some(Bounds {
-                            lo: Box::new(lo),
-                            hi: Box::new(hi),
-                            glyph: BoundGlyph::In,
-                        })
+                        if p.eat(&Tok::DotDot) {
+                            let hi = p.add_expr()?;
+                            (
+                                Some(Bounds {
+                                    lo: Box::new(lo),
+                                    hi: Box::new(hi),
+                                    glyph: BoundGlyph::In,
+                                }),
+                                None,
+                            )
+                        } else {
+                            (None, Some(Box::new(lo)))
+                        }
                     } else {
-                        None
+                        (None, None)
                     };
                     let algorithm = if p.eat(&Tok::Semi) {
                         Some(p.ident("an integration algorithm name")?)
@@ -1429,30 +1480,12 @@ impl<'s> Parser<'s> {
                     ExprKind::Integral {
                         var,
                         bounds,
+                        domain,
                         algorithm,
                         body: placeholder,
                     }
                 }
-                Tok::DerivD | Tok::Partial => {
-                    let order = if p.eat(&Tok::Caret) {
-                        Some(Box::new(unbox(p.exponent()?)))
-                    } else {
-                        None
-                    };
-                    if head.tok == Tok::DerivD {
-                        ExprKind::Deriv {
-                            var,
-                            order,
-                            body: placeholder,
-                        }
-                    } else {
-                        ExprKind::Partial {
-                            var,
-                            order,
-                            body: placeholder,
-                        }
-                    }
-                }
+                Tok::DerivD | Tok::Partial => unreachable!("handled before binder"),
                 _ => {
                     p.expect(Tok::Comma, "`,`")?;
                     let target = p.add_expr()?;
@@ -1500,16 +1533,38 @@ impl<'s> Parser<'s> {
             ExprKind::Integral {
                 var,
                 bounds,
+                domain,
                 algorithm,
                 ..
             } => ExprKind::Integral {
                 var,
                 bounds,
+                domain,
                 algorithm,
                 body,
             },
-            ExprKind::Deriv { var, order, .. } => ExprKind::Deriv { var, order, body },
-            ExprKind::Partial { var, order, .. } => ExprKind::Partial { var, order, body },
+            ExprKind::Deriv {
+                var,
+                var_expr,
+                order,
+                ..
+            } => ExprKind::Deriv {
+                var,
+                var_expr,
+                order,
+                body,
+            },
+            ExprKind::Partial {
+                var,
+                var_expr,
+                order,
+                ..
+            } => ExprKind::Partial {
+                var,
+                var_expr,
+                order,
+                body,
+            },
             ExprKind::Gradient { vars, .. } => ExprKind::Gradient { vars, body },
             ExprKind::Limit {
                 var, target, side, ..

@@ -17,8 +17,8 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
-    // The unit tables are shared with core and EqRuntime.
-    fs: { allow: [".", "../core/fixtures", "../kernel/EqRuntime/src"] },
+    // Function and unit data are shared with the manual, core and EqRuntime.
+    fs: { allow: [".", "../core/fixtures", "../kernel/EqRuntime/src", "../docs/manual"] },
   },
   test: { environment: "jsdom", setupFiles: ["src/test-setup.ts"], testTimeout: 30000 },
 });

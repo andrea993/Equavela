@@ -358,7 +358,8 @@ mod tests {
         // spelled with an 8.3 short name, so the canonical path is expected (without `\\?\`).
         let canonical = temporary.path().canonicalize().unwrap();
         let canonical = canonical.to_string_lossy();
-        let environment = canonical.strip_prefix(r"\\?\").unwrap_or(&canonical);
+        let environment = crate::project::strip_verbatim_prefix(&canonical);
+        let environment = environment.as_str();
         let (next, status) = wait_for(&manager, seq, environment);
         assert!(status.contains(environment), "{status:?}");
         assert!(

@@ -13,10 +13,21 @@ const enabled = (editor: ReturnType<typeof focusAt>) =>
 
 describe("Fast Symbolic eligibility", () => {
   it("enables variable operations only for one explicitly selected identifier", () => {
-    expect(enabled(focusAt(root(expression), [0], "R", true))).toEqual(["simplify", "expand", "factor", "float", "combine", "rectangular"]);
+    expect(enabled(focusAt(root(expression), [0], "R", true))).toEqual(["simplify", "expand", "factor", "collect", "float", "combine", "rectangular"]);
     expect(enabled(focusAt(root(expression), [0, 0], "R"))).toEqual(["simplify", "expand", "factor", "float", "combine", "rectangular"]);
     expect(enabled(focusAt(root(expression), [0, 0], "R", true))).toContain("collect");
     expect(enabled(focusAt(root(expression), [0, 0], "R", true))).not.toContain("solve");
+  });
+
+  it("allows collecting by a selected expression or a run of terms", () => {
+    const product = { type: "Mul", left: expression, right: x, split: false };
+    const compound = fastSymbolicContext(focusAt(root(product), [0, 0], "R", true));
+    expect(compound.collectExpression).toEqual(expression);
+    expect(compound.entries.find(entry => entry.id === "collect")?.enabled).toBe(true);
+    expect(compound.entries.find(entry => entry.id === "differentiate")?.enabled).toBe(false);
+    const chain = { type: "Add", left: expression, right: ident("z"), split: false };
+    const selected = { ...focusAt(root(chain), [0, 1], "R", true), termSelection: { path: [0], first: 1, last: 2 } };
+    expect(fastSymbolicContext(selected).collectExpression).toEqual({ type: "Add", left: y, right: ident("z") });
   });
 
   it("offers the transforms and Series with one selected variable and unique keys", () => {

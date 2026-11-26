@@ -150,10 +150,19 @@ fn pack_with(root: &Path, stack: &mut Vec<String>) -> Result<Vec<u8>> {
         ));
     }
     // the archive holds every file of the project tree, not only what the
-    // checks above visited. Hidden names, links and the manifest's siblings outside it stay out.
+    // checks above visited. Version-control data stays outside the archive.
     for entry in list_tree(root).map_err(ProjectArchiveError::Invalid)? {
+        if entry
+            .path
+            .split('/')
+            .any(|part| part.eq_ignore_ascii_case(".git"))
+        {
+            continue;
+        }
         // A file already packed keeps its packed bytes (environment files may be rewritten).
-        if entry.kind == EntryKind::Folder || entries.contains_key(&entry.path) {
+        if matches!(entry.kind, EntryKind::Folder | EntryKind::Link)
+            || entries.contains_key(&entry.path)
+        {
             continue;
         }
         let path = root.join(&entry.path);

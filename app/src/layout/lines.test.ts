@@ -46,6 +46,15 @@ describe("inserting several worksheet lines at once (a held Enter)", () => {
 });
 
 describe("inserting a worksheet line at the crosshair", () => {
+  it("moves content whose visible top is below the line, even beside a tall expression", () => {
+    const regions: LineRegion[] = [
+      { id: "equation", page: 1, y: 300, selectionY: 180, h: 180, rise: 120 },
+      { id: "heading", page: 1, y: 240, selectionY: 240, h: 24 },
+    ];
+    const result = insertWorksheetLines(setup, regions, { page: 1, y: 210 }, 2);
+    expect(result.moves.find((move) => move.id === "equation")).toBeUndefined();
+    expect(result.moves.find((move) => move.id === "heading")).toEqual({ id: "heading", page: 1, y: 270 });
+  });
   it("moves the regions at or below the crosshair down one line and leaves the ones above", () => {
     const result = insertWorksheetLine(setup, [at("above", 1, 72), at("on", 1, 120), at("below", 1, 300)], {
       page: 1,
@@ -296,6 +305,31 @@ describe("removing one line of space", () => {
     expect(removeWorksheetLine(setup, [at("on", 1, 201)], { page: 1, y: 201 }).moves).toEqual([]);
     // Nothing below: nothing to remove, and no undo step.
     expect(removeWorksheetLine(setup, [at("above", 1, 102)], { page: 1, y: 201 }).moves).toEqual([]);
+  });
+
+  it("measures blank space from a tall region's displayed top", () => {
+    const rising: LineRegion = { id: "vector", page: 1, y: 300, selectionY: 240, h: 100, rise: 60 };
+    expect(blankSpaceBelow(setup, [rising], { page: 1, y: 210 })).toBe(30);
+    const result = removeWorksheetLine(setup, [rising], { page: 1, y: 210 });
+    expect(place(result, "vector")).toEqual({ id: "vector", page: 1, y: 285 });
+  });
+
+  it("does not pull a tall region ahead of earlier text when crossing a page", () => {
+    const text: LineRegion = { id: "text", page: 1, y: 330, h: 120 };
+    const vector: LineRegion = { id: "vector", page: 2, y: 72, h: 500 };
+    const result = removeWorksheetLine(setup, [text, vector], { page: 1, y: 600 });
+    expect(place(result, "vector")).toEqual({ id: "vector", page: 2, y: 72 });
+    // It may still move when it fits entirely after the text.
+    const shorter = removeWorksheetLine(setup, [text, { ...vector, h: 300 }], { page: 1, y: 600 });
+    expect(place(shorter, "vector")!.page).toBe(1);
+    expect(place(shorter, "vector")!.y).toBeGreaterThanOrEqual(text.y + text.h!);
+    // The stored line of a tall expression can be below the top of its box.
+    const rising = removeWorksheetLine(setup, [{ ...text, y: 470, h: 60 }, { ...vector, h: 300, rise: 120 }], { page: 1, y: 600 });
+    expect(place(rising, "vector")).toEqual({ id: "vector", page: 2, y: 72 });
+    // An area band is not a solid region that prevents its members from moving.
+    const area: LineRegion = { id: "area", page: 1, y: 100, h: 650, isArea: true };
+    const withinArea = removeWorksheetLine(setup, [area, { ...vector, h: 300 }], { page: 1, y: 600 });
+    expect(place(withinArea, "vector")!.page).toBe(1);
   });
 
   it("counts the blank space across a page break", () => {

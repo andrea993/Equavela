@@ -139,6 +139,8 @@ function AxisBand({
 export function PlotLabels({
   spec,
   margin,
+  extraTop = 0,
+  extraBottom = 0,
   onTitle,
   onUnit,
   onActivate,
@@ -146,6 +148,9 @@ export function PlotLabels({
   spec: PlotSpec;
   /** The margins the plot area keeps, so a band sits outside it and never over the data. */
   margin: PlotMargin;
+  /** Extra vertical room (CSS px) added above/below the plot area for a tall y stack. */
+  extraTop?: number;
+  extraBottom?: number;
   /** The plot title or one axis title, committed: one undo step. */
   onTitle: (axis: "plot" | PlotAxisName, text: string) => void;
   /** One axis display unit, committed: one undo step. */
@@ -160,7 +165,10 @@ export function PlotLabels({
   return (
     <>
       {plotTitle !== "" && (
-        <div className="plot-labels title" style={{ ...style, left: margin.l, right: margin.r }}>
+        <div
+          className="plot-labels title"
+          style={{ ...style, left: margin.l, right: margin.r, ...(extraTop > 0 ? { top: extraTop } : {}) }}
+        >
           <TitleField
             text={spec.title ?? ""}
             label={bandLabel("plot", "title")}
@@ -171,7 +179,10 @@ export function PlotLabels({
         </div>
       )}
       {hasBand(bands.x) && (
-        <div className="plot-labels x" style={{ ...style, left: margin.l, right: margin.r }}>
+        <div
+          className="plot-labels x"
+          style={{ ...style, left: margin.l, right: margin.r, ...(extraBottom > 0 ? { bottom: 8 + extraBottom } : {}) }}
+        >
           <AxisBand
             spec={spec}
             axis="x"

@@ -1,10 +1,7 @@
-// The built-in function catalogue: signature, category and a one-line description for every
-// name of `core::codegen::BUILTINS`. The fixture is generated from the specification
-// (`node scripts/gen-builtin-catalogue.mjs`) and a Rust test keeps its name column equal to
-// the codegen table, so autocomplete, the F2 catalogue, F1 help and the command palette
-// all show exactly the functions the engine knows.
+// Function signatures and descriptions for autocomplete, the catalogue and help.
 
 import raw from "../../../core/fixtures/builtin-catalogue.tsv?raw";
+import specialForms from "../../../docs/manual/special-forms.tsv?raw";
 
 export type BuiltinEntry = {
   name: string;
@@ -13,13 +10,20 @@ export type BuiltinEntry = {
   description: string;
 };
 
-export const BUILTIN_ENTRIES: readonly BuiltinEntry[] = raw
+const entries = (source: string): BuiltinEntry[] => source
   .split(/\r?\n/)
-  .filter((line) => line.length > 0)
+  .filter((line) => line.length > 0 && !line.startsWith("#"))
   .map((line) => {
     const [name, signature, category, description] = line.split("\t");
     return { name, signature, category, description };
   });
+
+const regular = entries(raw);
+const regularNames = new Set(regular.map((entry) => entry.name));
+export const BUILTIN_ENTRIES: readonly BuiltinEntry[] = [
+  ...regular,
+  ...entries(specialForms).filter((entry) => !regularNames.has(entry.name)),
+];
 
 const BY_NAME = new Map(BUILTIN_ENTRIES.map((entry) => [entry.name, entry]));
 

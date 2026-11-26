@@ -136,10 +136,26 @@ export class MathNode extends DecoratorNode<ReactNode> {
         onAttributes={(change) => withNode((node) => node.setAttributes(change))}
         autoFocus={this.__fresh}
         keepOnChromeFocus
+        deleteOnEmpty
         onFocused={() => withNode((node) => node.setFresh(false), HISTORY_MERGE_TAG)}
         // Keep the edit in the insertion's history step and leave selection to the math editor.
         onTree={(tree) => withNode((node) => node.setTree(tree), [HISTORY_MERGE_TAG, SKIP_DOM_SELECTION_TAG])}
-        onEmpty={() => withNode((node) => node.remove())}
+        onEmpty={(focusText) => {
+          editor.update(() => {
+            const node = $getNodeByKey(key);
+            if (!(node instanceof MathNode)) return;
+            const prev = node.getPreviousSibling();
+            const next = node.getNextSibling();
+            const parent = node.getParent();
+            node.remove();
+            if (focusText) {
+              if (prev) prev.selectEnd();
+              else if (next) next.selectStart();
+              else parent?.selectEnd();
+            }
+          });
+          if (focusText) editor.getRootElement()?.focus({ preventScroll: true });
+        }}
         onLeave={(direction: Leave) => {
           // The caret goes to the text just past the math. A decorator at the edge of its paragraph has no
           // sibling to select: select the paragraph edge instead (spike G finding). The caret is placed after

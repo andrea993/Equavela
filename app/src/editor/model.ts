@@ -936,7 +936,7 @@ function buildChain(terms: { op: string | null; term: Node }[]): Node {
 }
 
 /** The run of terms as the expression it reads: the operator in front of its first term left out. */
-function selectedTerms(s: EditorState): Node | null {
+export function selectedTerms(s: EditorState): Node | null {
   const run = s.termSelection;
   if (!run) return null;
   return buildChain(chainTerms(get(s.root, run.path)).slice(run.first, run.last + 1));
@@ -2879,7 +2879,15 @@ function runRaw(s: EditorState, cmd: Command): EditorState {
     case "realPart": return wrapWith(s, (x) => ({ type: "RealPart", expr: x }));
     case "imagPart": return wrapWith(s, (x) => ({ type: "ImagPart", expr: x }));
     case "vectorize": return wrapWith(s, (x) => ({ type: "Vectorize", expr: x }));
-    case "sqrt": return wrapWith(s, (x) => ({ type: "Root", index: null, radicand: x }));
+    case "sqrt": {
+      const target = wrapTarget(s);
+      const tn = get(s.root, target);
+      if (!isExpr(tn)) return s;
+      const root = set(s.root, target, { type: "Root", index: ph(), radicand: tn });
+      return tn.type === "Placeholder"
+        ? refocus(s, root, [...target, 1])
+        : refocusNode(s, root, target);
+    }
     case "bracket":
       return get(s.root, s.focus).type === "Placeholder"
         ? insertMatrix(s)

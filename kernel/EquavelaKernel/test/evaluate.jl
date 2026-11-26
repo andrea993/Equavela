@@ -122,6 +122,19 @@ ok_value(result, i) = JSON3.read(JSON3.write(result.result["regions"][i]["value"
         @test occursin("cannot display", regions[9]["error"]["message"])
     end
 
+    @testset "calling a non-function value reports a clean error" begin
+        result, _ = evaluate(Dict(
+            "worksheet" => "not_fn",
+            "regions" => [
+                region("r1"; code="M_v1 = [1.0, 2.0]"),
+                region("r2"; value="M_v1(1.0)"),
+            ],
+        ))
+        err = result.result["regions"][2]["error"]
+        @test err["message"] == "cannot call a value that is not a function"
+        @test !haskey(err, "julia_type")
+    end
+
     @testset "interrupts abort the request" begin
         @test_throws InterruptException evaluate(Dict(
             "worksheet" => "int",

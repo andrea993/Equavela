@@ -34,7 +34,7 @@ import { crosshairRepeatSteps, type Direction } from "./layout/crosshair";
 import PageView from "./page/PageView";
 import { enterPrint, leavePrint, printReady } from "./print/printMode";
 import { PlotContext, type PlotEnv } from "./plot/PlotContext";
-import { sameCursor, TextEnvContext } from "./text/InlineMath";
+import { enterInlineMath, sameCursor, TextEnvContext } from "./text/InlineMath";
 import { emptyStatement, exprStmt, get, ident, isEmptyStatement, toEditing, toWire, type Node } from "./editor/tree";
 import { mathMatches, mathQueryOf } from "./workbench/mathFind";
 import { FindMathBox } from "./components/FindMathBox";
@@ -55,7 +55,7 @@ import { runningRegionOf } from "./workbench/runningRegion";
 import type { Inspection, RegionEntry, RegionKey, ViewRegion } from "./equavelaApi";
 import SidePanel, { PANEL_TABS, type PanelTab } from "./components/SidePanel";
 import HoverCard, { type NameHover } from "./components/HoverCard";
-import { includedNamesByRegion, useInspection, valueId } from "./inspect/inspection";
+import { definitionsAt, includedNamesByRegion, useInspection, valueId } from "./inspect/inspection";
 import { describeName } from "./inspect/hover";
 import { problemsOf } from "./inspect/outline";
 import {
@@ -102,7 +102,7 @@ import {
   type Command,
   type EditorState,
 } from "./editor/model";
-import { fromDom, resolve, shortcutLabel } from "./keymap/keymap";
+import { fromDom, resolve, shortcutLabel, type KeyInput } from "./keymap/keymap";
 import { DRAFT_ID } from "./page/regionEdit";
 import {
   acceptCompletion,
@@ -128,7 +128,7 @@ import { isImageFile, isImagePath, readClipboardImage } from "./page/imageFiles"
 import { copyMath, cutSelection, pasteMath } from "./editor/clipboard";
 import { mathOfPaste, mathOfSnippet, rememberMathCopy } from "./mathPaste";
 import { selectedValue, valueText, type ResultSelection } from "./results/resultSelection";
-import { isRegionsSnippet, regionsSnippet } from "./page/regionsClipboard";
+import { isRegionsSnippet, regionsSnippet, withDisplayedLayout } from "./page/regionsClipboard";
 import { imagePicture } from "./page/regionPicture";
 import { regionPictures } from "./picture/regionPictures";
 import { selectRange } from "./editor/model";
@@ -378,13 +378,15 @@ export default function Workbench({ backend }: { backend: Backend }) {
   const spellingOn = settings.spelling.enabled && !printing;
   const worksheetLanguage = active?.view.settings?.["spelling.language"] ?? "en_US";
   const ignoredWords = active?.view.settings?.["spelling.ignore"];
+  const activeDocId = active?.id;
+  const activeRegions = active?.view.regions;
   useEffect(() => {
-    if (!spellingOn || !active) {
+    if (!spellingOn || !activeRegions) {
       misspelt.current = [];
       paint([]);
       return undefined;
     }
-    const languages = new Map(active.view.regions.flatMap((r) => (r.kind === "text" && r.language ? [[r.id, r.language] as const] : [])));
+    const languages = new Map(activeRegions.flatMap((r) => (r.kind === "text" && r.language ? [[r.id, r.language] as const] : [])));
     const context = {
       cache: spellCache,
       languageOf: (regionId: string) => languages.get(regionId) ?? worksheetLanguage,
@@ -411,7 +413,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
       unsubscribe();
       paint([]);
     };
-  }, [spellingOn, active, spellCache, worksheetLanguage, ignoredWords]);
+  }, [spellingOn, activeDocId, activeRegions, spellCache, worksheetLanguage, ignoredWords]);
   // The calculation settings dialog: the worksheet whose tolerances it edits.
   const [calculationSettingsDialog, setCalculationSettingsDialog] = useState<string | null>(null);
   // Screen-only selected traces of the plots of the active document.
@@ -438,8 +440,8 @@ export default function Workbench({ backend }: { backend: Backend }) {
   // The arrow key currently held on the sheet and how many repeat events it has produced: the
   // crosshair accelerates with the hold and keeps a quick tap precise (GitHub ).
   const crosshairHold = useRef<{ direction: Direction; repeats: number } | null>(null);
-  const replayQueue = useRef<KeyboardEvent[]>([]);
-  const replayed = useRef(new WeakSet<Event>());
+  const replayQueue = useRef<Array<{ event: KeyboardEvent; input: KeyInput }>>([]);
+  const replayed = useRef(new WeakMap<Event, KeyInput>());
   // The action a key press started while it is still running: a held key's repeats wait for it.
   const repeatBusy = useRef<Promise<unknown> | null>(null);
   // Repeats of a held Enter on the sheet that came while a line insertion was running: inserted
@@ -602,6 +604,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
     () => ({ mathTarget, clipboard: mathClipboard }),
     [mathClipboard],
   );
+  const onEmptyHistoryRef = useRef<(cmd: "undo" | "redo") => void>(() => {});
   const textBinding = useMemo<Omit<TextEditBinding, "initial" | "point">>(
     () => ({
       mathTarget,
@@ -615,6 +618,8 @@ export default function Workbench({ backend }: { backend: Backend }) {
         if (!handle) setTextHistory(null);
       },
       onHistory: setTextHistory,
+      onEmptyUndo: () => onEmptyHistoryRef.current("undo"),
+      onEmptyRedo: () => onEmptyHistoryRef.current("redo"),
       onFormat: (format) => setTextFormat((previous) => (JSON.stringify(previous) === JSON.stringify(format) ? previous : format)),
       onInline: setInlineActive,
     }),
@@ -711,15 +716,15 @@ export default function Workbench({ backend }: { backend: Backend }) {
 
   const mathQuery = useMemo(() => (findMath.on ? mathQueryOf(findMath.query) : null), [findMath.on, findMath.query]);
   const matches = useMemo(() => {
-    if (!active) return [];
+    if (!activeRegions) return [];
     // math mode matches by tree, text mode by text.
-    if (findMath.on) return mathQuery === null ? [] : active.view.regions.filter((region) => mathMatches(region, mathQuery)).map((region) => region.id);
+    if (findMath.on) return mathQuery === null ? [] : activeRegions.filter((region) => mathMatches(region, mathQuery)).map((region) => region.id);
     if (!find.query) return [];
     const needle = find.query.toLowerCase();
-    return active.view.regions
+    return activeRegions
       .filter((region) => searchText(region).toLowerCase().includes(needle))
       .map((region) => region.id);
-  }, [active, find.query, findMath.on, mathQuery]);
+  }, [activeRegions, find.query, findMath.on, mathQuery]);
 
   /**
    * Switches Find and Replace between text and math mode, keeping what is typed: text that
@@ -797,24 +802,24 @@ export default function Workbench({ backend }: { backend: Backend }) {
   // The names each include region brings in, read from the inspection while a region is edited.
   const [includedNames, setIncludedNames] = useState<{ doc: string; byRegion: Map<string, string[]> } | null>(null);
   const completionItems = useMemo<Completion[]>(() => {
-    if (!active || !editing || editing.docId !== active.id) return [];
+    if (!activeId || !activeRegions || !editing || editing.docId !== activeId) return [];
     const beforeEditor = (region: ViewRegion) =>
       region.page < editing.page ||
       (region.page === editing.page && (region.y < editing.y || (region.y === editing.y && region.x <= editing.x)));
-    const names = definedNames(active.view.regions.map((region) =>
+    const names = definedNames(activeRegions.map((region) =>
       region.kind === "math" && (isNode(region.statement) && region.statement.type === "GlobalDefine" || beforeEditor(region))
         ? region.statement
         : null,
     ));
     // The names an include region above the caret brings in.
-    if (includedNames?.doc === active.id) {
-      for (const region of active.view.regions) {
+    if (includedNames?.doc === activeId) {
+      for (const region of activeRegions) {
         if (region.kind !== "include" || !beforeEditor(region)) continue;
         for (const name of includedNames.byRegion.get(region.id) ?? []) names.add(name);
       }
     }
     return completionCatalog(names);
-  }, [active, editing?.docId, editing?.page, editing?.x, editing?.y, includedNames]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeId, activeRegions, editing?.docId, editing?.page, editing?.x, editing?.y, includedNames]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentCompletions = useMemo(
     () => editing && editing.docId === active?.id ? completions(editing.editor, completionItems) : [],
@@ -1105,14 +1110,33 @@ export default function Workbench({ backend }: { backend: Backend }) {
     if (hoverDefinition) ensureValues([{ name: hoverDefinition.name, version: hoverDefinition.version }]);
   }, [hoverDefinition, ensureValues, peeked]);
   const onNameClick = useCallback(
-    (regionId: string, start: number, end: number, name: string): boolean => {
+    (regionId: string, start: number | null, end: number | null, name: string): boolean => {
       if (!active) return false;
       const at = { document: active.root, region_id: regionId, instance: 0 };
+      const follow = (key: RegionKey) => {
+        if (editing) {
+          void actions.commitEdit().then((ok) => {
+            if (ok) jump(key);
+          });
+        } else {
+          jump(key);
+        }
+      };
       const jumpToDefinition = (inspection: Inspection | null): boolean => {
         if (!inspection) return false;
-        const info = describeName(inspection, at, name, start, end);
-        if (info.kind !== "definition") return false;
-        jump(info.definition.key);
+        if (start !== null && end !== null) {
+          const info = describeName(inspection, at, name, start, end);
+          if (info.kind === "definition") {
+            follow(info.definition.key);
+            return true;
+          }
+          return false;
+        }
+        // A freshly typed or edited name has no wire span yet: resolve it against the definitions
+        // visible at this region so Ctrl+click still works while editing.
+        const visible = definitionsAt(inspection, at).find((d) => d.name === name);
+        if (!visible) return false;
+        follow(visible.key);
         return true;
       };
       if (inspector.inspection) return jumpToDefinition(inspector.inspection);
@@ -1125,9 +1149,9 @@ export default function Workbench({ backend }: { backend: Backend }) {
       });
       return true;
     },
-    [active, inspector.inspection, inspector.ensure, jump],
+    [actions, active, editing, inspector.inspection, inspector.ensure, jump],
   );
-  const pendingNameJump = useRef<{ regionId: string; start: number; end: number; name: string } | null>(null);
+  const pendingNameJump = useRef<{ regionId: string; start: number | null; end: number | null; name: string } | null>(null);
   const activeRunning = active?.running ?? false;
   const runningRef = useRef(false);
   runningRef.current = activeRunning;
@@ -1273,9 +1297,14 @@ export default function Workbench({ backend }: { backend: Backend }) {
   const copyRegions = useCallback(
     async (cut: boolean) => {
       if (!active || active.selection.length === 0) return;
+      const docId = active.id;
       // An area travels with its members, as it does for move and delete.
       const carried = withMembers(active.view.regions, active.selection, active.view.page);
-      const chosen = active.view.regions.filter((region) => carried.includes(region.id));
+      const chosen = withDisplayedLayout(
+        active.view.regions.filter((region) => carried.includes(region.id)),
+        layoutRef.current,
+        active.view.page,
+      );
       const work = regionsSnippet(
         chosen,
         (statement) => backend.printMath(statement),
@@ -1308,9 +1337,10 @@ export default function Workbench({ backend }: { backend: Backend }) {
       }
       if (outcome.written === "text") actions.notify(S.clipboard.pictureNotCopied(outcome.reason), "warning");
       // A cut that could not take every selected region is only a copy: nothing is lost.
-      if (cut && skipped === 0) await actions.deleteSelection();
+      // Delete the captured document and region IDs rather than whatever is selected after the await.
+      if (cut && skipped === 0) await actions.deleteRegions(docId, carried);
     },
-    [actions, active, backend, state.zoom],
+    [actions, active, backend, layoutRef, state.zoom],
   );
 
   /** Copies the selected part of a result as math, at full precision. */
@@ -1432,29 +1462,44 @@ export default function Workbench({ backend }: { backend: Backend }) {
         if (!globalCommands.has(cmd)) return;
       }
       if ((cmd === "undo" || cmd === "redo") && editing && editing.docId === active?.id) {
-        // The open math editor owns its local history until it commits. Even with an empty local
-        // stack, never let this command fall through and undo a worksheet edit underneath it.
+        // Use the active math editor's local history while it has steps; once empty, close the
+        // unchanged editor (or empty draft) and fall through to the worksheet history.
         const editor = liveEditor.current ?? editing.editor;
         const available = cmd === "undo" ? editor.past.length > 0 : editor.future.length > 0;
-        // a region the paste opened has the paste as its first step.
-        if (!available && cmd === "undo" && editing.pasted) {
-          if (await actions.commitEdit()) await actions.undo();
-          return;
-        }
         if (available) {
           const next = runCommand(editor, cmd);
           liveEditor.current = next;
           actions.updateEditor(next);
+          return;
+        }
+        const sheetAvailable =
+          cmd === "undo"
+            ? active.view.can_undo || editing.pasted === true
+            : active.view.can_redo && editor.past.length === 0;
+        if (sheetAvailable && (await actions.commitEdit())) {
+          if (cmd === "undo") await actions.undo();
+          else await actions.redo();
         }
         return;
       }
       if ((cmd === "undo" || cmd === "redo") && textEditing && textEditing.docId === active?.id) {
-        // the open text editor owns its history, an inline equation in it first; an empty
-        // history does nothing rather than undo the worksheet underneath.
-        if (inlineActive) {
-          if (cmd === "undo" ? inlineActive.canUndo : inlineActive.canRedo) inlineActive[cmd]();
-        } else if (cmd === "undo" ? textHistory?.canUndo : textHistory?.canRedo) {
+        // Inline equation history first, then text editor history; once empty, close the
+        // unchanged text editor and fall through to the worksheet history.
+        if (inlineActive && (cmd === "undo" ? inlineActive.canUndo : inlineActive.canRedo)) {
+          inlineActive[cmd]();
+          return;
+        }
+        if (cmd === "undo" ? textHistory?.canUndo : textHistory?.canRedo) {
           textHandle.current?.[cmd]();
+          return;
+        }
+        const sheetAvailable =
+          cmd === "undo"
+            ? active.view.can_undo
+            : active.view.can_redo && !textHistory?.canUndo && !inlineActive?.canUndo;
+        if (sheetAvailable && (await actions.commitEdit())) {
+          if (cmd === "undo") await actions.undo();
+          else await actions.redo();
         }
         return;
       }
@@ -1604,9 +1649,14 @@ export default function Workbench({ backend }: { backend: Backend }) {
             await copyResult(resultSelection);
             return;
           }
+          if (inlineActive) {
+            await inlineActive[cmd]();
+            return;
+          }
           if (editing && liveEditor.current) {
-            const next = await mathClipboard.copy(liveEditor.current, cmd === "cut");
-            if (next) {
+            const before = liveEditor.current;
+            const next = await mathClipboard.copy(before, cmd === "cut");
+            if (next && liveEditor.current === before) {
               liveEditor.current = next;
               actions.updateEditor(next);
             }
@@ -1619,9 +1669,14 @@ export default function Workbench({ backend }: { backend: Backend }) {
           // From a key press `pending` is the paste read through the hidden textarea; from the
           // ribbon it is the async clipboard API.
           const source = pending ?? readClipboard();
+          if (inlineActive) {
+            await inlineActive.paste(source);
+            return;
+          }
           if (editing && liveEditor.current) {
-            const next = await mathClipboard.paste(liveEditor.current, source);
-            if (next) {
+            const before = liveEditor.current;
+            const next = await mathClipboard.paste(before, source);
+            if (next && liveEditor.current === before) {
               liveEditor.current = next;
               actions.updateEditor(next);
             }
@@ -1653,11 +1708,20 @@ export default function Workbench({ backend }: { backend: Backend }) {
         case "increaseFontSize":
         case "decreaseFontSize": {
           // every target region moves one step of the list; the ends stay put.
+          const direction = cmd === "increaseFontSize" ? 1 : -1;
+          if (inlineActive) {
+            const font = mathFontOf(inlineActive.format);
+            if (!canStepMathSize(font.sizePt, direction)) {
+              actions.notify(direction > 0 ? S.mathFont.largest : S.mathFont.smallest);
+              return;
+            }
+            inlineActive.setFormat(withMathFont(inlineActive.format, { ...font, sizePt: stepMathSize(font.sizePt, direction) }));
+            return;
+          }
           if (!active) {
             actions.notify(S.mathFont.needsWorksheet);
             return;
           }
-          const direction = cmd === "increaseFontSize" ? 1 : -1;
           const targets = mathFontTargets(active, editing);
           if (targets.length === 0) {
             actions.notify(S.mathFont.noRegion);
@@ -1699,6 +1763,10 @@ export default function Workbench({ backend }: { backend: Backend }) {
         }
         case "resetMathFont": {
           // the three font keys go, the result format and the table box stay.
+          if (inlineActive) {
+            if (hasMathFont(inlineActive.format)) inlineActive.setFormat(withoutMathFont(inlineActive.format));
+            return;
+          }
           if (!active) {
             actions.notify(S.mathFont.needsWorksheet);
             return;
@@ -1861,6 +1929,10 @@ export default function Workbench({ backend }: { backend: Backend }) {
           actions.selectAll();
           return;
         case "deleteRegions":
+          if (inlineActive) {
+            inlineActive.remove();
+            return;
+          }
           // Delete acts on the selection; with nothing selected, directly above a page break it
           // removes the break, and elsewhere one line of the blank space below.
           if (active && active.selection.length > 0) void actions.deleteSelection();
@@ -2037,7 +2109,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
         target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable || target.closest?.(".repl-log") != null);
       // The project explorer keeps its own keys: F2 renames a file there, Delete trashes one.
       const inExplorer = target?.closest?.(".project-explorer-frame, .tree-menu") != null;
-      if (inExplorer || matrixDialog || optionsDialog || pageSetupDialog || formatDialog || mathFontDialog || inlineDialog || labelStylesDialog || calculationSettingsDialog || ribbonModal || state.prompt) return;
+      if (inExplorer || frontModal(document) || matrixDialog || optionsDialog || pageSetupDialog || formatDialog || mathFontDialog || inlineDialog || labelStylesDialog || calculationSettingsDialog || spellingDialog || importReportDialog || shortcutSheetDialog || ribbonModal || state.prompt) return;
       if (typing) {
         // a field of the window's chrome (REPL, Find, side panel filter, ribbon fields) keeps the
         // editing keys, and the window commands that edit nothing still work from it.
@@ -2064,10 +2136,12 @@ export default function Workbench({ backend }: { backend: Backend }) {
         return;
       }
       // A commit is on its way to the backend: keys typed meanwhile must not reach the editor that is
-      // being committed. They are replayed in order once it has finished.
+      // being committed. They are replayed in order once it has finished, keeping the KeyInput
+      // captured at press time (including AltGraph and physical Ctrl state).
       const pending = actions.commitPending();
       if (!replayed.current.has(event) && (pending || replayQueue.current.length > 0) && !event.repeat && !["Control", "Shift", "Alt", "Meta", "AltGraph"].includes(event.key)) {
         event.preventDefault();
+        const input = fromDom(event);
         const copy = new KeyboardEvent("keydown", {
           key: event.key,
           code: event.code,
@@ -2079,7 +2153,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
           cancelable: true,
         });
         const draining = replayQueue.current.length > 0;
-        replayQueue.current.push(copy);
+        replayQueue.current.push({ event: copy, input });
         if (!draining) {
           // Replayed one by one, each after React has applied the previous one.
           void (async () => {
@@ -2087,9 +2161,9 @@ export default function Workbench({ backend }: { backend: Backend }) {
             while (mounted.current && replayQueue.current.length > 0) {
               await new Promise((r) => setTimeout(r, 30));
               if (!mounted.current) break;
-              const next = replayQueue.current.shift() as KeyboardEvent;
-              replayed.current.add(next);
-              window.dispatchEvent(next);
+              const next = replayQueue.current.shift()!;
+              replayed.current.set(next.event, next.input);
+              window.dispatchEvent(next.event);
               // a replayed key may itself start a commit: the rest waits for it
               await new Promise((r) => setTimeout(r, 30));
               await actions.commitPending()?.catch(() => undefined);
@@ -2098,7 +2172,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
         }
         return;
       }
-      const ev = fromDom(event);
+      const ev = replayed.current.get(event) ?? fromDom(event);
       if (editing && editing.docId === active?.id) {
         const editor = liveEditor.current ?? editing.editor;
         const suggestions = completions(editor, completionItems);
@@ -2207,7 +2281,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [actions, active, calculationSettingsDialog, completionIndex, completionItems, editing, matrixDialog, optionsDialog, pageSetupDialog, formatDialog, labelStylesDialog, mathFontDialog, ribbonModal, state.prompt, windowCommand]);
+  }, [actions, active, calculationSettingsDialog, completionIndex, completionItems, editing, formatDialog, importReportDialog, inlineDialog, labelStylesDialog, mathFontDialog, matrixDialog, optionsDialog, pageSetupDialog, ribbonModal, shortcutSheetDialog, spellingDialog, state.prompt, windowCommand]);
 
   // Ctrl+Z straight after a Space made a text box of a word brings the math back. Capture
   // phase, so it comes before the text editor's own undo; any other Ctrl+Z is left to it.
@@ -2258,6 +2332,20 @@ export default function Workbench({ backend }: { backend: Backend }) {
     },
     [actions, editing],
   );
+  const onEditText = useCallback(
+    (id: string, point: { x: number; y: number } | null) => {
+      void actions.beginText(id, point);
+    },
+    [actions],
+  );
+  const onPageNavigationDone = useCallback(() => setPageNavigation(null), []);
+  const onZoomWheel = useCallback(
+    (direction: 1 | -1) => actions.setZoom(stepZoom(state.zoom, direction)),
+    [actions, state.zoom],
+  );
+  const onBackground = useCallback(() => {
+    void actions.commitEdit();
+  }, [actions]);
 
   const updateFromRibbon = useCallback(
     async (change: (editor: EditorState) => EditorState) => {
@@ -2332,7 +2420,7 @@ export default function Workbench({ backend }: { backend: Backend }) {
   // The colours already in the worksheet: the pickers offer them.
   const worksheetColorList = useMemo(() => worksheetColors(active?.view.regions ?? []), [active?.view.regions]);
   const mathTargets = mathFontTargets(active, editing);
-  const canFormatMath = mathTargets.length > 0;
+  const canFormatMath = mathTargets.length > 0 || inlineActive !== null;
   // the size of the targets for the Size field, or "mixed" when they differ.
   const mathSizes = new Set(mathTargets.map((region) => mathFontOf(region.format).sizePt));
   const mathSize: number | "mixed" | null = mathSizes.size === 0 ? null : mathSizes.size === 1 ? [...mathSizes][0] : "mixed";
@@ -2364,6 +2452,8 @@ export default function Workbench({ backend }: { backend: Backend }) {
     target: ContextTarget;
     /** The one region pressed, for the project's Export command. */
     region?: string;
+    /** Opened on an inline math run inside a text region. */
+    inline?: boolean;
     /** A misspelt word under the pointer and its corrections, shown at the end of the menu. */
     spell?: { word: Misspelt; suggestions: string[] | null };
   } | null>(null);
@@ -2382,6 +2472,24 @@ export default function Workbench({ backend }: { backend: Backend }) {
         );
       }
       const spell = wrong ? { word: wrong, suggestions: null } : undefined;
+      // Inline math inside a text region opens the same math context menu as a standalone math region.
+      const inlineMath = element.closest<HTMLElement>('[data-testid="inline-math"]');
+      if (inlineMath && !inlineMath.closest(".plot-slot")) {
+        if (inlineMath.closest('[contenteditable="true"]')) {
+          enterInlineMath(inlineMath, { x: event.clientX, y: event.clientY });
+          setContextMenu({ x: event.clientX, y: event.clientY, target: "math", inline: true, spell });
+          return;
+        }
+        if (active) {
+          const host = inlineMath.closest<HTMLElement>("[data-region-id]");
+          const region = host ? active.view.regions.find((candidate) => candidate.id === host.dataset.regionId) : undefined;
+          if (region?.kind === "text") {
+            void actions.beginText(region.id, { x: event.clientX, y: event.clientY });
+            setContextMenu({ x: event.clientX, y: event.clientY, target: "math", inline: true, spell });
+            return;
+          }
+        }
+      }
       const field = element.closest<HTMLElement>('input, textarea, [contenteditable="true"]');
       if (field) {
         const type = field instanceof HTMLInputElement ? field.type : "text";
@@ -2519,27 +2627,43 @@ export default function Workbench({ backend }: { backend: Backend }) {
     [actions, windowCommand],
   );
 
+  onEmptyHistoryRef.current = (cmd) => {
+    void windowCommand(cmd);
+  };
+
   const commandHistory = activeProjectFile ? {
     canUndo: codeHistory?.canUndo ?? false,
     canRedo: codeHistory?.canRedo ?? false,
     undoLabel: S.quickAccess.undoTextEdit,
     redoLabel: S.quickAccess.redoTextEdit,
-  } : editing && editing.docId === active?.id ? {
-    canUndo: (liveEditor.current ?? editing.editor).past.length > 0 || editing.pasted === true,
-    canRedo: (liveEditor.current ?? editing.editor).future.length > 0,
-    undoLabel: S.quickAccess.undoMathEdit,
-    redoLabel: S.quickAccess.redoMathEdit,
-  } : textEditing && textEditing.docId === active?.id ? (inlineActive ? {
-    canUndo: inlineActive.canUndo,
-    canRedo: inlineActive.canRedo,
-    undoLabel: S.quickAccess.undoMathEdit,
-    redoLabel: S.quickAccess.redoMathEdit,
-  } : {
-    canUndo: textHistory?.canUndo ?? false,
-    canRedo: textHistory?.canRedo ?? false,
-    undoLabel: S.quickAccess.undoTextEdit,
-    redoLabel: S.quickAccess.redoTextEdit,
-  }) : undefined;
+  } : editing && editing.docId === active?.id ? (() => {
+    const editor = liveEditor.current ?? editing.editor;
+    const localUndo = editor.past.length > 0;
+    const localRedo = editor.future.length > 0;
+    return {
+      canUndo: localUndo || editing.pasted === true || active.view.can_undo,
+      canRedo: localRedo || (!localUndo && active.view.can_redo),
+      undoLabel: localUndo ? S.quickAccess.undoMathEdit : undefined,
+      redoLabel: localRedo ? S.quickAccess.redoMathEdit : undefined,
+    };
+  })() : textEditing && textEditing.docId === active?.id ? (() => {
+    const localUndo = Boolean(inlineActive?.canUndo || textHistory?.canUndo);
+    const localRedo = Boolean(inlineActive?.canRedo || textHistory?.canRedo);
+    return {
+      canUndo: localUndo || active.view.can_undo,
+      canRedo: localRedo || (!localUndo && active.view.can_redo),
+      undoLabel: inlineActive?.canUndo
+        ? S.quickAccess.undoMathEdit
+        : textHistory?.canUndo
+          ? S.quickAccess.undoTextEdit
+          : undefined,
+      redoLabel: inlineActive?.canRedo
+        ? S.quickAccess.redoMathEdit
+        : textHistory?.canRedo
+          ? S.quickAccess.redoTextEdit
+          : undefined,
+    };
+  })() : undefined;
 
   return (
     <div className="app" data-backend={state.mode}>
@@ -2620,6 +2744,11 @@ export default function Workbench({ backend }: { backend: Backend }) {
         mathSize={mathSize}
         onMathSize={(pt) => {
           // the size field gives every target region this size, in one undo step.
+          if (inlineActive) {
+            const font = mathFontOf(inlineActive.format);
+            if (font.sizePt !== pt) inlineActive.setFormat(withMathFont(inlineActive.format, { ...font, sizePt: pt }));
+            return;
+          }
           if (!active) return;
           const edits = mathTargets.flatMap((region) => {
             const font = mathFontOf(region.format);
@@ -2674,9 +2803,13 @@ export default function Workbench({ backend }: { backend: Backend }) {
                 : {
                     kind: "item",
                     id: cmd,
-                    label: contextLabel(cmd, allSelectedDisabled(active)),
+                    label: contextLabel(cmd, contextMenu.inline && inlineActive ? inlineActive.disabled : allSelectedDisabled(active)),
                     shortcut: shortcutLabel(cmd),
-                    disabled: contextDisabled(cmd, { selected: active?.selection.length ?? 0, canFormatMath, kind: contextMenu.target }),
+                    disabled: contextDisabled(cmd, {
+                      selected: contextMenu.inline ? 1 : (active?.selection.length ?? 0),
+                      canFormatMath: canFormatMath || Boolean(contextMenu.inline),
+                      kind: contextMenu.target,
+                    }),
                   },
             ),
             // a definition of a project worksheet can be exported for other projects.
@@ -2799,10 +2932,11 @@ export default function Workbench({ backend }: { backend: Backend }) {
               create: async (folder, name, kind) => { if (await actions.commitEdit()) await actions.createProjectItem(folder, name, kind); },
               rename: async (path, name) => { if (await actions.commitEdit()) await actions.renameProjectItem(path, name); },
               move: (path, folder) => void (async () => { if (await actions.commitEdit()) await actions.moveProjectItem(path, folder); })(),
-              moveMany: (paths, folder) => void (async () => { if (await actions.commitEdit()) await actions.moveProjectItems(paths, folder); })(),
+              moveMany: async (paths, folder) => (await actions.commitEdit()) && (await actions.moveProjectItems(paths, folder) ?? false),
               delete: (path, folder, files) => void (async () => { if (await actions.commitEdit()) await actions.deleteProjectItem(path, folder, files); })(),
               deleteMany: (items) => void (async () => { if (await actions.commitEdit()) await actions.deleteProjectItems(items); })(),
               import: (folder) => void (async () => { if (await actions.commitEdit()) await actions.importProjectFiles(folder); })(),
+              copyFiles: (paths, folder) => void (async () => { if (await actions.commitEdit()) await actions.copyProjectFiles(paths, folder); })(),
               reveal: (path) => void actions.revealProjectItem(path),
               openFile: (path, kind) => void (async () => { if (await actions.commitEdit()) await actions.openProjectFile(path, kind); })(),
               openExternal: (path) => void actions.openFileExternally(path),
@@ -2893,13 +3027,13 @@ export default function Workbench({ backend }: { backend: Backend }) {
             }
             onDropFiles={(files, at) => void actions.addImages(files.filter(imageOrReport).map((file) => ({ file })), at)}
             onCrosshair={actions.setCrosshair}
-            onZoomWheel={(direction) => actions.setZoom(stepZoom(state.zoom, direction))}
+            onZoomWheel={onZoomWheel}
             onPageChange={(current, total) => {
               pageCountRef.current = total;
               setPage((p) => (p.current === current && p.total === total ? p : { current, total }));
             }}
             pageNavigation={pageNavigation?.docId === active.id ? pageNavigation : undefined}
-            onPageNavigationDone={() => setPageNavigation(null)}
+            onPageNavigationDone={onPageNavigationDone}
             editing={editing}
             completions={currentCompletions}
             completionIndex={completionIndex}
@@ -2908,10 +3042,10 @@ export default function Workbench({ backend }: { backend: Backend }) {
             onMathSelect={onMathSelect}
             resultSelection={resultSelection}
             onResultSelect={setResultSelection}
-            onBackground={() => void actions.commitEdit()}
+            onBackground={onBackground}
             textEditing={textEditing}
             textBinding={textBinding}
-            onEditText={(id, point) => void actions.beginText(id, point)}
+            onEditText={onEditText}
           />
           </ResultBlocksContext.Provider>
           </JuliaCompleteContext.Provider>

@@ -8,13 +8,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { MathStatement } from "../math/render";
 import { mockParse } from "../mock/mockMath";
 import { EditorOverlay } from "./EditorOverlay";
-import { initialState, selectRange, type EditorState } from "./model";
-import { toEditing } from "./tree";
+import { focusAt, initialState, selectRange, type EditorState } from "./model";
+import { ident, toEditing } from "./tree";
 
 afterEach(cleanup);
 
 /** The box of each addressable node: `f(a, b, c)` on one line, 10 px per argument. */
-const BOXES: Record<string, [number, number]> = { "0.1": [10, 20], "0.2": [30, 40], "0.3": [50, 60] };
+const BOXES: Record<string, [number, number]> = { "0.1": [10, 20], "0.2": [30, 40], "0.3": [50, 60], "0.0": [10, 200], "0.0.0": [10, 50] };
 type Measure = { getBoundingClientRect: () => DOMRect; getClientRects: () => DOMRectList };
 const proto = Element.prototype as unknown as Measure;
 const original = { getBoundingClientRect: proto.getBoundingClientRect, getClientRects: proto.getClientRects };
@@ -92,4 +92,15 @@ describe("the editing lines of a run of call arguments", () => {
     expect(one.selection).toEqual({ x: 10, width: 10 });
     expect(one.underline).toEqual({ x1: 10, x2: 20 });
   });
+});
+
+it("underlines only the content of a short program instruction", () => {
+  const root = { type: "ExprRegion", expr: { type: "Program", body: [
+    { type: "Return", expr: ident("x") },
+    { type: "ExprStmt", expr: ident("longer") },
+  ] } };
+  const line = draw(focusAt(root, [0, 0], "R", true));
+  expect(line.underline).toEqual({ x1: 10, x2: 50 });
+  expect(line.insertion).toBe(50);
+  expect(line.selection).toEqual({ x: 10, width: 40 });
 });

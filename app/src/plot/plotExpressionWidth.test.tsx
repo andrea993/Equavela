@@ -7,7 +7,19 @@ import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toEditing, type Node } from "../editor/tree";
 import type { PlotAxis, PlotSpec } from "../equavelaApi";
-import { BASE_MARGIN, MARGIN, Y2_COLUMN, Y_COLUMN } from "./adapter";
+import { ptToPx } from "../layout/geometry";
+import { enterPrint, leavePrint } from "../print/printMode";
+import {
+  BASE_MARGIN,
+  MARGIN,
+  TITLE_BAND,
+  Y2_COLUMN,
+  Y_COLUMN,
+  Y_SAMPLE_HEIGHT,
+  Y_SLOT_MIN_HEIGHT,
+  Y_STACK_GAP,
+  plotVerticalExpansion,
+} from "./adapter";
 import { makeTrace, type PlotFrame } from "./frame";
 import { PlotContext, type PlotEnv } from "./PlotContext";
 import { PlotView } from "./PlotView";
@@ -230,6 +242,150 @@ describe("a tall x expression keeps the x title below it", () => {
       await waitFor(() => expect(lastMargin().b).toBe(base + 40 - 22));
     } finally {
       if (height) Object.defineProperty(HTMLElement.prototype, "offsetHeight", height);
+    }
+  });
+});
+
+describe("a tall stack of y expressions widens the plot region vertically", () => {
+  it("reuses existing bottom margin before growing downward, avoiding unused space below the plot", async () => {
+    const savedHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+    // Three fraction y expressions (45 px tall each) on a 140 pt plot: taller than the plot area,
+    // but the lower overhang fits inside the existing bottom margin (x row + x title).
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      get() {
+        const element = this as HTMLElement;
+        if (!element.classList?.contains("plot-measure-item")) return 0;
+        return element.textContent?.includes("/") ? 45 : 17;
+      },
+    });
+    try {
+      const plot = spec({
+        size: [480, 140],
+        title: "Power factor",
+        axes: { x: axis({ title: "Index" }), y: axis() },
+        traces: [
+          { id: "t1", x: "k", y: "acos(PF1[k])*180/pi", presentation: "line" },
+          { id: "t2", x: "k", y: "acos(PF2[k])*180/pi", presentation: "line" },
+          { id: "t3", x: "k", y: "acos(PF[k])*180/pi", presentation: "line" },
+        ],
+      });
+      const baseHeight = ptToPx(140);
+      const baseTop = MARGIN.t + TITLE_BAND;
+      const baseBottom = MARGIN.b + TITLE_BAND;
+      // 3 traces of (45 + 1) + 3 px sample + 2 gaps of 2 px, plus y max and y min limit slots.
+      const expectedYHeight =
+        Y_SLOT_MIN_HEIGHT + 3 * (46 + Y_SAMPLE_HEIGHT) + 2 * Y_STACK_GAP + Y_SLOT_MIN_HEIGHT;
+      const expected = plotVerticalExpansion(plot, baseHeight, {
+        y: 0,
+        y2: 0,
+        x: 18,
+        yHeight: expectedYHeight,
+      });
+      expect(expected.overhang).toBeGreaterThan(0);
+      expect(expected.top).toBeGreaterThan(0);
+      // The lower overhang fits inside the existing bottom margin, so no empty space is added at the bottom.
+      expect(expected.bottom).toBe(0);
+
+      const { container, rerender } = renderPlot(plot);
+      const plotEl = plotOf(container);
+      await waitFor(() => expect(lastMargin().t).toBe(baseTop + expected.top));
+
+      const lastLayout = drawn.mock.calls.at(-1)?.[2] as {
+        height: number;
+        margin: { t: number; b: number };
+      };
+      // The region box grows only by `top + bottom`; the plot area keeps its exact height.
+      expect(plotEl.style.height).toBe(`${baseHeight + expected.top + expected.bottom}px`);
+      expect(lastLayout.height).toBe(baseHeight + expected.top + expected.bottom);
+      expect(lastLayout.margin.t).toBe(baseTop + expected.top);
+      expect(lastLayout.margin.b).toBe(baseBottom + expected.bottom);
+      expect(lastLayout.height - lastLayout.margin.t - lastLayout.margin.b).toBeCloseTo(
+        baseHeight - baseTop - baseBottom,
+        6,
+      );
+
+      // The y column stays centred on the plot area and spans its full expanded height.
+      const yColumn = plotEl.querySelector<HTMLElement>(".plot-slots.y")!;
+      expect(yColumn.style.top).toBe(`${lastLayout.margin.t - expected.overhang}px`);
+      expect(yColumn.style.bottom).toBe(`${lastLayout.margin.b - expected.overhang}px`);
+
+      // The x row and titles stay anchored to the plot area with no unused gap below them.
+      const xRow = plotEl.querySelector<HTMLElement>(".plot-slots.x")!;
+      expect(xRow.style.bottom).toBe(`${2 + TITLE_BAND + expected.bottom}px`);
+      const plotTitle = plotEl.querySelector<HTMLElement>(".plot-labels.title")!;
+      expect(plotTitle.style.top).toBe(`${expected.top}px`);
+      const xTitle = plotEl.querySelector<HTMLElement>(".plot-labels.x")!;
+      expect(xTitle.style.bottom).toBe("");
+
+      // Selecting (editing) and printing produce the exact same box height and margins.
+      rerender(
+        <PlotContext.Provider value={env()}>
+          <PlotView
+            region={{ id: "p", page: 1, x: 0, y: 0, enabled: true, kind: "plot", plot }}
+            size={null}
+            selected={true}
+          />
+        </PlotContext.Provider>,
+      );
+      expect(plotEl.style.height).toBe(`${baseHeight + expected.top + expected.bottom}px`);
+
+      act(() => enterPrint());
+      try {
+        await waitFor(() => {
+          const printLayout = drawn.mock.calls.at(-1)?.[2] as {
+            height: number;
+            margin: { t: number; b: number };
+          };
+          expect(printLayout.height).toBe(baseHeight + expected.top + expected.bottom);
+          expect(printLayout.margin.t).toBe(baseTop + expected.top);
+          expect(printLayout.margin.b).toBe(baseBottom + expected.bottom);
+        });
+      } finally {
+        act(() => leavePrint());
+      }
+    } finally {
+      if (savedHeight) Object.defineProperty(HTMLElement.prototype, "offsetHeight", savedHeight);
+    }
+  });
+
+  it("grows downward too only when the lower overhang exceeds the existing bottom margin", () => {
+    const plot = spec({ size: [480, 140] });
+    const baseHeight = ptToPx(140);
+    // Very tall stack (320 px): overhang (~100 px) exceeds both base top (14) and base bottom (52).
+    const expanded = plotVerticalExpansion(plot, baseHeight, { y: 0, y2: 0, x: 22, yHeight: 320 });
+    expect(expanded.top).toBeGreaterThan(0);
+    expect(expanded.bottom).toBeGreaterThan(0);
+    expect(expanded.top).toBeGreaterThan(expanded.bottom);
+  });
+
+  it("counts every trace in the stack even when traces share the same y expression", async () => {
+    const savedHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      get() {
+        const element = this as HTMLElement;
+        if (!element.classList?.contains("plot-measure-item")) return 0;
+        return element.textContent === "a/b" ? 50 : 17;
+      },
+    });
+    try {
+      const plot = spec({
+        size: [480, 140],
+        traces: [
+          { id: "t1", x: "x", y: "a/b", presentation: "line" },
+          { id: "t2", x: "x", y: "a/b", presentation: "line" },
+          { id: "t3", x: "x", y: "a/b", presentation: "line" },
+        ],
+      });
+      const baseHeight = ptToPx(140);
+      const { container } = renderPlot(plot);
+      await waitFor(() => expect(lastMargin().t).toBeGreaterThan(MARGIN.t));
+      // Still typesets each shared text once (one y item + one x item).
+      expect(container.querySelectorAll(".plot-measure-item")).toHaveLength(2);
+      expect(parseFloat(plotOf(container).style.height)).toBeGreaterThan(baseHeight);
+    } finally {
+      if (savedHeight) Object.defineProperty(HTMLElement.prototype, "offsetHeight", savedHeight);
     }
   });
 });

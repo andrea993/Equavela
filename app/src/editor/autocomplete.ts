@@ -19,8 +19,7 @@ export type Completion = {
   description?: string;
 };
 
-// Names, signatures and descriptions come from the generated catalogue, which a Rust
-// integration test keeps in step with core::codegen::BUILTINS.
+// Names, signatures and descriptions come from the function catalogue.
 export const BUILTIN_COMPLETIONS: readonly Completion[] = BUILTIN_ENTRIES.map((entry) => ({
   name: entry.name,
   detail: entry.signature,

@@ -378,11 +378,16 @@ pub fn normalize_expr(e: &mut Expr) {
         K::Integral {
             var,
             bounds,
+            domain,
             algorithm,
             body,
         } => {
             normalize_name(&mut var.name);
             normalize_bounds(bounds);
+            if let Some(d) = domain {
+                normalize_expr(d);
+                ensure(Pos::AddExpr, d);
+            }
             if let Some(a) = algorithm {
                 normalize_name(&mut a.name);
             }
@@ -396,8 +401,22 @@ pub fn normalize_expr(e: &mut Expr) {
             normalize_expr(body);
             ensure(Pos::BigBody, body);
         }
-        K::Deriv { var, order, body } | K::Partial { var, order, body } => {
+        K::Deriv {
+            var,
+            var_expr,
+            order,
+            body,
+        }
+        | K::Partial {
+            var,
+            var_expr,
+            order,
+            body,
+        } => {
             normalize_name(&mut var.name);
+            if let Some(expr) = var_expr {
+                normalize_expr(expr);
+            }
             if let Some(o) = order {
                 normalize_expr(o);
             }

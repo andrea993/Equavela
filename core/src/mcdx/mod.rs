@@ -5,6 +5,7 @@
 //! importer never writes anything.
 
 mod math;
+mod ole;
 mod text;
 mod xmcd;
 mod xmcd_plot;
@@ -1949,6 +1950,8 @@ fn plot_region(
         size,
         axes,
         grid_spacing: None,
+        legend_position: crate::plot::LegendPosition::default(),
+        legend_font_size: None,
         traces,
         reference_lines: Vec::new(),
     };

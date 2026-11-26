@@ -72,6 +72,7 @@ export function InlineMath({
   onAttributes,
   autoFocus,
   keepOnChromeFocus = false,
+  deleteOnEmpty = false,
   onTree,
   onLeave,
   onEmpty,
@@ -90,19 +91,21 @@ export function InlineMath({
   /** A newly inserted math takes the keyboard when it is first drawn. */
   autoFocus: boolean;
   keepOnChromeFocus?: boolean;
+  /** Backspace/Delete while empty removes the inline equation (used in text, not in plot slots). */
+  deleteOnEmpty?: boolean;
   /** The editing tree changed (every keystroke). */
   onTree: (tree: Node) => void;
   onLeave: (direction: Leave) => void;
-  /** Leaving with nothing typed: the text editor removes the node. */
-  onEmpty: () => void;
+  /** Leaving with nothing typed, or deleting while empty: the text editor removes the node. */
+  onEmpty: (focusText?: boolean) => void;
   onFocused: () => void;
 }) {
   const env = useContext(TextEnvContext);
   const ref = useRef<HTMLSpanElement>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const live = useRef<EditorState | null>(null);
-  const props = useRef({ onTree, onLeave, onEmpty, clipboard: env.clipboard });
-  props.current = { onTree, onLeave, onEmpty, clipboard: env.clipboard };
+  const props = useRef({ onTree, onLeave, onEmpty, deleteOnEmpty, clipboard: env.clipboard });
+  props.current = { onTree, onLeave, onEmpty, deleteOnEmpty, clipboard: env.clipboard };
   // True while a paste is being read through the hidden textarea (the focus is away for a moment).
   const pasting = useRef(false);
   // The press that may become a mouse selection (anchor of the drag).
@@ -160,6 +163,23 @@ export function InlineMath({
         }
         return;
       }
+      // Backspace or Delete in an empty inline equation removes it and returns the caret to the text,
+      // matching how an empty math region on the sheet is deleted.
+      if (
+        props.current.deleteOnEmpty &&
+        (event.key === "Backspace" || event.key === "Delete") &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        isEmptyStatement(current.root)
+      ) {
+        event.preventDefault();
+        live.current = null;
+        setEditor(null);
+        props.current.onEmpty(true);
+        return;
+      }
       const result = handleKey(current, fromDom(event));
       // Enter leaves inline math even right after an operator: the equation break of Enter is a math
       // region's, and one-line math has no second line.
@@ -182,19 +202,25 @@ export function InlineMath({
         const clipboard = props.current.clipboard;
         if (cmd === "leaveRegion" || cmd === "exitRegion") props.current.onLeave("right");
         else if ((cmd === "copy" || cmd === "cut") && clipboard) {
-          void clipboard.copy(current, cmd === "cut").then((next) => next && change(next));
+          void clipboard.copy(current, cmd === "cut").then((next) => {
+            if (next && live.current === current) change(next);
+          });
         } else if (cmd === "paste" && clipboard) {
           // The browser's own paste must reach the hidden textarea: no preventDefault.
           pasting.current = true;
           const pending = readClipboardFromGesture();
-          void clipboard.paste(current, pending).then((next) => {
-            if (next) change(next);
-            // The text editor may take the focus back while the tree is stored: take it again.
-            setTimeout(() => {
-              ref.current?.focus();
-              pasting.current = false;
-            }, 0);
-          });
+          void clipboard
+            .paste(current, pending)
+            .then((next) => {
+              if (next && live.current === current) change(next);
+            })
+            .finally(() => {
+              // The text editor may take the focus back while the tree is stored: take it again.
+              setTimeout(() => {
+                ref.current?.focus();
+                pasting.current = false;
+              }, 0);
+            });
         }
       }
     };
@@ -277,6 +303,25 @@ export function InlineMath({
     const step = (cmd: "undo" | "redo") => {
       if (live.current) liveChange.current(runCommand(live.current, cmd));
     };
+    const copyOrCut = async (cut: boolean) => {
+      const current = live.current;
+      const clipboard = props.current.clipboard;
+      if (!current || !clipboard) return;
+      const next = await clipboard.copy(current, cut);
+      if (next && live.current === current) liveChange.current(next);
+    };
+    const paste = async (source?: Promise<string | null>) => {
+      const current = live.current;
+      const clipboard = props.current.clipboard;
+      if (!current || !clipboard) return;
+      const next = await clipboard.paste(current, source ?? readClipboardFromGesture());
+      if (next && live.current === current) liveChange.current(next);
+    };
+    const remove = () => {
+      live.current = null;
+      setEditor(null);
+      props.current.onEmpty(true);
+    };
     env.onInline({
       disabled,
       format,
@@ -286,6 +331,10 @@ export function InlineMath({
       canRedo,
       undo: () => step("undo"),
       redo: () => step("redo"),
+      copy: () => copyOrCut(false),
+      cut: () => copyOrCut(true),
+      paste,
+      remove,
     });
     return () => env.onInline?.(null);
   }, [editingNow, disabled, format, canUndo, canRedo, env]);

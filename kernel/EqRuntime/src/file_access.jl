@@ -57,7 +57,7 @@ function _atomic_file(f, name, path)
         mv(temporary, path; force=true)
     catch err
         temporary !== nothing && isfile(temporary) && rm(temporary; force=true)
-        err isa EqError && rethrow()
+        (err isa EqError || err isa InterruptException) && rethrow()
         eqerror("$name: cannot write $path: $(sprint(showerror, err))")
     end
     return 0
@@ -74,6 +74,7 @@ function eq_READBIN(file, type, endian=0, cols=1, skip=0, maxrows=0)
     bytes = try
         read(path)
     catch err
+        err isa InterruptException && rethrow()
         eqerror("READBIN: cannot read $path: $(sprint(showerror, err))")
     end
     skip <= length(bytes) || eqerror("READBIN: skip exceeds file length")
@@ -158,7 +159,7 @@ end
 
 function _read_delimited(file, name; delimiter=',', emptyfill=NaN, decsymb=".", thousep="", blankrows="read", quotechar='"')
     path = _file_path(name, file)
-    text = try read(path, String) catch err; eqerror("$name: cannot read $path: $(sprint(showerror, err))") end
+    text = try read(path, String) catch err; err isa InterruptException && rethrow(); eqerror("$name: cannot read $path: $(sprint(showerror, err))") end
     isempty(text) && return Matrix{Any}(undef, 0, 0)
     blankrows in ("read", "skip", "stop") || eqerror("$name: invalid blankrows")
     if blankrows == "stop"
@@ -171,6 +172,7 @@ function _read_delimited(file, name; delimiter=',', emptyfill=NaN, decsymb=".", 
         CSV.File(IOBuffer(text); header=false, delim=delimiter, types=String,
             silencewarnings=true, strict=true, ignoreemptyrows=blankrows == "skip", quotechar=quotechar)
     catch err
+        err isa InterruptException && rethrow()
         eqerror("$name: invalid text data: $(sprint(showerror, err))")
     end
     nrows = length(table)
@@ -222,7 +224,7 @@ end
 
 function _fixed_text(file, name, widths, emptyfill, decsymb, thousep, blankrows)
     path = _file_path(name, file)
-    lines = try readlines(path) catch err; eqerror("$name: cannot read $path: $(sprint(showerror, err))") end
+    lines = try readlines(path) catch err; err isa InterruptException && rethrow(); eqerror("$name: cannot read $path: $(sprint(showerror, err))") end
     blankrows in ("read", "skip", "stop") || eqerror("$name: invalid blankrows")
     selected = String[]
     for line in lines
@@ -297,7 +299,7 @@ function eq_READFILE(file, type, args...)
                 map(x -> ismissing(x) ? emptyfill : x, raw)
             end
         catch err
-            err isa EqError && rethrow()
+            (err isa EqError || err isa InterruptException) && rethrow()
             eqerror("READFILE: cannot read $path: $(sprint(showerror,err))")
         end
     elseif type == "fixed"
@@ -365,7 +367,7 @@ end
 
 function eq_READPRN(file)
     path = _file_path("READPRN", file)
-    lines = try readlines(path) catch err; eqerror("READPRN: cannot read $path: $(sprint(showerror,err))") end
+    lines = try readlines(path) catch err; err isa InterruptException && rethrow(); eqerror("READPRN: cannot read $path: $(sprint(showerror,err))") end
     lines = [line for line in lines if !isempty(strip(line)) && !startswith(strip(line), "//")]
     isempty(lines) && return Matrix{Float64}(undef, 0, 0)
     header = r"^\s*\.MATRIX\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*$"i
@@ -500,6 +502,7 @@ function _wav_read(file, name)
     try
         return WAV.wavread(path; format="native")
     catch err
+        err isa InterruptException && rethrow()
         eqerror("$name: cannot read WAV file $path: $(sprint(showerror,err))")
     end
 end
@@ -543,7 +546,7 @@ function _read_image(file,name)
         ndims(data) == 2 || eqerror("$name: image must be two-dimensional")
         return ColorTypes.RGB{Float64}.(data)
     catch err
-        err isa EqError && rethrow()
+        (err isa EqError || err isa InterruptException) && rethrow()
         eqerror("$name: cannot read image $path: $(sprint(showerror,err))")
     end
 end
@@ -570,7 +573,7 @@ function _write_image(file, image, name)
         mv(temporary,path; force=true)
     catch err
         isfile(temporary) && rm(temporary; force=true)
-        err isa EqError && rethrow()
+        (err isa EqError || err isa InterruptException) && rethrow()
         eqerror("$name: cannot write image $path: $(sprint(showerror,err))")
     end
     return 0
@@ -655,7 +658,7 @@ function eq_WRITEEXCEL(file,M,args...)
         try
             _XLS_WRITE[](path, matrix, sheetindex, sheetname, anchor)
         catch err
-            err isa EqError && rethrow()
+            (err isa EqError || err isa InterruptException) && rethrow()
             eqerror("WRITEEXCEL: cannot write $path: $(sprint(showerror,err))")
         end
         return 0
@@ -671,7 +674,7 @@ function eq_WRITEEXCEL(file,M,args...)
         mv(temporary,path; force=true)
     catch err
         isfile(temporary) && rm(temporary; force=true)
-        err isa EqError && rethrow()
+        (err isa EqError || err isa InterruptException) && rethrow()
         eqerror("WRITEEXCEL: cannot write $path: $(sprint(showerror,err))")
     end
     return 0

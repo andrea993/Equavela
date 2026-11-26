@@ -7,21 +7,22 @@
 use crate::ast::EllipsisForm;
 use roxmltree::Node;
 use std::cell::{Cell, RefCell};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 thread_local! {
     /// Whether the `ml:` element being translated is a **unit context** — the unit override of an
     /// evaluation — where every plain name is a unit and the `@unit` label is left out.
     static UNIT_CONTEXT: Cell<bool> = const { Cell::new(false) };
-    /// The names an `.xmcd` region writes as units although they carry no label:
-    /// in that format a unit is a plain name the worksheet has not defined. Empty for an
-    /// `.mcdx`, whose units are labelled.
     /// Whether an override whose names are not all units is left out, and
     /// how many were.
     static DROP_NON_UNIT_OVERRIDES: Cell<bool> = const { Cell::new(false) };
     static DROPPED_OVERRIDES: Cell<usize> = const { Cell::new(0) };
-    static IMPLICIT_UNITS: RefCell<Rc<HashSet<String>>> = RefCell::new(Rc::new(HashSet::new()));
+    /// The names an `.xmcd` region writes as units or constants although they carry no label:
+    /// in that format a unit (or standard gravity `g`) is a plain name the worksheet has not
+    /// defined. Empty for an `.mcdx`, whose units are labelled.
+    static IMPLICIT_LABELS: RefCell<Rc<HashMap<String, &'static str>>> =
+        RefCell::new(Rc::new(HashMap::new()));
 }
 
 /// Runs `f` translating `.xmcd` math: a display override that is not a
@@ -34,23 +35,26 @@ pub fn with_xmcd_overrides<T>(f: impl FnOnce() -> T) -> (T, usize) {
     (out, DROPPED_OVERRIDES.with(Cell::get))
 }
 
-/// Runs `f` with `names` as the unlabelled names that are units; the set is
-/// cleared afterwards whatever `f` returns.
-pub fn with_implicit_units<T>(names: Rc<HashSet<String>>, f: impl FnOnce() -> T) -> T {
-    let outer = IMPLICIT_UNITS.with(|set| std::mem::replace(&mut *set.borrow_mut(), names));
+/// Runs `f` with `names` as the unlabelled names that receive an explicit `@unit` or `@const`
+/// label; the map is cleared afterwards whatever `f` returns.
+pub fn with_implicit_labels<T>(
+    names: Rc<HashMap<String, &'static str>>,
+    f: impl FnOnce() -> T,
+) -> T {
+    let outer = IMPLICIT_LABELS.with(|map| std::mem::replace(&mut *map.borrow_mut(), names));
     let out = f();
-    IMPLICIT_UNITS.with(|set| *set.borrow_mut() = outer);
+    IMPLICIT_LABELS.with(|map| *map.borrow_mut() = outer);
     out
 }
 
-fn is_implicit_unit(name: &str) -> bool {
-    IMPLICIT_UNITS.with(|set| set.borrow().contains(name))
+fn implicit_label(name: &str) -> Option<&'static str> {
+    IMPLICIT_LABELS.with(|map| map.borrow().get(name).copied())
 }
 
-/// Translates a function name: the head of a call is never an implicit unit, because the
-/// reference application's `sec`, `min` and their like are functions as well as units.
+/// Translates a function name: the head of a call is never an implicit unit or constant, because
+/// names such as `sec`, `min` or `g` can be functions.
 fn call_head(head: Node) -> R {
-    with_implicit_units(Rc::new(HashSet::new()), || expr(head))
+    with_implicit_labels(Rc::new(HashMap::new()), || expr(head))
 }
 
 /// Runs `f` in a unit context: the label is not written there, and the flag is restored
@@ -294,11 +298,23 @@ fn id_text(node: Node) -> String {
         // the reference application's explicit VARIABLE label on a name that is also a unit (`A`, `V`, `m`) keeps
         // it a variable; without the label it would read and draw as the unit.
         out.push_str("@var");
-    } else if label.is_none() && subscripts == 0 && !unit_context() && is_implicit_unit(&out) {
-        // an unlabelled `.xmcd` name that is a unit of that worksheet.
-        out.push_str("@unit");
+    } else if label.is_none() && subscripts == 0 && !unit_context() {
+        // an unlabelled `.xmcd` name that is a unit or standard gravity in that worksheet.
+        if let Some(tag) = implicit_label(&out) {
+            out.push_str(tag);
+        }
     }
     out
+}
+
+/// A string as worksheet math: `"…"` with its escapes.
+pub fn quoted(s: &str) -> String {
+    string_literal(s)
+}
+
+/// The name a definition binds, from the `ml:id` (or function head) that names it.
+pub fn target_name(node: Node) -> Result<String, MathError> {
+    target_text(node)
 }
 
 fn string_literal(s: &str) -> String {
@@ -912,17 +928,24 @@ fn calculus(op: &str, rest: &[Node]) -> R {
         let body = expr(lk[1])?;
         return Ok(Emit::new(format!("vsum({})", body.text), L_POSTFIX));
     }
-    // A sum or product whose single bound variable is an expression (`j!`, a decoration the
-    // user wrote in the index slot) is imported as a free slot, as written.
-    let free_slot =
-        matches!(op, "summation" | "product") && vars.len() == 1 && name_of(vars[0]) != "id";
+    // A sum, product, or derivative whose single bound variable is an expression (e.g. `j!`,
+    // `w[j]`, `Aᵀ`, `ω·t`) is imported as a display-only free slot, as written.
+    let free_slot = matches!(
+        op,
+        "summation" | "product" | "derivative" | "partDerivative"
+    ) && vars.len() == 1
+        && name_of(vars[0]) != "id";
     if !free_slot && (vars.len() != 1 || name_of(vars[0]) != "id") {
         return unsupported(format!("{op} (bound variables)"));
     }
-    let var = if free_slot {
-        fit(&expr(vars[0])?, L_CMP, true)
+    let var_emit = if free_slot {
+        Some(expr(vars[0])?)
     } else {
-        id_text(vars[0])
+        None
+    };
+    let var = match &var_emit {
+        Some(emitted) => fit(emitted, L_CMP, true),
+        None => id_text(vars[0]),
     };
     let body = expr(lk[1])?;
     let body_text = fit(&body, L_MUL, true);
@@ -949,7 +972,13 @@ fn calculus(op: &str, rest: &[Node]) -> R {
         };
         match degree {
             None => var,
-            Some(d) => format!("{var}^{}", boxed(&d, L_POW)),
+            Some(d) => {
+                let base = match &var_emit {
+                    Some(emitted) => fit(emitted, L_POSTFIX, true),
+                    None => var,
+                };
+                format!("{base}^{}", boxed(&d, L_POW))
+            }
         }
     } else {
         match (bound("lowerBound")?, bound("upperBound")?) {
@@ -964,6 +993,8 @@ fn calculus(op: &str, rest: &[Node]) -> R {
                 fit(&lo, L_ADD, true),
                 fit(&hi, L_ADD, true)
             ),
+            // Lower bound only on an integral: display-only integral over a domain.
+            (Some(lo), None) if op == "integral" => format!("{var} ∈ {}", fit(&lo, L_ADD, true)),
             // No bounds: the sum or product over a range variable, the indefinite integral.
             (None, None) => var,
             _ => return unsupported(format!("{op} (one-sided bounds)")),
@@ -1385,5 +1416,45 @@ pub fn statement_text(node: Node) -> Result<String, MathError> {
             Ok(format!("program {{ {} }}", stmt(node)?))
         }
         _ => Ok(fit(&expr(node)?, 0, true)),
+    }
+}
+
+#[cfg(test)]
+mod deriv_expr_tests {
+    use super::statement_text;
+    use roxmltree::Document;
+
+    fn emit(xml: &str) -> String {
+        let doc = Document::parse(xml).unwrap();
+        statement_text(doc.root_element()).unwrap()
+    }
+
+    #[test]
+    fn imports_derivative_and_partial_with_expression_variable() {
+        assert_eq!(
+            emit(
+                r#"<apply><derivative/><lambda><boundVars><apply><indexer/><id>w</id><id>j</id></apply></boundVars><id>f</id></lambda></apply>"#
+            ),
+            "ⅆ[w[j]] f"
+        );
+        assert_eq!(
+            emit(
+                r#"<apply><partDerivative/><lambda><boundVars><apply><mult/><id>ω</id><id>t</id></apply></boundVars><id>f</id></lambda></apply>"#
+            ),
+            "∂[ω·t] f"
+        );
+        assert_eq!(
+            emit(
+                r#"<apply><derivative/><degree><real>2</real></degree><lambda><boundVars><apply><indexer/><id>x</id><id>i</id></apply></boundVars><id>f</id></lambda></apply>"#
+            ),
+            "ⅆ[x[i]^2] f"
+        );
+        // Integral with only lower bound filled (domain integral).
+        assert_eq!(
+            emit(
+                r#"<apply><integral/><bounds><id>V</id><placeholder/></bounds><lambda><boundVars><id>V</id></boundVars><id>ρ</id></lambda></apply>"#
+            ),
+            "∫[V ∈ V] ρ"
+        );
     }
 }

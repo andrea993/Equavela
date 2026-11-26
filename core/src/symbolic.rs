@@ -121,9 +121,19 @@ impl KernelManager {
     /// Runs a symbolic evaluation (`symbolic`, protocol section 9). Blocks until SymPy is
     /// ready; a failing evaluation is `Ok(SymbolicOutcome::Error(..))`.
     pub fn symbolic(&self, request: &SymbolicRequest) -> Result<SymbolicOutcome, KernelError> {
+        self.symbolic_with_options(request, &crate::kernel_manager::RequestOptions::default())
+    }
+
+    /// Runs a symbolic evaluation with explicit request options (such as a pre-allocated request
+    /// id for targeted interruption).
+    pub fn symbolic_with_options(
+        &self,
+        request: &SymbolicRequest,
+        options: &crate::kernel_manager::RequestOptions,
+    ) -> Result<SymbolicOutcome, KernelError> {
         let params = serde_json::to_value(request)
             .map_err(|error| KernelError::InvalidResponse(error.to_string()))?;
-        let response = self.request("symbolic", Some(params))?;
+        let response = self.request_with("symbolic", Some(params), options, &mut |_| {})?;
         parse_symbolic_result(&response.result).map_err(KernelError::InvalidResponse)
     }
 
@@ -489,6 +499,7 @@ impl SymbolicOperation {
             SymbolicOperation::Differentiate { var } => {
                 expr = Expr::synth(ExprKind::Deriv {
                     var: Ident::new(var.clone()),
+                    var_expr: None,
                     order: None,
                     body: Box::new(expr),
                 });
@@ -498,6 +509,7 @@ impl SymbolicOperation {
                 expr = Expr::synth(ExprKind::Integral {
                     var: Ident::new(var.clone()),
                     bounds: None,
+                    domain: None,
                     algorithm: None,
                     body: Box::new(expr),
                 });

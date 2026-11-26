@@ -206,6 +206,10 @@ export interface InlineActive {
   canRedo: boolean;
   undo(): void;
   redo(): void;
+  copy(): Promise<void>;
+  cut(): Promise<void>;
+  paste(source?: Promise<string | null>): Promise<void>;
+  remove(): void;
 }
 
 /** Whether the text editor's own history can step back or forward. */
@@ -250,6 +254,10 @@ export interface TextEditBinding {
   onFormat: (state: TextFormatState) => void;
   /** The editor's own history changed. */
   onHistory?: (history: TextHistory) => void;
+  /** Undo was triggered while the text editor's local history is empty (fall back to worksheet). */
+  onEmptyUndo?: () => void;
+  /** Redo was triggered while the text editor's local history is empty (fall back to worksheet). */
+  onEmptyRedo?: () => void;
   /** The inline equation being edited, or null. */
   onInline?: (active: InlineActive | null) => void;
 }

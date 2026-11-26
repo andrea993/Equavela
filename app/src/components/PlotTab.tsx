@@ -13,6 +13,8 @@ import {
   setAxisTitle,
   setAxisUnit,
   setGridSpacing,
+  setLegendFontSize,
+  setLegendPosition,
   setPlotTitle,
   parseLimit,
   removeReferenceLine,
@@ -31,12 +33,14 @@ import {
 } from "../plot/edit";
 import { bandLabel } from "../plot/PlotLabels";
 import { Slot } from "../plot/PlotSlot";
-import type { PlotSpec } from "../equavelaApi";
+import type { PlotLegendPosition, PlotSpec } from "../equavelaApi";
 import { S } from "../strings";
 import { applyPlotCommand, presentationTargets, type PlotCommand, type RibbonContext } from "../workbench/commandContext";
 import { Group, Icon, ToolButton } from "./Chrome";
 
 export type PlotTabProps = {
+  /** Which of the two plot contextual tabs is shown: plot-wide options (`plot`) or trace controls (`trace`). */
+  section?: "plot" | "trace";
   context: Extract<RibbonContext, { kind: "plot" }>;
   /** Runs a Plot tab command by name (the same names as the command palette). */
   onCommand: (cmd: string) => void;
@@ -47,6 +51,8 @@ export type PlotTabProps = {
   /** The colours the worksheet already uses, offered by the colour pickers of the traces. */
   worksheetColors?: readonly string[];
 };
+
+const LEGEND_SIZES_PT = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24] as const;
 
 const LINE_STYLES = [
   ["solid", "Solid"],
@@ -76,7 +82,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export function PlotTab({ context, onCommand, onPlotSpec, onPlotSelectTrace, worksheetColors }: PlotTabProps) {
+export function PlotTab({ section = "plot", context, onCommand, onPlotSpec, onPlotSelectTrace, worksheetColors }: PlotTabProps) {
   const C = S.ribbon.commands;
   const P = S.plot;
   const spec = context.plot;
@@ -137,6 +143,199 @@ export function PlotTab({ context, onCommand, onPlotSpec, onPlotSelectTrace, wor
   };
 
   const xy = spec.type === "xy";
+  if (section === "trace") {
+    return (
+      <>
+        <Group title={S.ribbon.groups.traces}>
+          {command("plotAddTrace", C.addTrace, "+∿")}
+          {command("plotRemoveTrace", C.removeTrace, "−∿")}
+          <div className="plot-trace-list" role="listbox" aria-label={P.traceList}>
+            {spec.traces.map((item, i) => (
+              <button
+                key={item.id}
+                type="button"
+                role="option"
+                aria-selected={item.id === context.selectedTraceId}
+                className={`plot-trace-item${item.id === context.selectedTraceId ? " selected" : ""}`}
+                title={P.traceItem(i + 1, item.y)}
+                onClick={() => onPlotSelectTrace(item.id)}
+              >
+                <span className="plot-trace-swatch" style={{ background: color(i) }} aria-hidden="true" />
+                <span className="plot-trace-name">{P.traceItem(i + 1, item.y)}</span>
+              </button>
+            ))}
+          </div>
+        </Group>
+        <Group title={P.selectedTrace}>
+          {trace ? (
+            <div className="ribbon-fields">
+              <div className="ribbon-field-row">
+                <span className="ribbon-field-label">{P.yShort}</span>
+                <Slot
+                  key={`y-${trace.id}`}
+                  className="ribbon-expression" fitRow
+                  text={trace.y}
+                  label={spec.type === "polar" ? P.polarRadius : P.yExpression}
+                  onSelect={() => onPlotSelectTrace(trace.id)}
+                  onCommit={commitY}
+                />
+              </div>
+              <div className="ribbon-field-row">
+                <span className="ribbon-field-label">{P.xShort}</span>
+                <Slot
+                  key={`x-${trace.id}`}
+                  className="ribbon-expression" fitRow
+                  text={xShared ?? trace.x}
+                  label={spec.type === "polar" ? P.polarAngle : P.xExpression}
+                  onCommit={commitX}
+                />
+              </div>
+              {spec.type === "contour" && (
+                <div className="ribbon-field-row">
+                  <span className="ribbon-field-label">z</span>
+                  <Slot key={`z-${trace.id}`} className="ribbon-expression" fitRow text={trace.z ?? ""}
+                    label={P.zExpression} onSelect={() => onPlotSelectTrace(trace.id)}
+                    onCommit={(text) => onPlotSpec(setTraceExpression(spec, index, "z", text))} />
+                </div>
+              )}
+              {xy && (
+                <div className="ribbon-field-row">
+                  <span className="ribbon-field-label">{P.yAxisSelector}</span>
+                  <select
+                    aria-label={P.yAxisSelector}
+                    value={trace.y_axis ?? "left"}
+                    onChange={(event) => onPlotSpec(setYAxis(spec, index, event.target.value as "left" | "right"))}
+                  >
+                    <option value="left">{P.yAxisLeft}</option>
+                    <option value="right">{P.yAxisRight}</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          ) : (
+            <span className="ribbon-hint">{P.selectTraceHint}</span>
+          )}
+        </Group>
+        <Group title={P.traceType}>
+          <div className="ribbon-commands stacked ribbon-trace-type">
+            {command("plotLineTrace", C.lineTrace, "╱", allKinds("lines"))}
+            {command("plotStemTrace", C.stemTrace, "┆", allKinds("stems"))}
+            {command("plotBarTrace", C.barTrace, "▮", allKinds("bars"))}
+            {command("plotStepTrace", C.stepTrace, "⌐", allKinds("steps"))}
+          </div>
+        </Group>
+        <Group title={S.ribbon.groups.traceStyle}>
+          {spec.type !== "contour" && <div className="ribbon-commands stacked ribbon-presentation">
+            {command("plotLines", C.lines, "╱", all("line"))}
+            {command("plotMarkers", C.markers, "⋰", all("markers"))}
+            {command("plotLinesMarkers", C.linesMarkers, "⟋", all("line+markers"))}
+          </div>}
+          <div className="ribbon-fields ribbon-trace-style" aria-disabled={off}>
+            <div className="ribbon-field-row">
+              <span className="ribbon-field-label">Line</span>
+              <select
+                aria-label={P.lineStyle}
+                disabled={off}
+                value={trace?.line?.style ?? "solid"}
+                onChange={(event) => style("line", "style", event.target.value)}
+              >
+                {LINE_STYLES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+              <input
+                aria-label={P.lineWidth}
+                title={P.lineWidth}
+                type="number"
+                min="0.5"
+                max="6"
+                step="0.5"
+                disabled={off}
+                value={trace?.line?.width ?? 1.5}
+                onChange={(event) => style("line", "width", Number(event.target.value))}
+              />
+              <ColorPicker
+                label={P.lineColor}
+                none={P.automaticColor}
+                colors={MATH_COLORS.slice(1).map(({ value, name }) => ({ value, name }))}
+                hideLabel
+                disabled={off}
+                title={P.lineColor}
+                value={trace?.line?.color ?? PALETTE[Math.max(index, 0) % PALETTE.length]}
+                worksheetColors={worksheetColors}
+                onPick={(color) => style("line", "color", color)}
+              />
+            </div>
+            {spec.type !== "contour" && <div className="ribbon-field-row">
+              <span className="ribbon-field-label">Marker</span>
+              <select
+                aria-label={P.markerShape}
+                disabled={off}
+                value={trace?.marker?.shape ?? "circle"}
+                onChange={(event) => style("marker", "shape", event.target.value)}
+              >
+                {MARKER_SHAPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+              <input
+                aria-label={P.markerSize}
+                title={P.markerSize}
+                type="number"
+                min="2"
+                max="20"
+                step="1"
+                disabled={off}
+                value={trace?.marker?.size ?? 5}
+                onChange={(event) => style("marker", "size", Number(event.target.value))}
+              />
+              <ColorPicker
+                label={P.markerColor}
+                none={P.automaticColor}
+                colors={MATH_COLORS.slice(1).map(({ value, name }) => ({ value, name }))}
+                hideLabel
+                disabled={off}
+                title={P.markerColor}
+                value={trace?.marker?.color ?? trace?.line?.color ?? PALETTE[Math.max(index, 0) % PALETTE.length]}
+                worksheetColors={worksheetColors}
+                onPick={(color) => style("marker", "color", color)}
+              />
+            </div>}
+          </div>
+        </Group>
+        <Group title={P.legend}>
+          <div className="ribbon-fields ribbon-fields-inline" aria-disabled={off}>
+            <Field label={P.showInLegend}>
+              <input
+                aria-label={P.showInLegend}
+                type="checkbox"
+                disabled={off}
+                checked={trace?.show_in_legend ?? true}
+                onChange={(event) => {
+                  if (index >= 0) onPlotSpec(setTraceLegendVisibility(spec, index, event.target.checked));
+                }}
+              />
+            </Field>
+            <Field label={P.legendLabel}>
+              <input
+                aria-label={P.legendLabel}
+                type="text"
+                disabled={off}
+                value={legendLabel}
+                onChange={(event) => {
+                  if (trace) setLegendLabelDraft({ traceId: trace.id, value: event.target.value });
+                }}
+                onBlur={commitLegendLabel}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  }
+                }}
+              />
+            </Field>
+          </div>
+        </Group>
+      </>
+    );
+  }
+
   return (
     <>
       <Group title={S.ribbon.groups.plotType}>
@@ -152,106 +351,51 @@ export function PlotTab({ context, onCommand, onPlotSpec, onPlotSelectTrace, wor
           </select>
         </Field>
       </Group>
-      <Group title={S.ribbon.groups.traces}>
-        {command("plotAddTrace", C.addTrace, "+∿")}
-        {command("plotRemoveTrace", C.removeTrace, "−∿")}
-        <div className="plot-trace-list" role="listbox" aria-label={P.traceList}>
-          {spec.traces.map((item, i) => (
-            <button
-              key={item.id}
-              type="button"
-              role="option"
-              aria-selected={item.id === context.selectedTraceId}
-              className={`plot-trace-item${item.id === context.selectedTraceId ? " selected" : ""}`}
-              title={P.traceItem(i + 1, item.y)}
-              onClick={() => onPlotSelectTrace(item.id)}
-            >
-              <span className="plot-trace-swatch" style={{ background: color(i) }} aria-hidden="true" />
-              <span className="plot-trace-name">{P.traceItem(i + 1, item.y)}</span>
-            </button>
-          ))}
-        </div>
+      {spec.type !== "polar" && (
+      <Group title={S.ribbon.groups.axes} stacked>
+        {command("plotLogX", C.logX, "↔", spec.axes.x.scale === "log10")}
+        {command("plotLogY", C.logY, "↕", spec.axes.y.scale === "log10")}
+        {xy && usesRightAxis(spec) && command("plotLogY2", C.logY2, "⇅", spec.axes.y2?.scale === "log10")}
+        {command("plotAutoScale", C.autoScale, "⤢")}
+        {/* one toggle for the x axis and the left y axis, pressed while both cross. */}
+        {command("plotToggleAxes", C.axesAtOrigin, "┼", spec.axes.x.position === "origin" && spec.axes.y.position === "origin")}
+        {command("plotToggleGrid", C.showGrid, "▦", spec.axes.x.show_grid !== false && spec.axes.y.show_grid !== false)}
+        <Field label={P.gridSpacing}>
+          <select
+            aria-label={P.gridSpacing}
+            value={gridValue}
+            onChange={(event) => onPlotSpec(setGridSpacing(spec, event.target.value === "auto" ? null : Number(event.target.value)))}
+          >
+            <option value="auto">{P.automaticGridSpacing}</option>
+            {GRID_STEPS.map((step) => <option key={step} value={step}>{step}</option>)}
+          </select>
+        </Field>
       </Group>
-      <Group title={P.selectedTrace}>
-        {trace ? (
-          <div className="ribbon-fields">
-            <div className="ribbon-field-row">
-              <span className="ribbon-field-label">{P.yShort}</span>
-              <Slot
-                key={`y-${trace.id}`}
-                className="ribbon-expression" fitRow
-                text={trace.y}
-                label={spec.type === "polar" ? P.polarRadius : P.yExpression}
-                onSelect={() => onPlotSelectTrace(trace.id)}
-                onCommit={commitY}
-              />
-            </div>
-            <div className="ribbon-field-row">
-              <span className="ribbon-field-label">{P.xShort}</span>
-              <Slot
-                key={`x-${trace.id}`}
-                className="ribbon-expression" fitRow
-                text={xShared ?? trace.x}
-                label={spec.type === "polar" ? P.polarAngle : P.xExpression}
-                onCommit={commitX}
-              />
-            </div>
-            {spec.type === "contour" && (
-              <div className="ribbon-field-row">
-                <span className="ribbon-field-label">z</span>
-                <Slot key={`z-${trace.id}`} className="ribbon-expression" fitRow text={trace.z ?? ""}
-                  label={P.zExpression} onSelect={() => onPlotSelectTrace(trace.id)}
-                  onCommit={(text) => onPlotSpec(setTraceExpression(spec, index, "z", text))} />
-              </div>
-            )}
-            {xy && (
-              <div className="ribbon-field-row">
-                <span className="ribbon-field-label">{P.yAxisSelector}</span>
-                <select
-                  aria-label={P.yAxisSelector}
-                  value={trace.y_axis ?? "left"}
-                  onChange={(event) => onPlotSpec(setYAxis(spec, index, event.target.value as "left" | "right"))}
-                >
-                  <option value="left">{P.yAxisLeft}</option>
-                  <option value="right">{P.yAxisRight}</option>
-                </select>
-              </div>
-            )}
-          </div>
-        ) : (
-          <span className="ribbon-hint">{P.selectTraceHint}</span>
-        )}
-      </Group>
+      )}
       <Group title={P.legend}>
-        <div className="ribbon-fields ribbon-fields-inline" aria-disabled={off}>
-          <Field label={P.showInLegend}>
-            <input
-              aria-label={P.showInLegend}
-              type="checkbox"
-              disabled={off}
-              checked={trace?.show_in_legend ?? true}
-              onChange={(event) => {
-                if (index >= 0) onPlotSpec(setTraceLegendVisibility(spec, index, event.target.checked));
-              }}
-            />
+        <div className="ribbon-fields ribbon-fields-inline">
+          <Field label={P.legendPosition}>
+            <select
+              aria-label={P.legendPosition}
+              value={spec.legend_position ?? "top-right"}
+              onChange={(event) => onPlotSpec(setLegendPosition(spec, event.target.value as PlotLegendPosition))}
+            >
+              <option value="top-right">{P.legendTopRight}</option>
+              <option value="top-left">{P.legendTopLeft}</option>
+              <option value="bottom-right">{P.legendBottomRight}</option>
+              <option value="bottom-left">{P.legendBottomLeft}</option>
+            </select>
           </Field>
-          <Field label={P.legendLabel}>
-            <input
-              aria-label={P.legendLabel}
-              type="text"
-              disabled={off}
-              value={legendLabel}
-              onChange={(event) => {
-                if (trace) setLegendLabelDraft({ traceId: trace.id, value: event.target.value });
-              }}
-              onBlur={commitLegendLabel}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  event.currentTarget.blur();
-                }
-              }}
-            />
+          <Field label={P.legendSize}>
+            <select
+              aria-label={P.legendSize}
+              value={String(spec.legend_font_size ?? 12)}
+              onChange={(event) => onPlotSpec(setLegendFontSize(spec, Number(event.target.value)))}
+            >
+              {LEGEND_SIZES_PT.map((pt) => (
+                <option key={pt} value={pt}>{pt} pt</option>
+              ))}
+            </select>
           </Field>
         </div>
       </Group>
@@ -372,110 +516,6 @@ export function PlotTab({ context, onCommand, onPlotSpec, onPlotSelectTrace, wor
           })}
         </div>
       </Group>
-      <Group title={P.traceType}>
-        <div className="ribbon-commands stacked ribbon-trace-type">
-          {command("plotLineTrace", C.lineTrace, "╱", allKinds("lines"))}
-          {command("plotStemTrace", C.stemTrace, "┆", allKinds("stems"))}
-          {command("plotBarTrace", C.barTrace, "▮", allKinds("bars"))}
-          {command("plotStepTrace", C.stepTrace, "⌐", allKinds("steps"))}
-        </div>
-      </Group>
-      <Group title={S.ribbon.groups.traceStyle}>
-        {spec.type !== "contour" && <div className="ribbon-commands stacked ribbon-presentation">
-          {command("plotLines", C.lines, "╱", all("line"))}
-          {command("plotMarkers", C.markers, "⋰", all("markers"))}
-          {command("plotLinesMarkers", C.linesMarkers, "⟋", all("line+markers"))}
-        </div>}
-        <div className="ribbon-fields" aria-disabled={off}>
-          <div className="ribbon-field-row">
-            <span className="ribbon-field-label">Line</span>
-            <select
-              aria-label={P.lineStyle}
-              disabled={off}
-              value={trace?.line?.style ?? "solid"}
-              onChange={(event) => style("line", "style", event.target.value)}
-            >
-              {LINE_STYLES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-            <input
-              aria-label={P.lineWidth}
-              title={P.lineWidth}
-              type="number"
-              min="0.5"
-              max="6"
-              step="0.5"
-              disabled={off}
-              value={trace?.line?.width ?? 1.5}
-              onChange={(event) => style("line", "width", Number(event.target.value))}
-            />
-            <ColorPicker
-              label={P.lineColor}
-              none={P.automaticColor}
-              colors={MATH_COLORS.slice(1).map(({ value, name }) => ({ value, name }))}
-              hideLabel
-              disabled={off}
-              title={P.lineColor}
-              value={trace?.line?.color ?? PALETTE[Math.max(index, 0) % PALETTE.length]}
-              worksheetColors={worksheetColors}
-              onPick={(color) => style("line", "color", color)}
-            />
-          </div>
-          {spec.type !== "contour" && <div className="ribbon-field-row">
-            <span className="ribbon-field-label">Marker</span>
-            <select
-              aria-label={P.markerShape}
-              disabled={off}
-              value={trace?.marker?.shape ?? "circle"}
-              onChange={(event) => style("marker", "shape", event.target.value)}
-            >
-              {MARKER_SHAPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-            <input
-              aria-label={P.markerSize}
-              title={P.markerSize}
-              type="number"
-              min="2"
-              max="20"
-              step="1"
-              disabled={off}
-              value={trace?.marker?.size ?? 5}
-              onChange={(event) => style("marker", "size", Number(event.target.value))}
-            />
-            <ColorPicker
-              label={P.markerColor}
-              none={P.automaticColor}
-              colors={MATH_COLORS.slice(1).map(({ value, name }) => ({ value, name }))}
-              hideLabel
-              disabled={off}
-              title={P.markerColor}
-              value={trace?.marker?.color ?? trace?.line?.color ?? PALETTE[Math.max(index, 0) % PALETTE.length]}
-              worksheetColors={worksheetColors}
-              onPick={(color) => style("marker", "color", color)}
-            />
-          </div>}
-        </div>
-      </Group>
-      {spec.type !== "polar" && (
-      <Group title={S.ribbon.groups.axes} stacked>
-        {command("plotLogX", C.logX, "↔", spec.axes.x.scale === "log10")}
-        {command("plotLogY", C.logY, "↕", spec.axes.y.scale === "log10")}
-        {xy && usesRightAxis(spec) && command("plotLogY2", C.logY2, "⇅", spec.axes.y2?.scale === "log10")}
-        {command("plotAutoScale", C.autoScale, "⤢")}
-        {/* one toggle for the x axis and the left y axis, pressed while both cross. */}
-        {command("plotToggleAxes", C.axesAtOrigin, "┼", spec.axes.x.position === "origin" && spec.axes.y.position === "origin")}
-        {command("plotToggleGrid", C.showGrid, "▦", spec.axes.x.show_grid !== false && spec.axes.y.show_grid !== false)}
-        <Field label={P.gridSpacing}>
-          <select
-            aria-label={P.gridSpacing}
-            value={gridValue}
-            onChange={(event) => onPlotSpec(setGridSpacing(spec, event.target.value === "auto" ? null : Number(event.target.value)))}
-          >
-            <option value="auto">{P.automaticGridSpacing}</option>
-            {GRID_STEPS.map((step) => <option key={step} value={step}>{step}</option>)}
-          </select>
-        </Field>
-      </Group>
-      )}
       <Group title={S.ribbon.groups.region}>
         <ToolButton label={C.deleteRegion} icon={<Icon>✕</Icon>} onClick={() => onCommand("deleteRegions")} />
       </Group>

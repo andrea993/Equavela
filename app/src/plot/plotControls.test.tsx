@@ -15,6 +15,9 @@ afterEach(cleanup);
 const region = (id: string) => document.querySelector<HTMLElement>(`[data-region-id="${id}"]`);
 const plotEl = () => document.querySelector<HTMLElement>('[data-testid^="plot-r"]');
 const tabPanel = () => screen.getByRole("tabpanel", { name: S.ribbon.tabs.plot });
+const tracePanel = () => screen.getByRole("tabpanel", { name: S.ribbon.tabs.trace });
+const openTraceTab = () => fireEvent.click(screen.getByRole("tab", { name: S.ribbon.tabs.trace }));
+const openPlotTab = () => fireEvent.click(screen.getByRole("tab", { name: S.ribbon.tabs.plot }));
 const selectedTab = () => screen.getAllByRole("tab").find((tab) => tab.getAttribute("aria-selected") === "true")?.textContent;
 const removeButton = () => screen.getByRole("button", { name: S.ribbon.commands.removeTrace }) as HTMLButtonElement;
 const traceOptions = () => within(screen.getByRole("listbox", { name: S.plot.traceList })).getAllByRole("option");
@@ -72,6 +75,7 @@ describe("the plot region holds only the plot and its placeholders", () => {
       expect(slot.closest(".plot-slots"), slot.getAttribute("aria-label") ?? "").not.toBeNull();
     }
     // Several traces share the one y column: still no other container.
+    openTraceTab();
     for (let i = 2; i <= 5; i++) {
       fireEvent.click(screen.getByRole("button", { name: S.ribbon.commands.addTrace }));
       await waitFor(() => expect(traceOptions()).toHaveLength(i));
@@ -102,21 +106,52 @@ describe("cursor coordinates in the plot area", () => {
   });
 });
 
-describe("the Plot tab", () => {
-  it("shows the traces, trace, style and axes controls of a selected plot", async () => {
+describe("the Plot and Trace tabs", () => {
+  it("shows general plot controls in Plot and trace controls in Trace", async () => {
     await insertPlot();
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
     const panel = tabPanel();
-    for (const group of [S.ribbon.groups.traces, S.plot.selectedTrace, S.plot.referenceLines, S.ribbon.groups.traceStyle, S.ribbon.groups.axes, S.ribbon.groups.region]) {
+    for (const group of [S.ribbon.groups.plotType, S.ribbon.groups.axes, S.plot.legend, S.plot.referenceLines, S.ribbon.groups.labels, S.ribbon.groups.region]) {
       expect(within(panel).getByRole("group", { name: group }), group).toBeTruthy();
     }
-    expect(within(panel).getByRole("button", { name: S.ribbon.commands.addTrace })).toBeTruthy();
     expect(within(panel).getByRole("combobox", { name: S.plot.gridSpacing })).toBeTruthy();
+    expect(within(panel).getByRole("combobox", { name: S.plot.legendPosition })).toBeTruthy();
+    expect(within(panel).getByRole("combobox", { name: S.plot.legendSize })).toBeTruthy();
+
+    openTraceTab();
+    const traceTab = tracePanel();
+    for (const group of [S.ribbon.groups.traces, S.plot.selectedTrace, S.plot.traceType, S.ribbon.groups.traceStyle, S.plot.legend]) {
+      expect(within(traceTab).getByRole("group", { name: group }), group).toBeTruthy();
+    }
+    expect(within(traceTab).getByRole("button", { name: S.ribbon.commands.addTrace })).toBeTruthy();
     expect(traceOptions()).toHaveLength(1);
     // No trace is selected on a new plot: Remove Trace and the trace controls wait for one.
     expect(removeButton().disabled).toBe(true);
-    expect(within(panel).getByText(S.plot.selectTraceHint)).toBeTruthy();
-    expect(within(panel).getByRole("combobox", { name: S.plot.lineStyle })).toHaveProperty("disabled", true);
+    expect(within(traceTab).getByText(S.plot.selectTraceHint)).toBeTruthy();
+    expect(within(traceTab).getByRole("combobox", { name: S.plot.lineStyle })).toHaveProperty("disabled", true);
+  });
+
+  it("changes legend corner position and font size from the Plot tab, one undo step each", async () => {
+    await insertPlot();
+    await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
+
+    const pos = () => screen.getByRole("combobox", { name: S.plot.legendPosition }) as HTMLSelectElement;
+    const size = () => screen.getByRole("combobox", { name: S.plot.legendSize }) as HTMLSelectElement;
+    expect(pos().value).toBe("top-right");
+    expect(size().value).toBe("12");
+
+    fireEvent.change(pos(), { target: { value: "bottom-left" } });
+    await waitFor(() => expect(pos().value).toBe("bottom-left"));
+
+    fireEvent.change(size(), { target: { value: "18" } });
+    await waitFor(() => expect(size().value).toBe("18"));
+
+    // Undo restores the previous size, then the previous position.
+    fireEvent.click(screen.getByRole("button", { name: S.quickAccess.undo }));
+    await waitFor(() => expect(size().value).toBe("12"));
+    expect(pos().value).toBe("bottom-left");
+    fireEvent.click(screen.getByRole("button", { name: S.quickAccess.undo }));
+    await waitFor(() => expect(pos().value).toBe("top-right"));
   });
 
   it("adds, edits and removes a fixed reference line from the Plot tab", async () => {
@@ -131,6 +166,7 @@ describe("the Plot tab", () => {
   it("selecting a trace on the plot selects it in the list and enables its controls", async () => {
     const plot = await insertPlot();
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
+    openTraceTab();
     await press(ySlots(plot)[0]);
     await waitFor(() => expect(traceOptions()[0].getAttribute("aria-selected")).toBe("true"));
     expect(plot.getAttribute("data-selected-trace")).toBe("trace-1");
@@ -143,6 +179,7 @@ describe("the Plot tab", () => {
   it("picking a trace in the list drives Remove Trace, and removing it is one undo step", async () => {
     const plot = await insertPlot();
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
+    openTraceTab();
     fireEvent.click(screen.getByRole("button", { name: S.ribbon.commands.addTrace }));
     await waitFor(() => expect(traceOptions()).toHaveLength(2));
     // Add Trace selects the new trace.
@@ -150,7 +187,7 @@ describe("the Plot tab", () => {
     fireEvent.click(traceOptions()[0]);
     await waitFor(() => expect(traceOptions()[0].getAttribute("aria-selected")).toBe("true"));
     expect(plot.getAttribute("data-selected-trace")).toBe("trace-1");
-    expect(selectedTab()).toBe(S.ribbon.tabs.plot);
+    expect(selectedTab()).toBe(S.ribbon.tabs.trace);
     expect(removeButton().disabled).toBe(false);
     fireEvent.click(removeButton());
     await waitFor(() => expect(traceOptions()).toHaveLength(1));
@@ -163,6 +200,7 @@ describe("the Plot tab", () => {
   it("edits the style of the selected trace only", async () => {
     const plot = await insertPlot();
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
+    openTraceTab();
     fireEvent.click(screen.getByRole("button", { name: S.ribbon.commands.addTrace }));
     await waitFor(() => expect(traceOptions()).toHaveLength(2));
     fireEvent.click(traceOptions()[0]);
@@ -184,7 +222,8 @@ describe("the Plot tab", () => {
   it("sets the trace type of the selected trace from the Trace type group", async () => {
     const plot = await insertPlot();
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
-    const panel = tabPanel();
+    openTraceTab();
+    const panel = tracePanel();
     const typeButton = (name: string) => within(panel).getByRole("button", { name }) as HTMLButtonElement;
     // A new plot is a line trace.
     expect(within(panel).getByRole("group", { name: S.plot.traceType })).toBeTruthy();
@@ -206,6 +245,7 @@ describe("the Plot tab", () => {
   it("saves per-trace legend visibility and a custom label without changing the other trace", async () => {
     await insertPlot();
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
+    openTraceTab();
     fireEvent.click(screen.getByRole("button", { name: S.ribbon.commands.addTrace }));
     await waitFor(() => expect(traceOptions()).toHaveLength(2));
     const show = () => screen.getByRole("checkbox", { name: S.plot.showInLegend }) as HTMLInputElement;
@@ -260,8 +300,10 @@ describe("the Plot tab", () => {
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
     expect(screen.queryByRole("button", { name: S.ribbon.commands.logY2 })).toBeNull();
     await press(ySlots(plot)[0]);
+    openTraceTab();
     const axis = await screen.findByRole("combobox", { name: S.plot.yAxisSelector });
     fireEvent.change(axis, { target: { value: "right" } });
+    openPlotTab();
     const logY2 = await screen.findByRole("button", { name: S.ribbon.commands.logY2 });
     expect(logY2.getAttribute("aria-pressed")).toBe("false");
     fireEvent.click(logY2);
@@ -277,7 +319,8 @@ describe("the Plot tab", () => {
     const plot = await insertPlot();
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
     await press(ySlots(plot)[0]);
-    const panel = tabPanel();
+    openTraceTab();
+    const panel = tracePanel();
     const field = await waitFor(() => {
       const found = within(panel).getByRole("group", { name: S.plot.yExpression });
       expect(found.querySelector("[data-testid=inline-math]")).not.toBeNull();
@@ -290,7 +333,7 @@ describe("the Plot tab", () => {
     await act(async () => void fireEvent.keyDown(math, { key: "Escape", code: "Escape" }));
     await waitFor(() => expect(ySlots(plot)[0].textContent).toContain("3"));
     // The plot is still the selection: the tab did not go away while the field was used.
-    expect(selectedTab()).toBe(S.ribbon.tabs.plot);
+    expect(selectedTab()).toBe(S.ribbon.tabs.trace);
   });
 });
 
@@ -351,6 +394,7 @@ describe("hiding the controls", () => {
     await waitFor(() => expect(selectedTab()).toBe(S.ribbon.tabs.plot));
     expect(plot.getAttribute("data-editing")).toBe("true");
     expect(plot.getAttribute("data-selected-trace")).toBe("");
+    openTraceTab();
     expect(removeButton().disabled).toBe(true);
   });
 });

@@ -182,8 +182,8 @@ fn recover_with(root: &Path, recycle: &impl Recycle) -> Result<(), String> {
     for entry in &journal.paths {
         equavela_core::project_manifest::validate_portable_path("trash path", entry)
             .map_err(|e| e.to_string())?;
-        if entry.split('/').any(|part| part.starts_with('.')) {
-            return Err("hidden path in trash journal".into());
+        if equavela_core::project_tree::internal_path(entry) {
+            return Err("internal path in trash journal".into());
         }
     }
     if !journal.committed {

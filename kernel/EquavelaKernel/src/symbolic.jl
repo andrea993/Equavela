@@ -9,6 +9,8 @@
 
 include_dependency(joinpath(@__DIR__, "symbolic_bridge.jl"))
 const BRIDGE_SOURCE = read(joinpath(@__DIR__, "symbolic_bridge.jl"), String)
+const ALGEBRAIC_SUBSTITUTION_SOURCE = read(joinpath(@__DIR__, "algebraic_substitution.py"), String)
+include_dependency(joinpath(@__DIR__, "algebraic_substitution.py"))
 
 const SYMBOLIC_LOCK = ReentrantLock()
 const SYMBOLIC_STATUS = Dict{String,Any}(

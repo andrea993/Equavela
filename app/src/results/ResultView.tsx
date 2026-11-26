@@ -477,10 +477,6 @@ function MatrixResult({
   useEffect(() => {
     if (windowForm) need(cellWindow);
   }, [windowForm, need, cellWindow]);
-  useLayoutEffect(() => {
-    showRest(scroller.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [still, value, rows, cols, boxWidth, boxHeight, cellWindow, tracks]);
   // The cells of a classic matrix depend on the value and the format only: a new selection, a drag of
   // the region or the box coming to rest renders the region again but reuses them.
   const classicGrid = useMemo(
@@ -553,6 +549,19 @@ function MatrixResult({
     TRACKS.get(value)?.set(trackKey, next);
     setMeasured(next);
   }, [tracks, windowForm, value, trackKey, windowGrid]);
+  useLayoutEffect(() => {
+    showRest(scroller.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [still, value, rows, cols, boxWidth, boxHeight, cellWindow, tracks, classicGrid, windowGrid]);
+  // Re-measure when the box settles after late layout or font loading.
+  useEffect(() => {
+    const element = scroller.current;
+    if (!still || !element || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(() => showRest(element));
+    observer.observe(element);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [still, value, rows, cols]);
   // the indices around the matrix, placed over the tracks of its grid as it is drawn now.
   const host = useRef<HTMLSpanElement>(null);
   const [indexLayout, setIndexLayout] = useState<IndexLayout | null>(null);
@@ -561,7 +570,7 @@ function MatrixResult({
     const next = measureIndices(host.current, boxed ? scroller.current : null, tracks, rows, cols);
     setIndexLayout((current) => (sameIndexLayout(current, next) ? current : next));
   };
-  useLayoutEffect(placeIndices);
+  useLayoutEffect(placeIndices, [format.showIndices, format.origin, boxed, tracks, rows, cols, cellWindow, value]);
   // The scroll bars of a clipped matrix stand outside its brackets: the box
   // between the brackets scrolls without bars of its own, and two bars beside it, right of the closing
   // bracket and under the box, scroll it. `extent` is what they need: the scrolled size and the view.
@@ -575,7 +584,7 @@ function MatrixResult({
     setExtent((current) =>
       current && current.w === next.w && current.h === next.h && current.cw === next.cw && current.ch === next.ch ? current : next,
     );
-  });
+  }, [boxed, rows, cols, tracks, cellWindow, value, windowGrid, classicGrid]);
   const syncBars = (element: HTMLElement) => {
     if (barX.current && barX.current.scrollLeft !== element.scrollLeft) barX.current.scrollLeft = element.scrollLeft;
     if (barY.current && barY.current.scrollTop !== element.scrollTop) barY.current.scrollTop = element.scrollTop;
@@ -583,7 +592,7 @@ function MatrixResult({
   // A bar shown again starts where the box is.
   useLayoutEffect(() => {
     if (scroller.current) syncBars(scroller.current);
-  });
+  }, [boxed, extent, cellWindow, value]);
   const classic = windowGrid ?? classicGrid;
   const unitLabel = unit?.text && (
     <>

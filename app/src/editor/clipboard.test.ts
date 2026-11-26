@@ -3,7 +3,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { ctrl, named, typed } from "../keymap/testKeys";
 import { mockParse, mockParseArgs, mockPrint, mockPrintArgs } from "../mock/mockMath";
-import { regionsSnippet } from "../page/regionsClipboard";
+import { regionsSnippet, withDisplayedLayout } from "../page/regionsClipboard";
+import { withMembers } from "../layout/areas";
+import type { PageSetup } from "../equavelaApi";
 import type { ViewRegion } from "../equavelaApi";
 import { handleKey } from "./controller";
 import { copyMath, cutSelection, pasteMath, type MathIO } from "./clipboard";
@@ -378,6 +380,43 @@ describe("regions on the clipboard", () => {
         "",
       ].join("\n"),
     );
+  });
+
+  it("keeps displayed (reflowed) coordinates while preserving expanded and collapsed area membership", () => {
+    const setup: PageSetup = {
+      size: "A4",
+      width: 595,
+      height: 842,
+      margins: { top: 54, right: 54, bottom: 54, left: 54 },
+      header: { left: "", center: "", right: "" },
+      footer: { left: "", center: "", right: "" },
+    };
+    // Two regions whose displayed positions were pushed down by reflow.
+    const r1 = { id: "r1", page: 1, x: 54, y: 100, enabled: true, kind: "math", text: "a := 1", statement: {} } as ViewRegion;
+    const r2 = { id: "r2", page: 1, x: 54, y: 120, enabled: true, kind: "math", text: "b := 2", statement: {} } as ViewRegion;
+    const expandedArea = { id: "a1", page: 1, x: 54, y: 200, enabled: true, kind: "area", title: "Open", height: 60, collapsed: false } as ViewRegion;
+    const expandedMember = { id: "m1", page: 1, x: 72, y: 240, enabled: true, kind: "math", text: "c := 3", statement: {} } as ViewRegion;
+    const collapsedArea = { id: "a2", page: 1, x: 54, y: 300, enabled: true, kind: "area", title: "Closed", height: 80, collapsed: true } as ViewRegion;
+    const hiddenMember = { id: "m2", page: 1, x: 72, y: 340, enabled: true, kind: "math", text: "d := 4", statement: {} } as ViewRegion;
+
+    const layout = [
+      { id: "r1", page: 1, x: 54, y: 100, w: 60, h: 90 },
+      { id: "r2", page: 1, x: 54, y: 205, w: 60, h: 20 },
+      { id: "a1", page: 1, x: 54, y: 260, w: 400, h: 60 },
+      // Reflow pushed expandedMember 80pt below a1's top (past its stored height of 60).
+      { id: "m1", page: 1, x: 72, y: 340, w: 60, h: 20 },
+      // Collapsed area shifted down by 90pt; hiddenMember is absent from layout.
+      { id: "a2", page: 1, x: 54, y: 390, w: 400, h: 21 },
+    ];
+
+    const adjusted = withDisplayedLayout([r1, r2, expandedArea, expandedMember, collapsedArea, hiddenMember], layout, setup);
+    const byId = new Map(adjusted.map((r) => [r.id, r]));
+    expect(byId.get("r2")?.y).toBe(205);
+    // Expanded area grew to keep m1 inside it.
+    expect(withMembers(adjusted, ["a1"], setup)).toEqual(expect.arrayContaining(["a1", "m1"]));
+    // Collapsed area shifted hiddenMember by the same +90pt so m2 remains its member.
+    expect(byId.get("m2")?.y).toBe(430);
+    expect(withMembers(adjusted, ["a2"], setup)).toEqual(expect.arrayContaining(["a2", "m2"]));
   });
 });
 
